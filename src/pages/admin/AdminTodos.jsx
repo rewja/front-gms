@@ -99,6 +99,22 @@ const AdminTodos = () => {
   const [modalUserSearch, setModalUserSearch] = useState("");
   const [assignAllInCategory, setAssignAllInCategory] = useState(false);
 
+  // Helpers to display translated category labels instead of raw keys
+  const formatTargetCategory = (category) => {
+    switch (category) {
+      case "ob":
+        return t("todos.officeBoy", { defaultValue: "Office Boy" });
+      case "driver":
+        return t("todos.driverEquipment", { defaultValue: "Driver" });
+      case "security":
+        return t("todos.securityEquipment", { defaultValue: "Security" });
+      case "all":
+        return t("common.allCategories", { defaultValue: "All Categories" });
+      default:
+        return category || t("common.unknown", { defaultValue: "Unknown" });
+    }
+  };
+
   const _formatRecurrence = (t) => {
     const interval = t?.recurrence_interval || 1;
     const unitRaw = t?.recurrence_unit || "day";
@@ -2103,7 +2119,7 @@ const AdminTodos = () => {
                       </p>
                       <p className="text-gray-600">
                         <strong>{t("todos.targetCategory")}:</strong>{" "}
-                        {selectedTodo.target_category || "All"}
+                        {formatTargetCategory(selectedTodo.target_category)}
                       </p>
                     </div>
                     <div>
@@ -3607,7 +3623,7 @@ const AdminTodos = () => {
                 )}
                 <div>
                   <span className="text-gray-500">{t("todos.targetAssignment")}:</span>{" "}
-                  {createSummary.target_category}
+                  {formatTargetCategory(createSummary.target_category)}
                   {createSummary.selected_users
                     ? ` (${createSummary.selected_users} selected)`
                     : ""}
@@ -3737,7 +3753,7 @@ const AdminTodos = () => {
                 )}
                 <div>
                   <span className="text-gray-500">{t("todos.targetAssignment")}:</span>{" "}
-                  {routineDetail.target_category}
+                  {formatTargetCategory(routineDetail.target_category)}
                 </div>
                 <div>
                   <span className="text-gray-500">{t("todos.start")}:</span>{" "}

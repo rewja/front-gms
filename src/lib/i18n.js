@@ -96,6 +96,7 @@ const resources = {
         thisMonth: "This month",
         totalAmount: "Total amount",
         viewDetails: "View Details",
+        confirmDetails: "Confirm Details",
         editTodo: "Edit Todo",
         deleteTodo: "Delete Todo",
         editAsset: "Edit Asset",
@@ -497,6 +498,16 @@ const resources = {
         users: "users",
         estimatedTasks: "estimated tasks",
         nextOccurrences: "Next Occurrences",
+        // Added to support AdminTodos create form and filters
+        officeBoy: "Office Boy",
+        driverEquipment: "Driver",
+        securityEquipment: "Security",
+        today: "Today",
+        thisWeek: "This Week",
+        thisMonth: "This Month",
+        thisYear: "This Year",
+        yesterday: "Yesterday",
+        status: "Status",
       },
       meetings: {
         title: "Meeting Management",
@@ -1001,6 +1012,15 @@ const resources = {
         actualStartTime: "Waktu Mulai Aktual",
         actualEndTime: "Waktu Selesai Aktual",
         actualDuration: "Durasi Aktual",
+        // Added to ensure categories and filters are translated in forms
+        officeBoy: "Office Boy",
+        driverEquipment: "Driver",
+        securityEquipment: "Security",
+        today: "Hari Ini",
+        thisWeek: "Minggu Ini",
+        thisMonth: "Bulan Ini",
+        thisYear: "Tahun Ini",
+        yesterday: "Kemarin",
       },
       nav: {
         dashboard: "Dasbor",
@@ -1855,6 +1875,7 @@ const resources = {
         cameraAccessDenied: "Akses kamera ditolak atau tidak tersedia.",
         todoDeletedSuccess: "Tugas berhasil dihapus!",
         failedDeleteTodo: "Gagal menghapus tugas",
+        confirmDetails: "Konfirmasi Detail",
       },
       maintenance: {
         dropdown: "Pemeliharaan",
