@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   base: "/",
   server: {
-    host: "localhost", // Use localhost instead of specific IP
+    host: "localhost", // TODO: review this merge decision — friend used "0.0.0.0" for LAN access
     port: 5173,
     proxy: {
       "/api": {

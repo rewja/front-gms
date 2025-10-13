@@ -135,6 +135,7 @@ const Layout = ({ children }) => {
           href: "/admin/asset-management",
           icon: Building,
         },
+        { name: t("nav.meetingManagement"), href: "/admin/meetings", icon: Clock },
         { name: t("nav.activityLogs"), href: "/admin/activity-logs", icon: History },
         // { name: t("nav.visitors"), href: "/admin/visitors", icon: User }, // Hidden during development
       ];
@@ -148,7 +149,11 @@ const Layout = ({ children }) => {
           href: "/procurement",
           icon: ShoppingCart,
         },
-        // backup routes kept but not shown in nav
+        {
+          name: t("nav.assetManagement"),
+          href: "/admin/asset-management",
+          icon: Building,
+        },
       ];
     }
 

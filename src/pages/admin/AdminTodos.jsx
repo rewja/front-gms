@@ -23,10 +23,12 @@ import {
   Edit,
   Trash2,
   Plus,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import SimpleChart from "../../components/SimpleChart";
 import SkeletonLoader from "../../components/SkeletonLoader";
+import TodoExportModal from "../../components/TodoExportModal";
 
 const AdminTodos = () => {
   const { t } = useTranslation();
@@ -92,8 +94,12 @@ const AdminTodos = () => {
     useState("");
   const [showCreateConfirm, setShowCreateConfirm] = useState(false);
   const [createSummary, setCreateSummary] = useState(null);
+  const [isCreating, setIsCreating] = useState(false); // prevent double submit
   const [showRoutineDetail, setShowRoutineDetail] = useState(false);
   const [routineDetail, setRoutineDetail] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Modal specific states for user selection
   const [modalUserSearch, setModalUserSearch] = useState("");
@@ -1014,13 +1020,24 @@ const AdminTodos = () => {
           </h1>
           <p className="text-gray-600">{t("todos.subtitle")}</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary w-full sm:w-auto flex items-center justify-center"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t("todos.createNew")}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="btn-secondary w-full sm:w-auto flex items-center justify-center"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t("todos.exportTodos", { defaultValue: "Export Todos" })}
+          </button>
+          {/* Create New Todo Button */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary w-full sm:w-auto flex items-center justify-center"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("todos.createNew")}
+          </button>
+        </div>
       </div>
 
       {/* Tabs: All / Rutin / Tambahan (match Asset Management style) */}
@@ -3678,6 +3695,8 @@ const AdminTodos = () => {
                 <button
                   type="button"
                   onClick={async () => {
+                    if (isCreating) return; // guard against double clicks
+                    setIsCreating(true);
                     try {
                       if (editingTodo) {
                         await api.patch(`/todos/${editingTodo.id}`, formData);
@@ -3703,12 +3722,28 @@ const AdminTodos = () => {
                             dateStr,
                             payload.target_end_at
                           );
+                          // Normalize empties to null for backend validator compatibility
+                          // TODO: review this merge decision — ensure empty strings are not sent for date fields
+                          if (!payload.target_start_at) payload.target_start_at = null;
+                          if (!payload.target_end_at) payload.target_end_at = null;
+                          if (!payload.scheduled_date) payload.scheduled_date = null;
                           delete payload.recurrence_start_date;
                           delete payload.recurrence_interval;
                           delete payload.recurrence_unit;
                           delete payload.recurrence_count;
                           delete payload.days_of_week;
+                        } else {
+                          // Routine: avoid sending stray time-only values
+                          if (payload.target_start_at && payload.target_start_at.length <= 5) {
+                            payload.target_start_at = null;
+                          }
+                          if (payload.target_end_at && payload.target_end_at.length <= 5) {
+                            payload.target_end_at = null;
+                          }
+                          if (!payload.recurrence_start_date) payload.recurrence_start_date = null;
                         }
+                        // Common: convert empty string dates to null
+                        if (!payload.due_date) payload.due_date = null;
                         await api.post("/todos", payload);
                       }
                       const res = await api.get("/todos/all");
@@ -3718,9 +3753,12 @@ const AdminTodos = () => {
                       setEditingTodo(null);
                     } catch (e) {
                       alert(e?.response?.data?.message || "Failed to save");
+                    } finally {
+                      setIsCreating(false);
                     }
                   }}
-                  className="btn-primary px-6 py-3 text-sm font-medium"
+                  className="btn-primary px-6 py-3 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isCreating}
                 >
                    {t("todos.create")}
                 </button>
@@ -3787,6 +3825,17 @@ const AdminTodos = () => {
         </div>
         </ModalPortal>
       )}
+
+      {/* Todo Export Modal */}
+      <TodoExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        todos={todos}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+        selectedTodos={[]}
+        user={user}
+      />
     </div>
   );
 };

@@ -253,7 +253,18 @@ function App() {
             />
 
                   {/* Procurement routes */}
-                  {/* Procurement section removed in new role model */}
+                  <Route
+                    path="/procurement"
+                    element={
+                      <ProtectedRoute>
+                        <RoleRoute allowedRoles={["procurement", "admin_ga", "admin_ga_manager", "super_admin"]}>
+                          <Layout>
+                            <ProcurementAssetManagement />
+                          </Layout>
+                        </RoleRoute>
+                      </ProtectedRoute>
+                    }
+                  />
 
                   {/* Catch all route */}
                   <Route path="*" element={<Navigate to="/dashboard" />} />

@@ -14,8 +14,10 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  Download,
 } from "lucide-react";
 import SkeletonLoader from "../../components/SkeletonLoader";
+import UserExportModal from "../../components/UserExportModal";
 
 const AdminUsers = () => {
   const { t } = useTranslation();
@@ -38,11 +40,15 @@ const AdminUsers = () => {
   });
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const getRoleColor = (role, category) => {
     if (role === "super_admin") return "bg-red-200 text-red-900";
     if (role === "admin_ga_manager") return "bg-orange-100 text-orange-800";
     if (role === "admin_ga") return "bg-yellow-100 text-yellow-800";
+    if (role === "procurement") return "bg-blue-100 text-blue-800";
     if (role === "user") {
       if (category === "driver") return "bg-blue-100 text-blue-800";
       if (category === "security") return "bg-purple-100 text-purple-800";
@@ -57,6 +63,7 @@ const AdminUsers = () => {
     if (role === "super_admin") return <Shield className="h-4 w-4 text-red-800" />;
     if (role === "admin_ga_manager") return <Shield className="h-4 w-4 text-orange-600" />;
     if (role === "admin_ga") return <Shield className="h-4 w-4 text-yellow-600" />;
+    if (role === "procurement") return <Building className="h-4 w-4 text-blue-600" />;
     if (role === "user") {
       if (category === "driver")
         return <Building className="h-4 w-4 text-blue-600" />;
@@ -77,6 +84,8 @@ const AdminUsers = () => {
         return "bg-orange-100";
       case "admin_ga":
         return "bg-yellow-100";
+      case "procurement":
+        return "bg-blue-100";
       case "user":
         return "bg-green-100";
       default:
@@ -88,6 +97,7 @@ const AdminUsers = () => {
     if (role === "super_admin") return "Super Admin";
     if (role === "admin_ga_manager") return "GA Manager";
     if (role === "admin_ga") return "Admin GA";
+    if (role === "procurement") return "Procurement";
     if (role === "user") {
       if (category === "driver") return "Driver";
       if (category === "security") return "Security";
@@ -102,6 +112,7 @@ const AdminUsers = () => {
     if (role === "super_admin") return "Super Admin";
     if (role === "admin_ga_manager") return "GA Manager";
     if (role === "admin_ga") return "Admin GA";
+    if (role === "procurement") return "Procurement";
     // For normal users, show: "Employee - OB/Driver/Security/Magang-PKL" (or trailing hyphen if not set yet)
     const cat = getCategoryDisplayName(category);
     return cat ? `Employee - ${cat}` : "Employee";
@@ -273,28 +284,39 @@ const AdminUsers = () => {
             {t("users.subtitle")}
           </p>
         </div>
-        <button
-          onClick={() => {
-            // Reset all states first
-            setEditingUser(null);
-            setShowPassword(false);
-            setShowRoleDropdown(false);
-            setFormData({
-              name: "",
-              email: "",
-              password: "",
-              role: "user",
-              department: "",
-              position: "",
-            });
-            // Then open modal
-            setShowModal(true);
-          }}
-          className="btn-primary w-full sm:w-auto"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t("users.addNewUser")}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="btn-secondary w-full sm:w-auto flex items-center justify-center"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t("users.exportUsers", { defaultValue: "Export Users" })}
+          </button>
+          {/* Add New User Button */}
+          <button
+            onClick={() => {
+              // Reset all states first
+              setEditingUser(null);
+              setShowPassword(false);
+              setShowRoleDropdown(false);
+              setFormData({
+                name: "",
+                email: "",
+                password: "",
+                role: "user",
+                department: "",
+                position: "",
+              });
+              // Then open modal
+              setShowModal(true);
+            }}
+            className="btn-primary w-full sm:w-auto"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t("users.addNewUser")}
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -411,6 +433,34 @@ const AdminUsers = () => {
                       </dt>
                       <dd className="text-base sm:text-lg font-medium text-gray-900">
                         {users.filter((u) => u.role === "admin_ga_manager").length}
+                      </dd>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              className={`bg-white overflow-hidden shadow rounded-lg cursor-pointer transition-all duration-300 ease-in-out hover:shadow-lg hover:scale-105 ${
+                highlightedRole === "procurement" ? "ring-2 ring-blue-500" : ""
+              }`}
+              onClick={() => {
+                setRoleFilter("procurement");
+                setHighlightedRole("procurement");
+              }}
+            >
+              <div className="p-3 sm:p-4 lg:p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Building className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                  </div>
+                  <div className="ml-3 sm:ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
+                        Procurement
+                      </dt>
+                      <dd className="text-base sm:text-lg font-medium text-gray-900">
+                        {users.filter((u) => u.role === "procurement").length}
                       </dd>
                     </dl>
                   </div>
@@ -602,6 +652,7 @@ const AdminUsers = () => {
                             {formData.role === "user" && t("users.employee")}
                             {formData.role === "admin_ga" && "Admin GA"}
                             {formData.role === "admin_ga_manager" && "GA Manager"}
+                            {formData.role === "procurement" && "Procurement"}
                           </button>
                           <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <ChevronDown className="h-4 w-4 text-gray-500 transition-colors duration-300 ease-in-out" />
@@ -664,6 +715,24 @@ const AdminUsers = () => {
                                   }`}
                                 >
                                   GA Manager
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({
+                                      ...formData,
+                                      role: "procurement",
+                                      category: "",
+                                    });
+                                    setShowRoleDropdown(false);
+                                  }}
+                                  className={`w-full px-4 py-2 text-left text-sm hover:bg-blue-50 transition-colors duration-200 ${
+                                    formData.role === "procurement"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "text-gray-700"
+                                  }`}
+                                >
+                                  Procurement
                                 </button>
                               </div>
                             </div>
@@ -815,6 +884,17 @@ const AdminUsers = () => {
           </div>,
           document.body
         )}
+
+        {/* User Export Modal */}
+        <UserExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          users={users}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          selectedUsers={[]}
+          user={null}
+        />
     </div>
   );
 };

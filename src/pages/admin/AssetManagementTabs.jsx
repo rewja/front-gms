@@ -31,9 +31,12 @@ import {
   Save,
   ShoppingCart,
   PlusCircle,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import SkeletonLoader from "../../components/SkeletonLoader";
+import Pagination from "../../components/Pagination"; // TODO: review this merge decision — added from friend's project
+import AssetExportModal from "../../components/AssetExportModal"; // TODO: review this merge decision — added from friend's project
 import { createPortal } from "react-dom";
 import MaintenanceActionMenu from "../../components/MaintenanceActionMenu";
 
@@ -60,6 +63,10 @@ const AssetManagementTabs = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showProcActionModal, setShowProcActionModal] = useState(false);
+  // Export & selection (merged)
+  const [showExportModal, setShowExportModal] = useState(false); // TODO: review this merge decision — added from friend's project
+  const [selectedAssets, setSelectedAssets] = useState([]); // TODO: review this merge decision — added from friend's project
+  const [selectionMode, setSelectionMode] = useState(false); // TODO: review this merge decision — added from friend's project
   const [procAsset, setProcAsset] = useState(null);
   const [openActionForId, setOpenActionForId] = useState(null);
   const [actionMenuDirection, setActionMenuDirection] = useState("down");
@@ -93,6 +100,10 @@ const AssetManagementTabs = () => {
     quantity: 1,
     notes: "",
   });
+
+  // Pagination states (merged)
+  const [currentPage, setCurrentPage] = useState(1); // TODO: review this merge decision — added from friend's project
+  const [itemsPerPage, setItemsPerPage] = useState(10); // TODO: review this merge decision — added from friend's project
 
   const handleMaintenanceUpdate = (updatedAsset) => {
     setAssets((prev) =>
@@ -659,15 +670,28 @@ const AssetManagementTabs = () => {
             {t("assets.subtitle")}
           </p>
         </div>
-        {user?.role === "admin_ga" && (
-          <button
-            onClick={handleCreate}
-            className="btn-primary w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("assets.addNewAsset", { defaultValue: "Add New Asset" })}
-          </button>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* Export Button */}
+          {(user?.role === "admin_ga" || user?.role === "admin_ga_manager" || user?.role === "super_admin" || user?.role === "procurement") && (
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="btn-secondary w-full sm:w-auto flex items-center justify-center"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {t("assets.exportAssets", { defaultValue: "Export Assets" })}
+            </button>
+          )}
+          {/* Add New Asset Button */}
+          {user?.role === "admin_ga" && (
+            <button
+              onClick={handleCreate}
+              className="btn-primary w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t("assets.addNewAsset", { defaultValue: "Add New Asset" })}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -2431,6 +2455,32 @@ const AssetManagementTabs = () => {
           </div>,
           document.body
         )}
+
+        {/* Pagination (merged) */}
+        <div className="mt-4">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={assets.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={(p) => setCurrentPage(p)}
+            onItemsPerPageChange={(n) => {
+              setItemsPerPage(n);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+
+        {/* Asset Export Modal (merged) */}
+        <AssetExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          assets={assets}
+          currentPage={currentPage}
+          itemsPerPage={itemsPerPage}
+          selectedAssets={selectedAssets}
+          activeTab={activeTab}
+          user={user}
+        />
     </div>
   );
 };

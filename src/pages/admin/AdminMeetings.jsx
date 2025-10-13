@@ -35,6 +35,7 @@ const AdminMeetings = () => {
   const { formatStatusLabel } = useTranslatedLabels();
   const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,6 +45,7 @@ const AdminMeetings = () => {
   const [roomPreselected, setRoomPreselected] = useState("all");
   const roomDropdownRef = useRef(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [bookingTypeFilter, setBookingTypeFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -169,10 +171,13 @@ const AdminMeetings = () => {
       (statusFilter === "ongoing" && meeting.status === "ongoing") ||
       (statusFilter === "ended" && meeting.status === "ended") ||
       (statusFilter === "canceled" && meeting.status === "canceled");
+    const matchesBookingType =
+      bookingTypeFilter === "all" ||
+      meeting.booking_type === bookingTypeFilter;
     const matchesDate =
       !dateFilter ||
       new Date(meeting.start_time).toISOString().split("T")[0] === dateFilter;
-    return matchesSearch && matchesRoom && matchesStatus && matchesDate;
+    return matchesSearch && matchesRoom && matchesStatus && matchesBookingType && matchesDate;
   });
 
   // Filter meetings by date for stats
@@ -268,13 +273,15 @@ const AdminMeetings = () => {
       setLoading(true);
       setError("");
       try {
-        const [meetingsRes, usersRes] = await Promise.all([
-          api.get("/meetings"),
+        const [meetingsRes, usersRes, roomsRes] = await Promise.all([
+          api.get("/meeting-room/bookings"), // Get all bookings (internal + public)
           api.get("/users"),
+          api.get("/meeting-room/rooms"),
         ]);
         if (!cancelled) {
           setMeetings(meetingsRes.data || []);
           setUsers(usersRes.data || []);
+          setRooms(roomsRes.data || []);
         }
       } catch (e) {
         if (!cancelled)
@@ -293,10 +300,10 @@ const AdminMeetings = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-          {t("meetings.title")}
+          Meeting Management
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          {t("meetings.subtitle")}
+          Manage all meetings - internal and public bookings
         </p>
       </div>
 
@@ -594,7 +601,7 @@ const AdminMeetings = () => {
 
       {/* Filters */}
       <div className="card p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-gray-400" />
@@ -712,6 +719,17 @@ const AdminMeetings = () => {
                   ))}
               </div>
             )}
+          </div>
+          <div className="relative">
+            <select
+              value={bookingTypeFilter}
+              onChange={(e) => setBookingTypeFilter(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            >
+              <option value="all">All Types</option>
+              <option value="internal">Internal</option>
+              <option value="public">Public</option>
+            </select>
           </div>
           <div className="relative">
             <input
