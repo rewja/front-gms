@@ -1,34 +1,25 @@
-import { useEffect, useState, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { api } from "../../lib/api";
-import { useTranslatedLabels } from "../../hooks/useTranslatedLabels";
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { api } from '../../lib/api';
+import { useTranslatedLabels } from '../../hooks/useTranslatedLabels';
 import {
   Calendar,
   Clock,
   CheckCircle,
   AlertCircle,
   Search,
-  Users,
-  User,
   Power,
   Eye,
-  X,
-  ChevronDown,
-  Check,
-} from "lucide-react";
-import { format } from "date-fns";
-import SkeletonLoader from "../../components/SkeletonLoader";
+  Building,
+  Filter,
+  RefreshCw,
+} from 'lucide-react';
+import { format } from 'date-fns';
+import SkeletonLoader from '../../components/SkeletonLoader';
  
 import {
-  FormModal,
   DetailModal,
-  FormField,
-  FormInput,
-  FormSelect,
-  FormTextarea,
-  DetailField,
-  DetailGrid,
-} from "../../components/Modal";
+} from '../../components/Modal';
 
 const AdminMeetings = () => {
   const { t } = useTranslation();
@@ -37,108 +28,75 @@ const AdminMeetings = () => {
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roomFilter, setRoomFilter] = useState("all");
-  const [showRoomDropdown, setShowRoomDropdown] = useState(false);
-  const [roomSearchTerm, setRoomSearchTerm] = useState("");
-  const [roomPreselected, setRoomPreselected] = useState("all");
-  const roomDropdownRef = useRef(null);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [bookingTypeFilter, setBookingTypeFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roomFilter, setRoomFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
 
-  // Auto-scroll to pre-selected option
-  useEffect(() => {
-    if (showRoomDropdown && roomDropdownRef.current) {
-      const selectedElement = roomDropdownRef.current.querySelector(
-        `[data-value="${roomPreselected}"]`
-      );
-      if (selectedElement) {
-        selectedElement.scrollIntoView({
-          block: "nearest",
-          behavior: "smooth",
-        });
-      }
-    }
-  }, [roomPreselected, showRoomDropdown]);
-
   const formatDateTime = (value) => {
     try {
       const d = new Date(value);
-      if (isNaN(d.getTime())) return String(value || "");
-      return format(d, "MMM dd, yyyy HH:mm");
+      if (isNaN(d.getTime())) return String(value || '');
+      return format(d, 'MMM dd, yyyy HH:mm');
     } catch {
-      return String(value || "");
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "scheduled":
-        return <Calendar className="h-4 w-4 text-blue-500" />;
-      case "ongoing":
-        return <Clock className="h-4 w-4 text-green-500" />;
-      case "ending":
-        return <CheckCircle className="h-4 w-4 text-orange-500" />;
-      case "ended":
-        return <CheckCircle className="h-4 w-4 text-gray-500" />;
-      case "canceled":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Calendar className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "scheduled":
-        return "bg-blue-100 text-blue-800";
-      case "ongoing":
-        return "bg-green-100 text-green-800";
-      case "ending":
-        return "bg-orange-100 text-orange-800";
-      case "ended":
-        return "bg-gray-100 text-gray-800";
-      case "canceled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      return String(value || '');
     }
   };
 
   const formatDateOnly = (value) => {
     try {
       const d = new Date(value);
-      if (isNaN(d.getTime())) return String(value || "");
-      return format(d, "yyyy-MM-dd");
+      if (isNaN(d.getTime())) return String(value || '');
+      return format(d, 'yyyy-MM-dd');
     } catch {
-      return String(value || "");
+      return String(value || '');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'scheduled':
+        return 'bg-blue-100 text-blue-800';
+      case 'ongoing':
+        return 'bg-green-100 text-green-800';
+      case 'ended':
+        return 'bg-gray-100 text-gray-800';
+      case 'canceled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'scheduled':
+        return 'Terjadwal';
+      case 'ongoing':
+        return 'Berlangsung';
+      case 'ended':
+        return 'Selesai';
+      case 'canceled':
+        return 'Dibatalkan';
+      default:
+        return status;
     }
   };
 
   const deriveCluster = (roomName) => {
-    if (!roomName) return "N/A";
+    if (!roomName) return 'N/A';
     const s = roomName.toLowerCase();
-    if (s.includes("(08)") || s.includes(" 08")) return "08";
-    if (s.includes("689")) return "689";
-    if (s.includes(" 04") || s.includes("(04)")) return "04";
-    if (s.includes("command centre") || s.includes("kantin vip") || s.includes("meeting 1") || s.includes("meeting 2")) return "08";
-    return "-";
-  };
-
-  const formatRoomLabel = (room) => {
-    switch (room) {
-      case "all":
-        return t("common.allRooms");
-      default:
-        return room || t("common.unknown");
-    }
+    if (s.includes('(08)') || s.includes(' 08')) return '08';
+    if (s.includes('689')) return '689';
+    if (s.includes(' 04') || s.includes('(04)')) return '04';
+    if (s.includes('command centre') || s.includes('kantin vip') || s.includes('meeting 1') || s.includes('meeting 2')) return '08';
+    return '-';
   };
 
   const getUserName = (userId, user) => {
@@ -150,18 +108,13 @@ const AdminMeetings = () => {
   };
 
   const handleForceEnd = async (id) => {
-    if (!window.confirm("Are you sure you want to force end this meeting?"))
+    if (!window.confirm('Are you sure you want to force end this meeting?'))
       return;
     try {
       await api.patch(`/meetings/${id}/force-end`);
-      const [meetingsRes, usersRes] = await Promise.all([
-        api.get("/meetings"),
-        api.get("/users"),
-      ]);
-      setMeetings(meetingsRes.data || []);
-      setUsers(usersRes.data || []);
+      await loadData();
     } catch (e) {
-      alert(e?.response?.data?.message || t("common.failedToForceEnd"));
+      alert(e?.response?.data?.message || t('common.failedToForceEnd'));
     }
   };
 
@@ -170,257 +123,100 @@ const AdminMeetings = () => {
     setShowDetailModal(true);
   };
 
+  const loadData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [meetingsRes, usersRes, roomsRes] = await Promise.all([
+        api.get('/meeting-room/bookings'),
+        api.get('/users'),
+        api.get('/meeting-room/rooms'),
+      ]);
+      setMeetings(meetingsRes.data || []);
+      setUsers(usersRes.data || []);
+      setRooms(roomsRes.data || []);
+    } catch (e) {
+      setError(e?.response?.data?.message || t('errors.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const normalizePriority = (value) => {
+    const v = (value || '').toString().trim().toLowerCase();
+    if (v === 'reguler' || v === 'regular') return 'regular';
+    if (v === 'vip') return 'vip';
+    return v;
+  };
+
   const filteredMeetings = meetings.filter((meeting) => {
     const matchesSearch =
-      meeting.agenda.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      meeting.room_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meeting.agenda?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meeting.room_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getUserName(meeting.user_id, meeting.user)
         .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    const matchesRoom =
-      roomFilter === "all" || meeting.room_name === roomFilter;
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "scheduled" && meeting.status === "scheduled") ||
-      (statusFilter === "ongoing" && meeting.status === "ongoing") ||
-      (statusFilter === "ended" && meeting.status === "ended") ||
-      (statusFilter === "canceled" && meeting.status === "canceled");
-    const matchesBookingType =
-      bookingTypeFilter === "all" ||
-      meeting.booking_type === bookingTypeFilter;
-    const matchesDate =
-      !dateFilter ||
-      new Date(meeting.start_time).toISOString().split("T")[0] === dateFilter;
-    return matchesSearch && matchesRoom && matchesStatus && matchesBookingType && matchesDate;
+        .includes(searchTerm.toLowerCase()) ||
+      meeting.organizer_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRoom = !roomFilter || meeting.room_name === roomFilter;
+    const matchesStatus = !statusFilter || meeting.status === statusFilter;
+    const matchesBookingType = !bookingTypeFilter || meeting.booking_type === bookingTypeFilter || (bookingTypeFilter === 'external' && meeting.booking_type === 'public');
+    const matchesPriority = !priorityFilter || normalizePriority(meeting.prioritas) === priorityFilter;
+    const matchesDate = !dateFilter || 
+      new Date(meeting.start_time).toISOString().split('T')[0] === dateFilter;
+    
+    return matchesSearch && matchesRoom && matchesStatus && matchesBookingType && matchesPriority && matchesDate;
   });
 
-  // Filter meetings by date for stats
   const getDateFilteredMeetings = (meetings) => {
     return meetings.filter((meeting) => {
       const meetingDate = new Date(meeting.start_time)
         .toISOString()
-        .split("T")[0];
+        .split('T')[0];
       return !dateFilter || meetingDate === dateFilter;
     });
   };
 
   const dateFilteredMeetings = getDateFilteredMeetings(meetings);
   const ongoingMeetings = dateFilteredMeetings.filter(
-    (meeting) => meeting.status === "ongoing"
+    (meeting) => meeting.status === 'ongoing'
   );
   const scheduledMeetings = dateFilteredMeetings.filter(
-    (meeting) => meeting.status === "scheduled"
+    (meeting) => meeting.status === 'scheduled'
   );
   const endedMeetings = dateFilteredMeetings.filter(
-    (meeting) => meeting.status === "ended"
+    (meeting) => meeting.status === 'ended'
   );
   const canceledMeetings = dateFilteredMeetings.filter(
-    (meeting) => meeting.status === "canceled"
+    (meeting) => meeting.status === 'canceled'
   );
 
-  // Build room names from API response; fallback to legacy list if empty
-  const roomNames = (() => {
-    const names = Array.from(
-      new Set((rooms || []).map((r) => r?.name).filter(Boolean))
-    );
-    return names.length > 0
-      ? names
-      : [
-          "Meeting Room A (08)",
-          "Meeting Room B (08)",
-          "Meeting Room A (689)",
-          "Meeting Room B (689)",
-        ];
-  })();
-
-  
+  const fixedRoomOptions = [
+    { value: '', label: 'Semua Ruang' },
+    { value: 'R. Meeting 1', label: '08 - R. Meeting 1' },
+    { value: 'R. Meeting 2', label: '08 - R. Meeting 2' },
+    { value: 'R. Meeting Command Centre', label: '08 - R. Meeting Command Centre' },
+    { value: 'Kantin VIP', label: '08 - Kantin VIP' },
+    { value: 'R. Meeting 689', label: '689 - R. Meeting 689' },
+    { value: 'R. Meeting 04', label: '04 - R. Meeting 04' },
+  ];
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError("");
-      try {
-        const [meetingsRes, usersRes, roomsRes] = await Promise.all([
-          api.get("/meeting-room/bookings"), // Get all bookings (internal + public)
-          api.get("/users"),
-          api.get("/meeting-room/rooms"),
-        ]);
-        if (!cancelled) {
-          setMeetings(meetingsRes.data || []);
-          setUsers(usersRes.data || []);
-          setRooms(roomsRes.data || []);
-        }
-      } catch (e) {
-        if (!cancelled)
-          setError(e?.response?.data?.message || t("errors.loadError"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
+    loadData();
   }, [t]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-          Meeting Management
+          Manajemen Meeting Room
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Manage all meetings - internal and public bookings
+          Kelola dan pantau semua booking ruang meeting - internal dan publik
         </p>
       </div>
 
-      
-
-      {/* Filters */}
-      <div className="card p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder={t("meetings.searchMeetings")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            />
-          </div>
-          <div className="relative">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={roomSearchTerm ? "Type to search rooms..." : ""}
-                value={roomSearchTerm}
-                onChange={(e) => {
-                  setRoomSearchTerm(e.target.value);
-                  setShowRoomDropdown(true);
-                }}
-                onFocus={() => {
-                  setRoomSearchTerm("");
-                  setRoomPreselected(roomFilter);
-                  setShowRoomDropdown(true);
-                }}
-                onBlur={() => {
-                  setTimeout(() => {
-                    setShowRoomDropdown(false);
-                    setRoomSearchTerm("");
-                  }, 150);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    const options = ["all", ...roomNames];
-                    const currentIndex = options.indexOf(roomPreselected);
-                    const nextIndex =
-                      currentIndex < options.length - 1 ? currentIndex + 1 : 0;
-                    setRoomPreselected(options[nextIndex]);
-                  } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    const options = ["all", ...roomNames];
-                    const currentIndex = options.indexOf(roomPreselected);
-                    const prevIndex =
-                      currentIndex > 0 ? currentIndex - 1 : options.length - 1;
-                    setRoomPreselected(options[prevIndex]);
-                  } else if (e.key === "Enter") {
-                    e.preventDefault();
-                    setRoomFilter(roomPreselected);
-                    setShowRoomDropdown(false);
-                    setRoomSearchTerm("");
-                  } else if (e.key === "Escape") {
-                    setShowRoomDropdown(false);
-                    setRoomSearchTerm("");
-                  }
-                }}
-                className="w-full pl-3 pr-10 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-              />
-              {/* Overlay text when not focused and no search term */}
-              {!roomSearchTerm && !showRoomDropdown && (
-                <div className="absolute inset-0 flex items-center pl-3 pr-10 pointer-events-none">
-                  <span className="text-gray-900 text-sm sm:text-base">
-                    {formatRoomLabel(roomFilter)}
-                  </span>
-                </div>
-              )}
-              <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <ChevronDown
-                  className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    showRoomDropdown ? "rotate-180" : ""
-                  }`}
-                />
-              </span>
-            </div>
-            {showRoomDropdown && (
-              <div
-                ref={roomDropdownRef}
-                className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none transform transition-all duration-200 ease-out animate-in slide-in-from-top-2 fade-in-0"
-              >
-                {[
-                  { value: "all", label: t("meetings.allRooms") },
-                  ...roomNames.map((room) => ({ value: room, label: room })),
-                ]
-                  .filter((option) =>
-                    option.label
-                      .toLowerCase()
-                      .includes((roomSearchTerm || "").toLowerCase())
-                  )
-                  .map((option) => (
-                    <button
-                      key={option.value}
-                      data-value={option.value}
-                      onClick={() => {
-                        setRoomFilter(option.value);
-                        setShowRoomDropdown(false);
-                        setRoomSearchTerm("");
-                      }}
-                      className={`relative w-full text-left py-2 pl-3 pr-9 cursor-pointer hover:bg-gray-50 ${
-                        roomPreselected === option.value
-                          ? "bg-blue-50 text-blue-900"
-                          : roomFilter === option.value
-                          ? "bg-accent-50 text-accent-900"
-                          : "text-gray-900"
-                      }`}
-                    >
-                      <span className="block truncate">{option.label}</span>
-                      {roomFilter === option.value && (
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-4">
-                          <Check className="h-4 w-4 text-accent-600" />
-                        </span>
-                      )}
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <select
-              value={bookingTypeFilter}
-              onChange={(e) => setBookingTypeFilter(e.target.value)}
-              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            >
-              <option value="all">All Types</option>
-              <option value="internal">Internal</option>
-              <option value="public">Public</option>
-            </select>
-          </div>
-          <div className="relative">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
+      {/* Stats Dashboard */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           <>
@@ -434,29 +230,23 @@ const AdminMeetings = () => {
             <button
               onClick={() =>
                 setStatusFilter(
-                  statusFilter === "scheduled" ? "all" : "scheduled"
+                  statusFilter === 'scheduled' ? '' : 'scheduled'
                 )
               }
               className={`card cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all duration-200 ${
-                statusFilter === "scheduled"
-                  ? "ring-2 ring-blue-500 bg-blue-50"
-                  : ""
+                statusFilter === 'scheduled'
+                  ? 'ring-2 ring-blue-500 bg-blue-50'
+                  : ''
               }`}
             >
               <div className="p-5">
                 <div className="flex flex-col items-center text-center">
                   <div className="flex-shrink-0 mb-3">
-                    <Calendar
-                      className={`h-8 w-8 ${
-                        statusFilter === "scheduled"
-                          ? "text-blue-500"
-                          : "text-blue-500"
-                      }`}
-                    />
+                    <Calendar className="h-8 w-8 text-blue-500" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      {t("meetings.status.scheduled")}
+                      Terjadwal
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {scheduledMeetings.length}
@@ -468,28 +258,22 @@ const AdminMeetings = () => {
 
             <button
               onClick={() =>
-                setStatusFilter(statusFilter === "ongoing" ? "all" : "ongoing")
+                setStatusFilter(statusFilter === 'ongoing' ? '' : 'ongoing')
               }
               className={`card cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all duration-200 ${
-                statusFilter === "ongoing"
-                  ? "ring-2 ring-green-500 bg-green-50"
-                  : ""
+                statusFilter === 'ongoing'
+                  ? 'ring-2 ring-green-500 bg-green-50'
+                  : ''
               }`}
             >
               <div className="p-5">
                 <div className="flex flex-col items-center text-center">
                   <div className="flex-shrink-0 mb-3">
-                    <Clock
-                      className={`h-8 w-8 ${
-                        statusFilter === "ongoing"
-                          ? "text-green-500"
-                          : "text-green-500"
-                      }`}
-                    />
+                    <Clock className="h-8 w-8 text-green-500" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      {t("common.ongoing")}
+                      Berlangsung
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {ongoingMeetings.length}
@@ -501,28 +285,22 @@ const AdminMeetings = () => {
 
             <button
               onClick={() =>
-                setStatusFilter(statusFilter === "ended" ? "all" : "ended")
+                setStatusFilter(statusFilter === 'ended' ? '' : 'ended')
               }
               className={`card cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all duration-200 ${
-                statusFilter === "ended"
-                  ? "ring-2 ring-gray-500 bg-gray-50"
-                  : ""
+                statusFilter === 'ended'
+                  ? 'ring-2 ring-gray-500 bg-gray-50'
+                  : ''
               }`}
             >
               <div className="p-5">
                 <div className="flex flex-col items-center text-center">
                   <div className="flex-shrink-0 mb-3">
-                    <CheckCircle
-                      className={`h-8 w-8 ${
-                        statusFilter === "ended"
-                          ? "text-gray-500"
-                          : "text-gray-500"
-                      }`}
-                    />
+                    <CheckCircle className="h-8 w-8 text-gray-500" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      {t("common.ended")}
+                      Selesai
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {endedMeetings.length}
@@ -535,29 +313,23 @@ const AdminMeetings = () => {
             <button
               onClick={() =>
                 setStatusFilter(
-                  statusFilter === "canceled" ? "all" : "canceled"
+                  statusFilter === 'canceled' ? '' : 'canceled'
                 )
               }
               className={`card cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all duration-200 ${
-                statusFilter === "canceled"
-                  ? "ring-2 ring-red-500 bg-red-50"
-                  : ""
+                statusFilter === 'canceled'
+                  ? 'ring-2 ring-red-500 bg-red-50'
+                  : ''
               }`}
             >
               <div className="p-5">
                 <div className="flex flex-col items-center text-center">
                   <div className="flex-shrink-0 mb-3">
-                    <AlertCircle
-                      className={`h-8 w-8 ${
-                        statusFilter === "canceled"
-                          ? "text-red-500"
-                          : "text-red-500"
-                      }`}
-                    />
+                    <AlertCircle className="h-8 w-8 text-red-500" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      {t("meetings.status.canceled")}
+                      Dibatalkan
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {canceledMeetings.length}
@@ -570,6 +342,98 @@ const AdminMeetings = () => {
         )}
       </div>
 
+      {/* Filters */}
+      <div className="card p-3 sm:p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Filter className="h-5 w-5 mr-2" />
+            Filter Jadwal
+          </h2>
+          <button
+            onClick={loadData}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Cari agenda, ruang, atau pemohon..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            />
+          </div>
+          
+          <div className="relative">
+            <select
+              value={roomFilter}
+              onChange={(e) => setRoomFilter(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            >
+              {fixedRoomOptions.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            >
+              <option value="">Semua Status</option>
+              <option value="scheduled">Terjadwal</option>
+              <option value="ongoing">Berlangsung</option>
+              <option value="ended">Selesai</option>
+              <option value="canceled">Dibatalkan</option>
+            </select>
+          </div>
+          
+          <div className="relative">
+            <select
+              value={bookingTypeFilter}
+              onChange={(e) => setBookingTypeFilter(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            >
+              <option value="">Semua Tipe</option>
+              <option value="internal">Internal</option>
+              <option value="external">Eksternal</option>
+            </select>
+          </div>
+          <div className="relative">
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            >
+              <option value="">Semua Prioritas</option>
+              <option value="regular">Reguler</option>
+              <option value="vip">VIP</option>
+            </select>
+          </div>
+          
+          <div className="relative">
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Ongoing Meetings Alert */}
       {ongoingMeetings.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
@@ -579,18 +443,17 @@ const AdminMeetings = () => {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">
-                Active Meetings
+                Meeting Aktif
               </h3>
               <div className="mt-2 text-sm text-yellow-700">
                 <p>
-                  There are {ongoingMeetings.length} meeting(s) currently in
-                  progress:
+                  Ada {ongoingMeetings.length} meeting yang sedang berlangsung:
                 </p>
                 <ul className="mt-1 list-disc list-inside">
                   {ongoingMeetings.map((meeting) => (
                     <li key={meeting.id}>
-                      {meeting.agenda} in {meeting.room_name} by{" "}
-                      {getUserName(meeting.user_id, meeting.user)}
+                      {meeting.agenda} di {meeting.room_name} oleh{' '}
+                      {meeting.organizer_name || getUserName(meeting.user_id, meeting.user)}
                     </li>
                   ))}
                 </ul>
@@ -607,74 +470,79 @@ const AdminMeetings = () => {
         ) : error ? (
           <div className="px-6 py-4 text-sm text-red-600">{error}</div>
         ) : (
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {!loading &&
-              !error &&
-              filteredMeetings.map((meeting) => (
-                <li
-                  key={meeting.id}
-                  className="px-3 sm:px-6 py-4 hover:bg-gray-50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                    {/* Meeting Content */}
-                    <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1">
-                      <div className="flex-shrink-0">
-                        {getStatusIcon(meeting.status)}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tanggal
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Waktu
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ruang
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pemohon
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioritas</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aksi
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredMeetings.map((meeting) => (
+                  <tr key={meeting.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDateOnly(meeting.start_time)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {new Date(meeting.start_time).toLocaleTimeString('id-ID', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })} - {new Date(meeting.end_time).toLocaleTimeString('id-ID', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <Building className="h-4 w-4 mr-2 text-gray-400" />
+                        {meeting.room_name}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                          <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
-                            {meeting.agenda && meeting.agenda.length > 50
-                              ? `${meeting.agenda.substring(0, 50)}...`
-                              : meeting.agenda}
-                          </h3>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              meeting.status
-                            )}`}
-                          >
-                            {formatStatusLabel(meeting.status)}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-1" />
-                            <span className="truncate">
-                              {meeting.room_name}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <User className="h-4 w-4 mr-1" />
-                            <span className="truncate">
-                              {getUserName(meeting.user_id, meeting.user)}
-                            </span>
-                          </div>
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            <span className="truncate">
-                              {format(
-                                new Date(meeting.start_time),
-                                "MMM dd, yyyy HH:mm"
-                              )}{" "}
-                              - {format(new Date(meeting.end_time), "HH:mm")}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          {t("common.created")}:{" "}
-                          {format(new Date(meeting.created_at), "MMM dd, yyyy")}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div>
+                        <div className="font-medium">
+                          {meeting.organizer_name || getUserName(meeting.user_id, meeting.user)}
                         </div>
                       </div>
-                    </div>
-
-                    {/* Right Actions */}
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1">
-                        {meeting.status === "ongoing" && (
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(meeting.status)}`}>
+                        {getStatusText(meeting.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                        {meeting.booking_type === 'internal' ? 'Internal' : (meeting.booking_type === 'public' || meeting.booking_type === 'external') ? 'Eksternal' : (meeting.booking_type || '-')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                        {normalizePriority(meeting.prioritas) === 'vip' ? 'VIP' : 'Reguler'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        {meeting.status === 'ongoing' && (
                           <button
                             onClick={() => handleForceEnd(meeting.id)}
-                            className="inline-flex items-center justify-center px-3 py-2 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            className="inline-flex items-center px-3 py-2 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                           >
                             <Power className="h-3 w-3 mr-1" />
                             Force End
@@ -683,17 +551,24 @@ const AdminMeetings = () => {
 
                         <button
                           onClick={() => handleViewDetails(meeting)}
-                          className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          className="inline-flex items-center px-3 py-2 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                           <Eye className="h-3 w-3 mr-1" />
-                          View Details
+                          Detail
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            {filteredMeetings.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Tidak ada data booking yang sesuai dengan filter</p>
                     </div>
+            )}
                   </div>
-                </li>
-              ))}
-          </ul>
         )}
       </div>
 
@@ -701,147 +576,111 @@ const AdminMeetings = () => {
       <DetailModal
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
-        title={t("meetings.meetingDetails")}
+        title="Detail Meeting"
         size="md"
       >
-        <div className="space-y-6">
-          <DetailGrid cols={2}>
-            <DetailField
-              label="Agenda"
-              value={selectedMeeting?.agenda || "N/A"}
-            />
-            <DetailField
-              label="Room"
-              value={selectedMeeting?.room_name || "N/A"}
-            />
-            <DetailField
-              label="Tanggal"
-              value={selectedMeeting?.start_time ? formatDateOnly(selectedMeeting.start_time) : "N/A"}
-            />
-            <DetailField
-              label="Start Time"
-              value={
-                selectedMeeting?.start_time
-                  ? formatDateTime(selectedMeeting.start_time)
-                  : "N/A"
-              }
-            />
-            <DetailField
-              label="End Time"
-              value={
-                selectedMeeting?.end_time
-                  ? formatDateTime(selectedMeeting.end_time)
-                  : "N/A"
-              }
-            />
-            <DetailField
-              label="Cluster"
-              value={deriveCluster(selectedMeeting?.room_name)}
-            />
-            <DetailField
-              label="Status"
-              value={
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                    selectedMeeting?.status
-                  )}`}
-                >
-                  {selectedMeeting?.status || "N/A"}
-                </span>
-              }
-            />
-            <DetailField
-              label="Organizer"
-              value={
-                selectedMeeting?.organizer_name
-                  ? selectedMeeting.organizer_name
-                  : selectedMeeting?.user
-                  ? selectedMeeting.user.name
-                  : `User ${selectedMeeting?.user_id || "N/A"}`
-              }
-            />
-            <DetailField
-              label="Booking Type"
-              value={selectedMeeting?.booking_type || "N/A"}
-            />
-            <DetailField
-              label="Booking ID"
-              value={`#${selectedMeeting?.booking_id || selectedMeeting?.id || "N/A"}`}
-            />
-            <DetailField
-              label="Tata Ruang"
-              value={selectedMeeting?.partition || "-"}
-            />
-            {selectedMeeting?.jumlah_peserta !== undefined && (
-              <DetailField
-                label="Jumlah Peserta"
-                value={String(selectedMeeting?.jumlah_peserta ?? "N/A")}
-              />
-            )}
+        <div className="space-y-4">
+          {/* Informasi Umum - Grid 2 Kolom */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Booking ID</span>
+                <span className="text-gray-900 font-mono">#{selectedMeeting?.booking_id || selectedMeeting?.id || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Ruang Meeting</span>
+                <span className="text-gray-900">{selectedMeeting?.room_name || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Agenda</span>
+                <span className="text-gray-900">{selectedMeeting?.agenda || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Tanggal</span>
+                <span className="text-gray-900">{selectedMeeting?.start_time ? formatDateOnly(selectedMeeting.start_time) : 'N/A'}</span>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Waktu</span>
+                <span className="text-gray-900">{selectedMeeting?.start_time ? new Date(selectedMeeting.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'} - {selectedMeeting?.end_time ? new Date(selectedMeeting.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Nama Pemohon</span>
+                <span className="text-gray-900">{selectedMeeting?.organizer_name || (selectedMeeting?.user ? selectedMeeting.user.name : `User ${selectedMeeting?.user_id || 'N/A'}`)}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Status</span>
+                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(selectedMeeting?.status)}`}>{getStatusText(selectedMeeting?.status) || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                <span className="text-gray-600 font-medium">Tipe Booking</span>
+                <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{selectedMeeting?.booking_type === 'internal' ? 'Internal' : (selectedMeeting?.booking_type === 'public' || selectedMeeting?.booking_type === 'external') ? 'Eksternal' : (selectedMeeting?.booking_type || 'N/A')}</span>
+              </div>
             {selectedMeeting?.prioritas && (
-              <DetailField
-                label="Prioritas"
-                value={selectedMeeting?.prioritas}
-              />
-            )}
-            <DetailField
-              label="Created"
-              value={
-                selectedMeeting?.created_at
-                  ? formatDateTime(selectedMeeting.created_at)
-                  : "N/A"
-              }
-            />
-            <DetailField
-              label="Last Updated"
-              value={
-                selectedMeeting?.updated_at
-                  ? formatDateTime(selectedMeeting.updated_at)
-                  : "N/A"
-              }
-            />
-          </DetailGrid>
+                <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
+                  <span className="text-gray-600 font-medium">Prioritas</span>
+                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">{normalizePriority(selectedMeeting?.prioritas) === 'vip' ? 'VIP' : 'Reguler'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Kebutuhan Khusus */}
           {selectedMeeting?.special_requirements && (
-            <DetailField
-              label="Kebutuhan Khusus"
-              value={selectedMeeting.special_requirements}
-            />
-          )}
-          {(Array.isArray(selectedMeeting?.kebutuhan) && selectedMeeting.kebutuhan.length > 0) && (
-            <DetailField
-              label="Kebutuhan Tambahan"
-              value={(selectedMeeting.kebutuhan || []).join(', ')}
-            />
-          )}
-          {(selectedMeeting?.makanan_detail || selectedMeeting?.minuman_detail) && (
-            <DetailGrid cols={2}>
-              <DetailField
-                label="Detail Makanan"
-                value={selectedMeeting?.makanan_detail || '-'}
-              />
-              <DetailField
-                label="Detail Minuman"
-                value={selectedMeeting?.minuman_detail || '-'}
-              />
-            </DetailGrid>
-          )}
-          {Array.isArray(selectedMeeting?.attendees) && selectedMeeting.attendees.length > 0 && (
-            <div>
-              <div className="text-sm font-medium text-gray-700 mb-1">Peserta</div>
-              <ul className="text-sm text-gray-900 list-disc list-inside">
-                {selectedMeeting.attendees.map((attendee, idx) => (
-                  <li key={idx}>
-                    {(attendee?.name || 'Unknown')} {attendee?.email ? `(${attendee.email})` : ''}
-                  </li>
-                ))}
-              </ul>
+            <div className="mt-2 border-t border-gray-300 pt-3">
+              <div className="text-sm font-medium text-gray-700">Kebutuhan Khusus</div>
+              <div className="text-sm text-gray-900 mt-1">{selectedMeeting.special_requirements}</div>
             </div>
           )}
+
+          {/* Detail Tambahan */}
+          {(selectedMeeting?.kebutuhan?.length > 0 || selectedMeeting?.makanan_detail || selectedMeeting?.minuman_detail) && (
+            <div className="mt-2">
+              <div className="bg-gray-50 border border-gray-300 rounded-md">
+                <div className="px-3 py-2 border-b border-gray-300 text-sm font-semibold text-gray-900">Detail Tambahan</div>
+                <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Kebutuhan Tambahan</div>
+                    <div className="mt-1 text-sm text-gray-900">{(selectedMeeting.kebutuhan || []).join(', ') || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Detail Makanan</div>
+                    <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.makanan_detail || '-'}</div>
+                  </div>
+            <div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Detail Minuman</div>
+                    <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.minuman_detail || '-'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dokumen SPK */}
           {selectedMeeting?.spk_file && (
-            <DetailField
-              label="SPK File"
-              value={typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : 'Terlampir'}
-            />
+            <div className="mt-2 border-t border-gray-300 pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Dokumen SPK</span>
+                <div className="flex items-center gap-3">
+                  {typeof selectedMeeting.spk_file === 'string' && (
+                    <a
+                      href={selectedMeeting.spk_file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-3 py-2 rounded text-white text-sm bg-[#b71c1c] hover:bg-[#a31616]"
+                    >
+                      Lihat SPK
+                    </a>
+                  )}
+                  {typeof selectedMeeting.spk_file === 'string' && /(png|jpg|jpeg|webp)$/i.test(selectedMeeting.spk_file) && (
+                    <a href={selectedMeeting.spk_file} target="_blank" rel="noopener noreferrer">
+                      <img src={selectedMeeting.spk_file} alt="SPK" className="h-12 w-auto rounded border border-gray-200 object-contain" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </DetailModal>
@@ -850,3 +689,5 @@ const AdminMeetings = () => {
 };
 
 export default AdminMeetings;
+
+
