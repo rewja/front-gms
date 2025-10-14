@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import SkeletonLoader from "../../components/SkeletonLoader";
-import SimpleChart from "../../components/SimpleChart";
+ 
 import {
   FormModal,
   DetailModal,
@@ -49,13 +49,7 @@ const AdminMeetings = () => {
   const [dateFilter, setDateFilter] = useState(
     new Date().toISOString().split("T")[0]
   );
-  const [chartDateRange, setChartDateRange] = useState({
-    start: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0], // 7 days ago
-    end: new Date().toISOString().split("T")[0], // today
-  });
-  const [chartData, setChartData] = useState(null);
+  
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
 
@@ -116,6 +110,26 @@ const AdminMeetings = () => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const formatDateOnly = (value) => {
+    try {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value || "");
+      return format(d, "yyyy-MM-dd");
+    } catch {
+      return String(value || "");
+    }
+  };
+
+  const deriveCluster = (roomName) => {
+    if (!roomName) return "N/A";
+    const s = roomName.toLowerCase();
+    if (s.includes("(08)") || s.includes(" 08")) return "08";
+    if (s.includes("689")) return "689";
+    if (s.includes(" 04") || s.includes("(04)")) return "04";
+    if (s.includes("command centre") || s.includes("kantin vip") || s.includes("meeting 1") || s.includes("meeting 2")) return "08";
+    return "-";
   };
 
   const formatRoomLabel = (room) => {
@@ -204,68 +218,22 @@ const AdminMeetings = () => {
     (meeting) => meeting.status === "canceled"
   );
 
-  // Predefined room options - fixed list only
-  const uniqueRooms = [
-    "Meeting Room A (08)",
-    "Meeting Room B (08)",
-    "Meeting Room A (689)",
-    "Meeting Room B (689)",
-  ];
+  // Build room names from API response; fallback to legacy list if empty
+  const roomNames = (() => {
+    const names = Array.from(
+      new Set((rooms || []).map((r) => r?.name).filter(Boolean))
+    );
+    return names.length > 0
+      ? names
+      : [
+          "Meeting Room A (08)",
+          "Meeting Room B (08)",
+          "Meeting Room A (689)",
+          "Meeting Room B (689)",
+        ];
+  })();
 
-  // Chart data for meetings by date
-  useEffect(() => {
-    if (meetings.length > 0) {
-      // Group meetings by date
-      const dateGroups = {};
-      meetings.forEach((meeting) => {
-        const date = new Date(meeting.start_time).toISOString().split("T")[0];
-        if (!dateGroups[date]) {
-          dateGroups[date] = 0;
-        }
-        dateGroups[date]++;
-      });
-
-      // Generate date range
-      const startDate = new Date(chartDateRange.start);
-      const endDate = new Date(chartDateRange.end);
-      const dateRange = [];
-
-      for (
-        let d = new Date(startDate);
-        d <= endDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const dateStr = d.toISOString().split("T")[0];
-        dateRange.push({
-          date: dateStr,
-          count: dateGroups[dateStr] || 0,
-        });
-      }
-
-      setChartData({
-        labels: dateRange.map((d) => {
-          const date = new Date(d.date);
-          return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          });
-        }),
-        datasets: [
-          {
-            label: "Meetings",
-            data: dateRange.map((d) => d.count),
-            borderColor: "rgb(59, 130, 246)",
-            backgroundColor: "rgba(59, 130, 246, 0.1)",
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 2,
-            pointBackgroundColor: "rgb(59, 130, 246)",
-          },
-        ],
-      });
-    }
-  }, [meetings, chartDateRange]);
+  
 
   useEffect(() => {
     let cancelled = false;
@@ -307,297 +275,7 @@ const AdminMeetings = () => {
         </p>
       </div>
 
-      {/* Global Statistics */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-5">
-        {loading ? (
-          <>
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-          </>
-        ) : (
-          <>
-            <div className="card">
-              <div className="p-4 sm:p-5">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                  {t("meetings.summaryMeetings")}
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Overall Stats */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">
-                      {t("meetings.overall")}
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600">
-                          {t("meetings.totalMeetings")}
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          {dateFilteredMeetings.length}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-gray-600">
-                          {t("meetings.avgDuration")}
-                        </span>
-                        <span className="font-semibold text-gray-900">
-                          {(() => {
-                            const endedMeetings = dateFilteredMeetings.filter(
-                              (m) => m.status === "ended"
-                            );
-                            const durations = endedMeetings.map(
-                              (m) =>
-                                (new Date(m.end_time) -
-                                  new Date(m.start_time)) /
-                                (1000 * 60)
-                            );
-                            if (!durations.length) return "0";
-                            return Math.round(
-                              durations.reduce((a, b) => a + b, 0) /
-                                durations.length
-                            );
-                          })()}{" "}
-                          min
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Room Stats */}
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">
-                      By Room
-                    </h4>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {(() => {
-                        const roomStats = {};
-                        dateFilteredMeetings.forEach((meeting) => {
-                          if (!roomStats[meeting.room_name]) {
-                            roomStats[meeting.room_name] = {
-                              count: 0,
-                              durations: [],
-                            };
-                          }
-                          roomStats[meeting.room_name].count++;
-                          if (meeting.status === "ended" && meeting.end_time) {
-                            const duration =
-                              (new Date(meeting.end_time) -
-                                new Date(meeting.start_time)) /
-                              (1000 * 60);
-                            roomStats[meeting.room_name].durations.push(
-                              duration
-                            );
-                          }
-                        });
-
-                        // Always show all 4 predefined rooms
-                        return uniqueRooms.map((roomName) => {
-                          const stats = roomStats[roomName] || {
-                            count: 0,
-                            durations: [],
-                          };
-                          return (
-                            <div
-                              key={roomName}
-                              className="flex justify-between items-center text-xs"
-                            >
-                              <span className="text-gray-600 truncate mr-2">
-                                {roomName}
-                              </span>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-semibold text-gray-900">
-                                  {stats.count}
-                                </span>
-                                <span className="text-gray-400">|</span>
-                                <span className="font-semibold text-gray-900">
-                                  {stats.durations.length > 0
-                                    ? Math.round(
-                                        stats.durations.reduce(
-                                          (a, b) => a + b,
-                                          0
-                                        ) / stats.durations.length
-                                      )
-                                    : "0"}
-                                  m
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Chart */}
-      <div className="card">
-        <div className="p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-            <h3 className="text-sm font-semibold text-gray-900">
-              Meeting Trends
-            </h3>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">
-                  {t("visitors.from")}:
-                </label>
-                <input
-                  type="date"
-                  value={chartDateRange.start}
-                  onChange={(e) =>
-                    setChartDateRange((prev) => ({
-                      ...prev,
-                      start: e.target.value,
-                    }))
-                  }
-                  className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">To:</label>
-                <input
-                  type="date"
-                  value={chartDateRange.end}
-                  onChange={(e) =>
-                    setChartDateRange((prev) => ({
-                      ...prev,
-                      end: e.target.value,
-                    }))
-                  }
-                  className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-          <div className="h-32 sm:h-40">
-            {loading ? (
-              <div className="h-32 sm:h-40 bg-gray-200 rounded-lg animate-pulse"></div>
-            ) : chartData ? (
-              <SimpleChart
-                type="line"
-                data={chartData}
-                height={160}
-                options={{
-                  plugins: {
-                    tooltip: {
-                      enabled: true,
-                      mode: "index",
-                      intersect: false,
-                      backgroundColor: "rgba(0, 0, 0, 0.8)",
-                      titleColor: "white",
-                      bodyColor: "white",
-                      borderColor: "rgb(59, 130, 246)",
-                      borderWidth: 1,
-                      displayColors: false,
-                      callbacks: {
-                        title: function (context) {
-                          // Only show the date, not "Meetings: X"
-                          return context[0].label;
-                        },
-                        label: function () {
-                          // Hide the default label line that shows "Meetings: X"
-                          return null;
-                        },
-                        afterBody: function (context) {
-                          const dataIndex = context[0].dataIndex;
-                          const totalMeetings = context[0].parsed.y;
-
-                          if (totalMeetings === 0)
-                            return [t("meetings.noMeetings")];
-
-                          // Get the actual date from the dateRange
-                          const dateRange = [];
-                          const startDate = new Date(chartDateRange.start);
-                          const endDate = new Date(chartDateRange.end);
-
-                          for (
-                            let d = new Date(startDate);
-                            d <= endDate;
-                            d.setDate(d.getDate() + 1)
-                          ) {
-                            const dateStr = d.toISOString().split("T")[0];
-                            dateRange.push({
-                              date: dateStr,
-                              count: 0,
-                            });
-                          }
-
-                          const targetDate = dateRange[dataIndex]?.date;
-                          if (!targetDate) return [t("meetings.noData")];
-
-                          // Get meetings for this specific date
-                          const meetingsOnDate = meetings.filter((meeting) => {
-                            const meetingDate = new Date(meeting.start_time)
-                              .toISOString()
-                              .split("T")[0];
-                            return meetingDate === targetDate;
-                          });
-
-                          // Count meetings by status (combine ended and force_ended as completed)
-                          const statusCounts = {};
-                          meetingsOnDate.forEach((meeting) => {
-                            let displayStatus = meeting.status;
-
-                            // Combine ended and force_ended as "completed"
-                            if (
-                              meeting.status === "ended" ||
-                              meeting.status === "force_ended"
-                            ) {
-                              displayStatus = "completed";
-                            }
-
-                            statusCounts[displayStatus] =
-                              (statusCounts[displayStatus] || 0) + 1;
-                          });
-
-                          // Format status information - each status on separate line
-                          const statusInfo = Object.entries(statusCounts).map(
-                            ([status, count]) => {
-                              const statusLabel = formatStatusLabel(status);
-                              return `Meeting ${statusLabel}: ${count}`;
-                            }
-                          );
-
-                          return statusInfo.length > 0
-                            ? statusInfo
-                            : [t("meetings.noMeetings")];
-                        },
-                      },
-                    },
-                  },
-                  hover: {
-                    mode: "index",
-                    intersect: false,
-                  },
-                  scales: {
-                    x: {
-                      grid: {
-                        display: false,
-                      },
-                    },
-                    y: {
-                      beginAtZero: true,
-                      grid: {
-                        color: "rgba(0, 0, 0, 0.1)",
-                      },
-                    },
-                  },
-                }}
-              />
-            ) : (
-              <div className="h-40 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500 text-xs">
-                {t("meetings.noData")}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      
 
       {/* Filters */}
       <div className="card p-3 sm:p-4">
@@ -638,14 +316,14 @@ const AdminMeetings = () => {
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    const options = ["all", ...uniqueRooms];
+                    const options = ["all", ...roomNames];
                     const currentIndex = options.indexOf(roomPreselected);
                     const nextIndex =
                       currentIndex < options.length - 1 ? currentIndex + 1 : 0;
                     setRoomPreselected(options[nextIndex]);
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    const options = ["all", ...uniqueRooms];
+                    const options = ["all", ...roomNames];
                     const currentIndex = options.indexOf(roomPreselected);
                     const prevIndex =
                       currentIndex > 0 ? currentIndex - 1 : options.length - 1;
@@ -685,7 +363,7 @@ const AdminMeetings = () => {
               >
                 {[
                   { value: "all", label: t("meetings.allRooms") },
-                  ...uniqueRooms.map((room) => ({ value: room, label: room })),
+                  ...roomNames.map((room) => ({ value: room, label: room })),
                 ]
                   .filter((option) =>
                     option.label
@@ -1037,6 +715,10 @@ const AdminMeetings = () => {
               value={selectedMeeting?.room_name || "N/A"}
             />
             <DetailField
+              label="Tanggal"
+              value={selectedMeeting?.start_time ? formatDateOnly(selectedMeeting.start_time) : "N/A"}
+            />
+            <DetailField
               label="Start Time"
               value={
                 selectedMeeting?.start_time
@@ -1053,6 +735,10 @@ const AdminMeetings = () => {
               }
             />
             <DetailField
+              label="Cluster"
+              value={deriveCluster(selectedMeeting?.room_name)}
+            />
+            <DetailField
               label="Status"
               value={
                 <span
@@ -1067,11 +753,37 @@ const AdminMeetings = () => {
             <DetailField
               label="Organizer"
               value={
-                selectedMeeting?.user
+                selectedMeeting?.organizer_name
+                  ? selectedMeeting.organizer_name
+                  : selectedMeeting?.user
                   ? selectedMeeting.user.name
                   : `User ${selectedMeeting?.user_id || "N/A"}`
               }
             />
+            <DetailField
+              label="Booking Type"
+              value={selectedMeeting?.booking_type || "N/A"}
+            />
+            <DetailField
+              label="Booking ID"
+              value={`#${selectedMeeting?.booking_id || selectedMeeting?.id || "N/A"}`}
+            />
+            <DetailField
+              label="Tata Ruang"
+              value={selectedMeeting?.partition || "-"}
+            />
+            {selectedMeeting?.jumlah_peserta !== undefined && (
+              <DetailField
+                label="Jumlah Peserta"
+                value={String(selectedMeeting?.jumlah_peserta ?? "N/A")}
+              />
+            )}
+            {selectedMeeting?.prioritas && (
+              <DetailField
+                label="Prioritas"
+                value={selectedMeeting?.prioritas}
+              />
+            )}
             <DetailField
               label="Created"
               value={
@@ -1088,11 +800,49 @@ const AdminMeetings = () => {
                   : "N/A"
               }
             />
-            <DetailField
-              label="Meeting ID"
-              value={`#${selectedMeeting?.id || "N/A"}`}
-            />
           </DetailGrid>
+          {selectedMeeting?.special_requirements && (
+            <DetailField
+              label="Kebutuhan Khusus"
+              value={selectedMeeting.special_requirements}
+            />
+          )}
+          {(Array.isArray(selectedMeeting?.kebutuhan) && selectedMeeting.kebutuhan.length > 0) && (
+            <DetailField
+              label="Kebutuhan Tambahan"
+              value={(selectedMeeting.kebutuhan || []).join(', ')}
+            />
+          )}
+          {(selectedMeeting?.makanan_detail || selectedMeeting?.minuman_detail) && (
+            <DetailGrid cols={2}>
+              <DetailField
+                label="Detail Makanan"
+                value={selectedMeeting?.makanan_detail || '-'}
+              />
+              <DetailField
+                label="Detail Minuman"
+                value={selectedMeeting?.minuman_detail || '-'}
+              />
+            </DetailGrid>
+          )}
+          {Array.isArray(selectedMeeting?.attendees) && selectedMeeting.attendees.length > 0 && (
+            <div>
+              <div className="text-sm font-medium text-gray-700 mb-1">Peserta</div>
+              <ul className="text-sm text-gray-900 list-disc list-inside">
+                {selectedMeeting.attendees.map((attendee, idx) => (
+                  <li key={idx}>
+                    {(attendee?.name || 'Unknown')} {attendee?.email ? `(${attendee.email})` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {selectedMeeting?.spk_file && (
+            <DetailField
+              label="SPK File"
+              value={typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : 'Terlampir'}
+            />
+          )}
         </div>
       </DetailModal>
     </div>

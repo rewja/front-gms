@@ -13,7 +13,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Todos from "./pages/Todos";
 import Requests from "./pages/Requests";
-import Meetings from "./pages/Meetings";
+// import Meetings from "./pages/Meetings"; // removed user meetings page
 import UserAssets from "./pages/UserAssets";
 
 // Admin pages
@@ -121,18 +121,7 @@ function App() {
                     }
                   />
 
-                  <Route
-                    path="/meetings"
-                    element={
-                      <ProtectedRoute>
-                        <RoleRoute allowedRoles={["user"]}>
-                          <Layout>
-                            <Meetings />
-                          </Layout>
-                        </RoleRoute>
-                      </ProtectedRoute>
-                    }
-                  />
+                  {/* User meetings route removed */}
 
                   <Route
                     path="/assets"
