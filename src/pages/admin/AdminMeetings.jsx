@@ -144,7 +144,7 @@ const AdminMeetings = () => {
 
   const normalizePriority = (value) => {
     const v = (value || '').toString().trim().toLowerCase();
-    if (v === 'reguler' || v === 'regular') return 'regular';
+    if (v === 'reguler' || v === 'regular') return 'reguler';
     if (v === 'vip') return 'vip';
     return v;
   };
@@ -418,7 +418,7 @@ const AdminMeetings = () => {
               className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
             >
               <option value="">Semua Prioritas</option>
-              <option value="regular">Reguler</option>
+              <option value="reguler">Reguler</option>
               <option value="vip">VIP</option>
             </select>
           </div>
@@ -658,26 +658,32 @@ const AdminMeetings = () => {
           )}
 
           {/* Dokumen SPK */}
-          {selectedMeeting?.spk_file && (
+          {(selectedMeeting?.spk_file || selectedMeeting?.spk_file_path) && (
             <div className="mt-2 border-t border-gray-300 pt-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">Dokumen SPK</span>
                 <div className="flex items-center gap-3">
-                  {typeof selectedMeeting.spk_file === 'string' && (
-                    <a
-                      href={selectedMeeting.spk_file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center px-3 py-2 rounded text-white text-sm bg-[#b71c1c] hover:bg-[#a31616]"
-                    >
-                      Lihat SPK
-                    </a>
-                  )}
-                  {typeof selectedMeeting.spk_file === 'string' && /(png|jpg|jpeg|webp)$/i.test(selectedMeeting.spk_file) && (
-                    <a href={selectedMeeting.spk_file} target="_blank" rel="noopener noreferrer">
-                      <img src={selectedMeeting.spk_file} alt="SPK" className="h-12 w-auto rounded border border-gray-200 object-contain" />
-                    </a>
-                  )}
+                  {(() => {
+                    const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `/storage/${selectedMeeting.spk_file_path}` : null);
+                    return url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-3 py-2 rounded text-white text-sm bg-[#b71c1c] hover:bg-[#a31616]"
+                      >
+                        Lihat SPK
+                      </a>
+                    ) : null;
+                  })()}
+                  {(() => {
+                    const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `/storage/${selectedMeeting.spk_file_path}` : null);
+                    return url && /(png|jpg|jpeg|webp)$/i.test(url) ? (
+                      <a href={url} target="_blank" rel="noopener noreferrer">
+                        <img src={url} alt="SPK" className="h-12 w-auto rounded border border-gray-200 object-contain" />
+                      </a>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             </div>
