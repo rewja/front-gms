@@ -626,20 +626,20 @@ const AdminMeetings = () => {
             </div>
           </div>
 
-          {/* Kebutuhan Khusus */}
-          {selectedMeeting?.special_requirements && (
+          {/* Kebutuhan Lainnya */}
+          {selectedMeeting?.lainnya_detail && (
             <div className="mt-2 border-t border-gray-300 pt-3">
-              <div className="text-sm font-medium text-gray-700">Kebutuhan Khusus</div>
-              <div className="text-sm text-gray-900 mt-1">{selectedMeeting.special_requirements}</div>
+              <div className="text-sm font-medium text-gray-700">Kebutuhan Lainnya</div>
+              <div className="text-sm text-gray-900 mt-1">{selectedMeeting.lainnya_detail}</div>
             </div>
           )}
 
           {/* Detail Tambahan */}
-          {(selectedMeeting?.kebutuhan?.length > 0 || selectedMeeting?.makanan_detail || selectedMeeting?.minuman_detail) && (
+          {(selectedMeeting?.kebutuhan?.length > 0 || selectedMeeting?.makanan_detail || selectedMeeting?.minuman_detail || selectedMeeting?.lainnya_detail) && (
             <div className="mt-2">
               <div className="bg-gray-50 border border-gray-300 rounded-md">
                 <div className="px-3 py-2 border-b border-gray-300 text-sm font-semibold text-gray-900">Detail Tambahan</div>
-                <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
                     <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Kebutuhan Tambahan</div>
                     <div className="mt-1 text-sm text-gray-900">{(selectedMeeting.kebutuhan || []).join(', ') || '-'}</div>
@@ -648,9 +648,13 @@ const AdminMeetings = () => {
                     <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Detail Makanan</div>
                     <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.makanan_detail || '-'}</div>
                   </div>
-            <div>
+                  <div>
                     <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Detail Minuman</div>
                     <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.minuman_detail || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Kebutuhan Lainnya</div>
+                    <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.lainnya_detail || '-'}</div>
                   </div>
                 </div>
               </div>
@@ -664,7 +668,7 @@ const AdminMeetings = () => {
                 <span className="text-sm font-medium text-gray-700">Dokumen SPK</span>
                 <div className="flex items-center gap-3">
                   {(() => {
-                    const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `/storage/${selectedMeeting.spk_file_path}` : null);
+                    const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `http://localhost:8000/storage/${selectedMeeting.spk_file_path}` : null);
                     return url ? (
                       <a
                         href={url}
@@ -677,7 +681,7 @@ const AdminMeetings = () => {
                     ) : null;
                   })()}
                   {(() => {
-                    const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `/storage/${selectedMeeting.spk_file_path}` : null);
+                    const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `http://localhost:8000/storage/${selectedMeeting.spk_file_path}` : null);
                     return url && /(png|jpg|jpeg|webp)$/i.test(url) ? (
                       <a href={url} target="_blank" rel="noopener noreferrer">
                         <img src={url} alt="SPK" className="h-12 w-auto rounded border border-gray-200 object-contain" />
