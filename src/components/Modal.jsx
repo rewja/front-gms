@@ -242,10 +242,11 @@ export const FormTextarea = ({
 
 // Detail Display Components
 export const DetailField = ({ label, value, className = "" }) => {
+  const { t } = useTranslation();
   return (
     <div className={`${className}`}>
       <dt className="text-sm font-medium text-gray-500">{label}</dt>
-      <dd className="mt-1 text-sm text-gray-900">{value || "N/A"}</dd>
+      <dd className="mt-1 text-sm text-gray-900">{value || t("common.noData", { defaultValue: "N/A" })}</dd>
     </div>
   );
 };

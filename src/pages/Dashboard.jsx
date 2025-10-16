@@ -51,12 +51,10 @@ const Dashboard = () => {
           const cards = [
             {
               name: t("dashboard.myTasks", { defaultValue: "My To-Dos" }),
-              value: (todoStats.data?.daily?.[0]?.total ?? 0) + " today",
+              value: `${todoStats.data?.daily?.[0]?.total ?? 0}`,
               icon: CheckSquare,
               color: "bg-blue-500",
-              description: `${
-                todoStats.data?.daily?.[0]?.completed ?? 0
-              } completed today`,
+              description: t("dashboard.completedToday", { defaultValue: "Completed Today" }),
             },
             {
               name: t("dashboard.avgDuration", {
@@ -66,7 +64,7 @@ const Dashboard = () => {
                 todoStats.data?.avg_duration_minutes
                   ? Math.round(todoStats.data.avg_duration_minutes)
                   : 0
-              } min`,
+              } ${t('common.minutes', { defaultValue: 'minutes' })}`,
               icon: TrendingUp,
               color: "bg-yellow-500",
               description: t("dashboard.avgCompletionTime", {

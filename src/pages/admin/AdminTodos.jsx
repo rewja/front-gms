@@ -622,7 +622,7 @@ const AdminTodos = () => {
   };
 
   const formatStatusLabel = (status) => {
-    if (!status) return "Unknown";
+    if (!status) return t("common.unknown", { defaultValue: "Unknown" });
 
     switch (status) {
       case "not_started":
@@ -715,7 +715,7 @@ const AdminTodos = () => {
       setShowCreateModal(false);
       setEditingTodo(null);
     } catch (e) {
-      alert(e?.response?.data?.message || "Failed to save");
+      alert(e?.response?.data?.message || t("todos.saveFailed", { defaultValue: "Failed to save" }));
     }
   };
 
@@ -731,7 +731,7 @@ const AdminTodos = () => {
       if (error?.response?.status === 404) {
         // Todo already deleted, remove from local state
         setTodos((prev) => prev.filter((t) => t.id !== id));
-        alert("Tugas sudah dihapus sebelumnya");
+        alert(t("notifications.failedDeleteTodo", { defaultValue: "Failed to delete todo" }));
       } else {
         alert(t("notifications.failedDeleteTodo"));
       }
@@ -782,7 +782,7 @@ const AdminTodos = () => {
         rating: 0,
       });
     } catch (e) {
-      alert(e?.response?.data?.message || "Failed to evaluate");
+      alert(e?.response?.data?.message || t("todos.evaluateFailed", { defaultValue: "Failed to evaluate" }));
     }
   };
 
@@ -2134,7 +2134,9 @@ const AdminTodos = () => {
                       </p>
                       <p className="text-gray-600">
                         <strong>{t("todos.todoType")}:</strong>{" "}
-                        {(selectedTodo.todo_type || "rutin") === "rutin" ? "Rutin" : "Tambahan"}
+                        {(selectedTodo.todo_type || "rutin") === "rutin"
+                          ? t("todos.routine", { defaultValue: "Routine" })
+                          : t("todos.additional", { defaultValue: "Additional" })}
                       </p>
                       <p className="text-gray-600">
                         <strong>{t("todos.targetCategory")}:</strong>{" "}

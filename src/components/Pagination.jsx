@@ -235,8 +235,8 @@ const Pagination = ({
               ) : (
                 <div className="px-3 py-2 text-sm text-gray-500">
                   {inputValue
-                    ? "Press Enter to use custom value"
-                    : "No options"}
+                    ? t("common.pressEnterToUseCustom", { defaultValue: "Press Enter to use custom value" })
+                    : t("common.noOptions", { defaultValue: "No options" })}
                 </div>
               )}
             </div>
