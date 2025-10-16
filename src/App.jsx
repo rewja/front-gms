@@ -23,10 +23,12 @@ import AdminRequests from "./pages/admin/AdminRequests";
 import AssetManagementTabs from "./pages/admin/AssetManagementTabs";
 import AdminMeetings from "./pages/admin/AdminMeetings";
 import AdminVisitors from "./pages/admin/AdminVisitors";
-import ActivityLogs from "./pages/admin/ActivityLogs";
 
 // Procurement pages
 import ProcurementAssetManagement from "./pages/procurement/ProcurementAssetManagement";
+
+// History page
+import HistoryDashboard from "./components/history/HistoryDashboard";
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
@@ -136,15 +138,14 @@ function App() {
                     }
                   />
 
+                  {/* History route - accessible by all authenticated users */}
                   <Route
-                    path="/my-activity"
+                    path="/history"
                     element={
                       <ProtectedRoute>
-                        <RoleRoute allowedRoles={["user"]}>
-                          <Layout>
-                            <ActivityLogs />
-                          </Layout>
-                        </RoleRoute>
+                        <Layout>
+                          <HistoryDashboard />
+                        </Layout>
                       </ProtectedRoute>
                     }
                   />
@@ -228,18 +229,6 @@ function App() {
                     }
                   />
 
-            <Route
-              path="/admin/activity-logs"
-              element={
-                <ProtectedRoute>
-                  <RoleRoute allowedRoles={["admin_ga", "admin_ga_manager", "super_admin"]}>
-                    <Layout>
-                      <ActivityLogs />
-                    </Layout>
-                  </RoleRoute>
-                </ProtectedRoute>
-              }
-            />
 
                   {/* Procurement routes */}
                   <Route

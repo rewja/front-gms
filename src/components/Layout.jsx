@@ -116,7 +116,7 @@ const Layout = ({ children }) => {
         ...baseItems,
         { name: t("nav.todos"), href: "/todos", icon: CheckSquare },
         { name: t("nav.requestItem"), href: "/requests", icon: Package },
-        { name: t("nav.myActivity"), href: "/my-activity", icon: History },
+        { name: t("nav.history"), href: "/history", icon: History },
       ];
     }
 
@@ -136,7 +136,7 @@ const Layout = ({ children }) => {
           icon: Building,
         },
         { name: t("nav.meetingManagement"), href: "/admin/meetings", icon: Clock },
-        { name: t("nav.activityLogs"), href: "/admin/activity-logs", icon: History },
+        { name: t("nav.history"), href: "/history", icon: History },
         // { name: t("nav.visitors"), href: "/admin/visitors", icon: User }, // Hidden during development
       ];
     }
@@ -154,6 +154,7 @@ const Layout = ({ children }) => {
           href: "/admin/asset-management",
           icon: Building,
         },
+        { name: t("nav.history"), href: "/history", icon: History },
       ];
     }
 

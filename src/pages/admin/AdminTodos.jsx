@@ -114,6 +114,8 @@ const AdminTodos = () => {
         return t("todos.driverEquipment", { defaultValue: "Driver" });
       case "security":
         return t("todos.securityEquipment", { defaultValue: "Security" });
+      case "magang_pkl":
+        return t("common.employeeTypes.magang_pkl", { defaultValue: "Magang/PKL" });
       case "all":
         return t("common.allCategories", { defaultValue: "All Categories" });
       default:
@@ -2777,6 +2779,9 @@ const AdminTodos = () => {
                         <option value="security">
                           {t("todos.securityEquipment")}
                         </option>
+                        <option value="magang_pkl">
+                          {t("common.employeeTypes.magang_pkl")}
+                        </option>
                       </select>
                     </div>
 
@@ -3403,6 +3408,9 @@ const AdminTodos = () => {
                     </option>
                     <option value="security">
                       {t("common.categories.securityEquipment")}
+                    </option>
+                    <option value="magang_pkl">
+                      {t("common.employeeTypes.magang_pkl")}
                     </option>
                   </select>
                 </div>

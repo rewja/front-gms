@@ -213,10 +213,6 @@ const Dashboard = () => {
     };
   }, [user, t]);
 
-  const getRecentActivity = () => {
-    // Return empty array - we'll hide the section if no data
-    return [];
-  };
 
   const handleQuickAction = (action) => {
     switch (action) {
@@ -255,7 +251,6 @@ const Dashboard = () => {
     }
   };
 
-  const recentActivity = getRecentActivity();
   const [chartData, setChartData] = useState(null);
   const [todayNotStarted, setTodayNotStarted] = useState(0);
 
@@ -691,65 +686,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Recent Activity - Only show if there's data */}
-      {recentActivity.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 shadow-sm rounded-xl border border-gray-200 dark:border-gray-700">
-          <div className="px-6 py-6">
-            <h3 className="text-lg leading-6 font-semibold text-gray-900 dark:text-white mb-6">
-              {t("dashboard.recentActivity")}
-            </h3>
-            <div className="flow-root">
-              <ul className="-mb-8">
-                {recentActivity.map((activity, index) => (
-                  <li key={index}>
-                    <div className="relative pb-8">
-                      {index !== recentActivity.length - 1 && (
-                        <span
-                          className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <div className="relative flex space-x-4">
-                        <div>
-                          <span
-                            className={`h-10 w-10 rounded-full flex items-center justify-center ring-4 ring-white dark:ring-gray-800 ${
-                              activity.type === "todo"
-                                ? "bg-accent-600"
-                                : activity.type === "request"
-                                ? "bg-primary-600"
-                                : activity.type === "meeting"
-                                ? "bg-accent-700"
-                                : activity.type === "user"
-                                ? "bg-primary-700"
-                                : activity.type === "asset"
-                                ? "bg-accent-500"
-                                : activity.type === "visitor"
-                                ? "bg-primary-500"
-                                : "bg-gray-500"
-                            }`}
-                          >
-                            <Clock className="h-5 w-5 text-white" />
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1 pt-2 flex justify-between space-x-4">
-                          <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">
-                              {activity.message}
-                            </p>
-                          </div>
-                          <div className="text-right text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
-                            {activity.time}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

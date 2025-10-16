@@ -70,7 +70,6 @@ function getNavigationItems(user) {
             ...baseItems,
             { name: 'To-Do List', href: '/todos', icon: 'CheckSquare' },
             { name: 'Request Item', href: '/requests', icon: 'Package' },
-            { name: 'My Activity', href: '/my-activity', icon: 'History' }
         ];
     }
 
@@ -83,10 +82,6 @@ function getNavigationItems(user) {
             { name: 'Asset Management', href: '/admin/asset-management', icon: 'Building' }
         ];
 
-        // Only admin_ga and admin_ga_manager can see activity logs
-        if (['admin_ga', 'admin_ga_manager'].includes(user?.role)) {
-            adminItems.push({ name: 'Activity Logs', href: '/admin/activity-logs', icon: 'History' });
-        }
 
         return adminItems;
     }
@@ -101,11 +96,9 @@ function canAccessRoute(user, route) {
         '/admin/todos': ['admin_ga', 'admin_ga_manager', 'super_admin'],
         '/admin/requests': ['admin_ga', 'admin_ga_manager', 'super_admin'],
         '/admin/asset-management': ['admin_ga', 'admin_ga_manager', 'super_admin'],
-        '/admin/activity-logs': ['admin_ga', 'admin_ga_manager'], // Only GA roles
         '/admin/visitors': ['admin_ga', 'admin_ga_manager', 'super_admin'],
         '/todos': ['user'],
         '/requests': ['user'],
-        '/my-activity': ['user'],
         '/dashboard': ['admin_ga', 'admin_ga_manager', 'super_admin', 'user']
     };
 
@@ -131,11 +124,9 @@ function runFrontendPermissionTests() {
             { route: '/admin/todos', expected: ['admin_ga', 'admin_ga_manager', 'super_admin'] },
             { route: '/admin/requests', expected: ['admin_ga', 'admin_ga_manager', 'super_admin'] },
             { route: '/admin/asset-management', expected: ['admin_ga', 'admin_ga_manager', 'super_admin'] },
-            { route: '/admin/activity-logs', expected: ['admin_ga', 'admin_ga_manager'] },
             { route: '/admin/visitors', expected: ['admin_ga', 'admin_ga_manager', 'super_admin'] },
             { route: '/todos', expected: ['user'] },
             { route: '/requests', expected: ['user'] },
-            { route: '/my-activity', expected: ['user'] },
             { route: '/dashboard', expected: ['admin_ga', 'admin_ga_manager', 'super_admin', 'user'] }
         ];
         
@@ -150,15 +141,6 @@ function runFrontendPermissionTests() {
             }
         });
         
-        // Test ActivityLogs specific permission
-        const canAccessActivityLogs = ['admin_ga', 'admin_ga_manager'].includes(user.role);
-        const hasActivityLogsInNav = navigationItems.some(item => item.name === 'Activity Logs');
-        
-        if (canAccessActivityLogs === hasActivityLogsInNav) {
-            console.log(`    ✅ Activity Logs: ${canAccessActivityLogs ? 'CAN' : 'CANNOT'} access`);
-        } else {
-            console.log(`    ❌ Activity Logs: Navigation mismatch`);
-        }
         
         console.log('');
     });
@@ -167,50 +149,6 @@ function runFrontendPermissionTests() {
     console.log('🎯 TESTING SPECIFIC SCENARIOS:');
     console.log('==============================\n');
     
-    // Test 1: Super Admin should NOT see ActivityLogs in navigation
-    const superAdminNav = getNavigationItems(testUsers.super_admin);
-    const superAdminHasActivityLogs = superAdminNav.some(item => item.name === 'Activity Logs');
-    
-    if (!superAdminHasActivityLogs) {
-        console.log('✅ Super Admin correctly does NOT see ActivityLogs in navigation');
-    } else {
-        console.log('❌ Super Admin incorrectly sees ActivityLogs in navigation');
-    }
-    
-    // Test 2: GA Manager should see ActivityLogs in navigation
-    const gaManagerNav = getNavigationItems(testUsers.admin_ga_manager);
-    const gaManagerHasActivityLogs = gaManagerNav.some(item => item.name === 'Activity Logs');
-    
-    if (gaManagerHasActivityLogs) {
-        console.log('✅ GA Manager correctly sees ActivityLogs in navigation');
-    } else {
-        console.log('❌ GA Manager incorrectly does NOT see ActivityLogs in navigation');
-    }
-    
-    // Test 3: GA Admin should see ActivityLogs in navigation
-    const gaAdminNav = getNavigationItems(testUsers.admin_ga);
-    const gaAdminHasActivityLogs = gaAdminNav.some(item => item.name === 'Activity Logs');
-    
-    if (gaAdminHasActivityLogs) {
-        console.log('✅ GA Admin correctly sees ActivityLogs in navigation');
-    } else {
-        console.log('❌ GA Admin incorrectly does NOT see ActivityLogs in navigation');
-    }
-    
-    // Test 4: Users should see My Activity instead of ActivityLogs
-    const userRoles = ['user_ob', 'user_driver', 'user_security', 'user_magang'];
-    userRoles.forEach(userKey => {
-        const user = testUsers[userKey];
-        const userNav = getNavigationItems(user);
-        const hasMyActivity = userNav.some(item => item.name === 'My Activity');
-        const hasActivityLogs = userNav.some(item => item.name === 'Activity Logs');
-        
-        if (hasMyActivity && !hasActivityLogs) {
-            console.log(`✅ ${user.name} correctly sees My Activity (not ActivityLogs)`);
-        } else {
-            console.log(`❌ ${user.name} navigation issue: My Activity: ${hasMyActivity}, ActivityLogs: ${hasActivityLogs}`);
-        }
-    });
     
     console.log('\n✅ FRONTEND PERMISSION TESTS COMPLETED!');
 }

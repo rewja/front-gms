@@ -34,7 +34,6 @@ The dashboard provides an overview of your activities and quick access to common
 - **Today's Overview** - Summary of today's tasks and activities
 - **My Tasks** - Quick view of your current tasks
 - **My Requests** - Status of your submitted requests
-- **Recent Activity** - Latest updates and notifications
 
 ### Quick Actions
 - **New Task** - Create a new task
