@@ -25,7 +25,7 @@ const ActivityLogs = () => {
   const [userFilter, setUserFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [stats, setStats] = useState(null);
+  const [isAdminView, setIsAdminView] = useState(true);
 
   const getActionIcon = (action) => {
     switch (action) {
@@ -92,22 +92,25 @@ const ActivityLogs = () => {
       if (userFilter !== "all") params.append("user_id", userFilter);
       if (dateFrom) params.append("date_from", dateFrom);
       if (dateTo) params.append("date_to", dateTo);
-
-      const res = await api.get(`/activities?${params.toString()}`);
-      setActivities(res.data.data || []);
+      // Try self endpoint first; if forbidden (e.g., admin context), fallback to admin endpoint
+      try {
+        const resMine = await api.get(`/activities/mine?${params.toString()}`);
+        setActivities(resMine.data.data || resMine.data || []);
+        setIsAdminView(false);
+      } catch (eMine) {
+        const isForbiddenMine = eMine?.response?.status === 403 || (typeof eMine?.message === "string" && eMine.message.includes("HTTP 403"));
+        if (isForbiddenMine) {
+          const res = await api.get(`/activities?${params.toString()}`);
+          setActivities(res.data.data || []);
+          setIsAdminView(true);
+        } else {
+          throw eMine;
+        }
+      }
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to load activities");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const res = await api.get("/activities/stats");
-      setStats(res.data);
-    } catch (e) {
-      console.error("Failed to load stats:", e);
     }
   };
 
@@ -119,7 +122,6 @@ const ActivityLogs = () => {
     try {
       await api.delete("/activities/clear-old");
       await loadActivities();
-      await loadStats();
     } catch (e) {
       alert(e?.response?.data?.message || "Failed to clear old activities");
     }
@@ -127,7 +129,6 @@ const ActivityLogs = () => {
 
   useEffect(() => {
     loadActivities();
-    loadStats();
   }, [searchTerm, actionFilter, userFilter, dateFrom, dateTo]);
 
   return (
@@ -137,55 +138,7 @@ const ActivityLogs = () => {
         <p className="text-gray-600">Monitor user activities and system events</p>
       </div>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="card p-4">
-            <div className="flex items-center">
-              <Activity className="h-8 w-8 text-blue-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Activities</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.recent?.length || 0}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="flex items-center">
-              <User className="h-8 w-8 text-green-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Users</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.by_user?.length || 0}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-yellow-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Today's Activities</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {stats.daily?.find(d => d.date === new Date().toISOString().split('T')[0])?.total || 0}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="card p-4">
-            <div className="flex items-center">
-              <Shield className="h-8 w-8 text-red-500" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Most Common Action</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {stats.by_action?.[0]?.action || "N/A"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Stats removed */}
 
       {/* Filters */}
       <div className="card p-4">
@@ -236,14 +189,16 @@ const ActivityLogs = () => {
               className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
-          <div>
-            <button
-              onClick={clearOldActivities}
-              className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              Clear Old Logs
-            </button>
-          </div>
+          {isAdminView && (
+            <div>
+              <button
+                onClick={clearOldActivities}
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                Clear Old Logs
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
