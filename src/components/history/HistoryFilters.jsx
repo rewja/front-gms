@@ -1,162 +1,132 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
   const { t } = useTranslation();
-  const [localFilters, setLocalFilters] = useState(filters);
 
-  const handleFilterChange = (key, value) => {
-    const newFilters = { ...localFilters, [key]: value };
-    setLocalFilters(newFilters);
-  };
-
-  const handleApplyFilters = () => {
-    onFilterChange(localFilters);
-  };
-
-  const handleClearFilters = () => {
-    const clearedFilters = {
-      action: '',
-      date_from: '',
-      date_to: '',
-      search: '',
-      page: 1,
-      per_page: 50
-    };
-    setLocalFilters(clearedFilters);
-    onFilterChange(clearedFilters);
-  };
-
-  const actions = [
+  const actions = useMemo(() => ([
     { value: '', label: t('activities.filters.all_actions') },
     { value: 'create', label: t('activities.actions.create') },
     { value: 'update', label: t('activities.actions.update') },
     { value: 'delete', label: t('activities.actions.delete') },
     { value: 'login', label: t('activities.actions.login') },
     { value: 'logout', label: t('activities.actions.logout') },
-  ];
+  ]), [t]);
+
+  const roles = useMemo(() => ([
+    { value: '', label: 'Semua Jenis User' },
+    { value: 'user', label: 'User' },
+    { value: 'admin_ga', label: 'Admin GA' },
+    { value: 'admin_ga_manager', label: 'Admin GA Manager' },
+    { value: 'super_admin', label: 'Super Admin' },
+  ]), []);
+
+  const timeRanges = useMemo(() => ([
+    { value: 'all', label: 'Semua Waktu' },
+    { value: 'today', label: 'Hari Ini' },
+    { value: '7d', label: '7 Hari Terakhir' },
+    { value: '30d', label: '30 Hari Terakhir' },
+    { value: 'this_month', label: 'Bulan Ini' },
+    { value: 'this_year', label: 'Tahun Ini' },
+  ]), []);
+
+  const applyTimeRange = (rangeValue) => {
+    if (rangeValue === 'all') {
+      onFilterChange({ ...filters, date_from: '', date_to: '' });
+      return;
+    }
+
+    const now = new Date();
+    let from = '';
+    let to = now.toISOString().split('T')[0];
+
+    switch (rangeValue) {
+      case 'today': {
+        const d = now.toISOString().split('T')[0];
+        onFilterChange({ ...filters, date_from: d, date_to: d });
+        return;
+      }
+      case '7d': {
+        const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        from = start.toISOString().split('T')[0];
+        break;
+      }
+      case '30d': {
+        const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        from = start.toISOString().split('T')[0];
+        break;
+      }
+      case 'this_month': {
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        from = start.toISOString().split('T')[0];
+        break;
+      }
+      case 'this_year': {
+        const start = new Date(now.getFullYear(), 0, 1);
+        from = start.toISOString().split('T')[0];
+        break;
+      }
+      default:
+        break;
+    }
+
+    onFilterChange({ ...filters, date_from: from, date_to: to });
+  };
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        {t('activities.filters.title')}
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Action Filter */}
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Jenis Aktivitas
-          </label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jenis Aktivitas</label>
           <select
-            value={localFilters.action}
-            onChange={(e) => handleFilterChange('action', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            value={filters.action}
+            onChange={(e) => onFilterChange({ ...filters, action: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
           >
-            {actions.map(action => (
-              <option key={action.value} value={action.value}>
-                {action.label}
-              </option>
+            {actions.map((a) => (
+              <option key={a.value} value={a.value}>{a.label}</option>
             ))}
           </select>
         </div>
 
-        {/* Date From */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Dari Tanggal
-          </label>
-          <input
-            type="date"
-            value={localFilters.date_from}
-            onChange={(e) => handleFilterChange('date_from', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          />
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Waktu</label>
+          <select
+            value={(filters.date_from || filters.date_to) ? 'all' : 'all'}
+            onChange={(e) => applyTimeRange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+          >
+            {timeRanges.map((tr) => (
+              <option key={tr.value} value={tr.value}>{tr.label}</option>
+            ))}
+          </select>
         </div>
 
-        {/* Date To */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Sampai Tanggal
-          </label>
-          <input
-            type="date"
-            value={localFilters.date_to}
-            onChange={(e) => handleFilterChange('date_to', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          />
-        </div>
-
-        {/* Search */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Cari Aktivitas
-          </label>
-          <input
-            type="text"
-            value={localFilters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            placeholder="Cari aktivitas..."
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-          />
-        </div>
+        {isAdmin && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Jenis User</label>
+            <select
+              value={filters.user_role || ''}
+              onChange={(e) => onFilterChange({ ...filters, user_role: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+            >
+              {roles.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Quick Date Filters */}
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Filter Cepat
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => {
-              const today = new Date().toISOString().split('T')[0];
-              handleFilterChange('date_from', today);
-              handleFilterChange('date_to', today);
-            }}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
-          >
-            Hari Ini
-          </button>
-          <button
-            onClick={() => {
-              const today = new Date();
-              const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-              handleFilterChange('date_from', weekAgo.toISOString().split('T')[0]);
-              handleFilterChange('date_to', today.toISOString().split('T')[0]);
-            }}
-            className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full hover:bg-green-200 dark:bg-green-900 dark:text-green-300"
-          >
-            Seminggu Terakhir
-          </button>
-          <button
-            onClick={() => {
-              const today = new Date();
-              const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-              handleFilterChange('date_from', monthAgo.toISOString().split('T')[0]);
-              handleFilterChange('date_to', today.toISOString().split('T')[0]);
-            }}
-            className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300"
-          >
-            Sebulan Terakhir
-          </button>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-3 mt-4">
-        <button
-          onClick={handleApplyFilters}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-        >
-          Terapkan Filter
-        </button>
-        <button
-          onClick={handleClearFilters}
-          className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
-        >
-          Hapus Filter
-        </button>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cari</label>
+        <input
+          type="text"
+          value={filters.search}
+          onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+          placeholder="Cari aktivitas..."
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+        />
       </div>
     </div>
   );

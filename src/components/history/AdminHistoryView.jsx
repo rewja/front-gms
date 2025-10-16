@@ -12,6 +12,7 @@ const AdminHistoryView = () => {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     user_id: '',
+    user_role: '',
     action: '',
     model_type: '',
     date_from: '',
@@ -204,5 +205,6 @@ const AdminHistoryView = () => {
 };
 
 export default AdminHistoryView;
+
 
 
