@@ -70,7 +70,7 @@ const AdminTodos = () => {
     target_duration_unit: "minutes",
   });
   // Time range filter: today | this_week | this_month | this_year | custom YYYY-MM-DD
-  const [dateFilter, setDateFilter] = useState("today");
+  const [dateFilter, setDateFilter] = useState("all");
   const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -1058,7 +1058,7 @@ const AdminTodos = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                {t("todos.allTodos")} ({todos.length})
+                {t("todos.allTodos")} ({filteredTodos.length})
               </button>
               <button
                 onClick={() => setTodoTab("rutin")}
@@ -1287,7 +1287,9 @@ const AdminTodos = () => {
               {!showDateDropdown && (
                 <div className="absolute inset-0 flex items-center pl-3 pr-10 pointer-events-none">
                   <span className="text-gray-900 text-sm sm:text-base">
-                    {dateFilter === "today"
+                    {dateFilter === "all"
+                      ? t("todos.allTime", { defaultValue: "Semua Waktu" })
+                      : dateFilter === "today"
                       ? t("todos.today", { defaultValue: "Hari Ini" })
                       : dateFilter === "this_week"
                       ? t("todos.thisWeek", { defaultValue: "Minggu Ini" })
@@ -1306,6 +1308,7 @@ const AdminTodos = () => {
             {showDateDropdown && (
               <div className="absolute z-10 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none mt-1">
                 {[
+                  { value: "all", label: t("todos.allTime", { defaultValue: "Semua Waktu" }) },
                   { value: "today", label: t("todos.today", { defaultValue: "Hari Ini" }) },
                   { value: "this_week", label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }) },
                   { value: "this_month", label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }) },
@@ -1960,7 +1963,7 @@ const AdminTodos = () => {
           </div>
         )}
 
-      {/* Todo List - show only tambahan/non-routine explicitly when tab is tambahan or all */}
+      {/* Todo List - show only tambahan when tab is tambahan, rutin when tab is rutin, all when tab is all */}
       <div className="card">
         {loading ? (
           <SkeletonLoader type="list" lines={5} />
@@ -1970,9 +1973,13 @@ const AdminTodos = () => {
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredTodos
               .filter((t) => {
-                // When a specific status is selected, show ALL matching todos (including routine)
-                if (statusFilter !== "all") return true;
-                // Otherwise, in All/Tambahan tab, show only additional (non-routine)
+                // Filter by tab selection
+                if (todoTab === "rutin") {
+                  return (t.todo_type || "rutin") === "rutin";
+                } else if (todoTab === "tambahan") {
+                  return (t.todo_type || "rutin") !== "rutin";
+                }
+                // For "all" tab, show only tambahan (rutin already shown in groups above)
                 return (t.todo_type || "rutin") !== "rutin";
               })
               .map((todo) => (

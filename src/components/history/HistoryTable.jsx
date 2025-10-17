@@ -51,6 +51,7 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
   const getActionColor = (action) => {
     const colors = {
       create: 'text-green-600 bg-green-100',
+      create_routine_batch: 'text-green-700 bg-green-100',
       update: 'text-blue-600 bg-blue-100',
       delete: 'text-red-600 bg-red-100',
       login: 'text-green-600 bg-green-100',
@@ -62,6 +63,41 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
     };
 
     return colors[action] || 'text-gray-600 bg-gray-100';
+  };
+
+  const renderTypeBadge = (activity) => {
+    const newValues = activity.new_values || {};
+    const todoType = newValues.todo_type;
+    if (!todoType) return null;
+    const label = todoType === 'rutin' ? 'Rutin' : 'Tambahan';
+    const color = todoType === 'rutin' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${color} ml-2`}>
+        {label}
+      </span>
+    );
+  };
+
+  const renderBatchSummaryChips = (activity) => {
+    const nv = activity.new_values || {};
+    if (activity.action !== 'create_routine_batch') return null;
+    const chips = [];
+    if (nv.user_count != null) chips.push(`${nv.user_count} user`);
+    if (nv.occurrence_count != null) chips.push(`${nv.occurrence_count} occurrence`);
+    if (nv.recurrence_interval && nv.recurrence_unit) chips.push(`${nv.recurrence_interval} ${nv.recurrence_unit}`);
+    if (Array.isArray(nv.days_of_week) && nv.days_of_week.length) {
+      const idDaysShort = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+      const days = nv.days_of_week.slice().sort((a,b)=>a-b).map(d=>idDaysShort[d]||d).join('·');
+      chips.push(days);
+    }
+    if (!chips.length) return null;
+    return (
+      <div className="mt-1 flex flex-wrap gap-1">
+        {chips.map((c, idx) => (
+          <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700 border border-gray-200">{c}</span>
+        ))}
+      </div>
+    );
   };
 
   if (loading) {
@@ -126,7 +162,9 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900 dark:text-white">
                     {activity.description}
+                    {renderTypeBadge(activity)}
                   </div>
+                  {renderBatchSummaryChips(activity)}
                   {activity.model_type && (
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {t(`activities.models.${activity.model_type.split('\\').pop().toLowerCase()}`)} #{activity.model_id}
