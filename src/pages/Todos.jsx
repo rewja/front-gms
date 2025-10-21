@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useNotification } from "../components/NotificationSystem";
 import { useErrorHandler } from "../hooks/useErrorHandler";
 import { api } from "../lib/api";
+import { getStorageUrl } from "../config/api";
 import {
   Plus,
   CheckCircle,
@@ -2087,6 +2088,20 @@ const Todos = () => {
                                     src={file.full_url || file.url}
                                     alt={file.name || `Evidence ${index + 1}`}
                                     className="w-full h-40 object-cover"
+                                    onError={(e) => {
+                                      console.log("Image failed to load:", {
+                                        src: file.full_url || file.url,
+                                        file: file,
+                                        error: e
+                                      });
+                                      // Try fallback URL with correct backend port
+                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
+                                      if (e.target.src !== fallbackUrl) {
+                                        e.target.src = fallbackUrl;
+                                      } else {
+                                        e.target.style.display = "none";
+                                      }
+                                    }}
                                   />
                                 </a>
                               ) : (
@@ -2193,6 +2208,20 @@ const Todos = () => {
                                     src={file.full_url || file.url}
                                     alt={file.name || `Evidence ${index + 1}`}
                                     className="w-full h-40 object-cover"
+                                    onError={(e) => {
+                                      console.log("Image failed to load:", {
+                                        src: file.full_url || file.url,
+                                        file: file,
+                                        error: e
+                                      });
+                                      // Try fallback URL with correct backend port
+                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
+                                      if (e.target.src !== fallbackUrl) {
+                                        e.target.src = fallbackUrl;
+                                      } else {
+                                        e.target.style.display = "none";
+                                      }
+                                    }}
                                   />
                                 </a>
                               ) : (
@@ -2221,7 +2250,7 @@ const Todos = () => {
                           {t("todos.evidence")}
                         </h4>
                         {(() => {
-                          const legacyUrl = `/storage/${selectedTodo.evidence_path}`;
+                          const legacyUrl = getStorageUrl(`storage/${selectedTodo.evidence_path}`);
                           const fileUrl =
                             selectedTodo.evidence_files && selectedTodo.evidence_files.length > 0
                               ? (selectedTodo.evidence_files[0].full_url || selectedTodo.evidence_files[0].url)
@@ -2232,6 +2261,13 @@ const Todos = () => {
                                 src={fileUrl}
                                 alt="Evidence"
                                 className="w-full max-h-64 object-contain rounded"
+                                onError={(e) => {
+                                  console.log("Legacy image failed to load:", {
+                                    src: fileUrl,
+                                    error: e
+                                  });
+                                  e.target.style.display = "none";
+                                }}
                               />
                             </a>
                           ) : (

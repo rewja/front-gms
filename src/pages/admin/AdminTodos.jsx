@@ -4,6 +4,7 @@ import { api } from "../../lib/api";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../components/NotificationSystem";
+import { getStorageUrl } from "../../config/api";
 import {
   CheckSquare,
   Clock,
@@ -621,8 +622,15 @@ const AdminTodos = () => {
 
   // Logical task date helper (prefer scheduled_date when present)
   const getTaskDate = (todo) => {
-    const dateStr = todo?.scheduled_date || todo?.created_at;
-    return dateStr ? new Date(dateStr) : null;
+    // Try different date fields in order of preference
+    const dateStr = todo?.scheduled_date || todo?.target_start_at || todo?.created_at;
+    if (!dateStr) return null;
+    
+    const date = new Date(dateStr);
+    // Check if date is valid
+    if (isNaN(date.getTime())) return null;
+    
+    return date;
   };
 
   const formatStatusLabel = (status) => {
@@ -799,7 +807,7 @@ const AdminTodos = () => {
   };
 
   const getDateRange = (filter) => {
-    if (!filter || filter === "") return null;
+    if (!filter || filter === "" || filter === "all") return null;
     const now = new Date();
     switch (filter) {
       case "today": {
@@ -813,15 +821,23 @@ const AdminTodos = () => {
         const start = new Date(now);
         start.setDate(now.getDate() - now.getDay());
         start.setHours(0, 0, 0, 0);
-        return { start, end: null };
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+        return { start, end };
       }
       case "this_month": {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { start, end: null };
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        return { start, end };
       }
       case "this_year": {
         const start = new Date(now.getFullYear(), 0, 1);
-        return { start, end: null };
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setFullYear(end.getFullYear() + 1);
+        return { start, end };
       }
       default: {
         if (/^\d{4}-\d{2}-\d{2}$/.test(filter)) {
@@ -829,7 +845,7 @@ const AdminTodos = () => {
           const start = new Date(d);
           start.setHours(0, 0, 0, 0);
           const end = new Date(d);
-          end.setHours(23, 59, 59, 999);
+          end.setDate(end.getDate() + 1);
           return { start, end };
         }
         return null;
@@ -983,18 +999,17 @@ const AdminTodos = () => {
     return Math.max(Math.round(100 - penalty), 0);
   };
 
+  // Calculate distribution based on ALL todos, not filtered ones
   const distribution = React.useMemo(
     () => ({
-      not_started: filteredTodos.filter((t) => t.status === "not_started")
-        .length,
-      in_progress: filteredTodos.filter((t) => t.status === "in_progress")
-        .length,
-      hold: filteredTodos.filter((t) => t.status === "hold").length,
-      checking: filteredTodos.filter((t) => t.status === "checking").length,
-      evaluating: filteredTodos.filter((t) => t.status === "evaluating").length,
-      completed: filteredTodos.filter((t) => t.status === "completed").length,
+      not_started: todos.filter((t) => t.status === "not_started").length,
+      in_progress: todos.filter((t) => t.status === "in_progress").length,
+      hold: todos.filter((t) => t.status === "hold").length,
+      checking: todos.filter((t) => t.status === "checking").length,
+      evaluating: todos.filter((t) => t.status === "evaluating").length,
+      completed: todos.filter((t) => t.status === "completed").length,
     }),
-    [filteredTodos]
+    [todos]
   );
 
   // Close dropdowns when clicking outside
@@ -1107,9 +1122,11 @@ const AdminTodos = () => {
 
       {/* Tabs: All / Rutin / Tambahan (match Asset Management style) */}
       {(() => {
-        const tambahanCount = filteredTodos.filter(
-          (t) => (t.todo_type || "rutin") !== "rutin"
-        ).length;
+        // Calculate counts based on ALL todos, not filtered ones
+        const allCount = todos.length;
+        const rutinCount = todos.filter((t) => (t.todo_type || "rutin") === "rutin").length;
+        const tambahanCount = todos.filter((t) => (t.todo_type || "rutin") !== "rutin").length;
+        
         return (
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
@@ -1121,7 +1138,7 @@ const AdminTodos = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                {t("todos.allTodos")} ({filteredTodos.length})
+                {t("todos.allTodos")} ({allCount})
               </button>
               <button
                 onClick={() => setTodoTab("rutin")}
@@ -1131,7 +1148,7 @@ const AdminTodos = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                {t("todos.routine")} ({routineGroups.length})
+                {t("todos.routine")} ({rutinCount})
               </button>
               <button
                 onClick={() => setTodoTab("tambahan")}
@@ -2118,8 +2135,8 @@ const AdminTodos = () => {
                 } else if (todoTab === "tambahan") {
                   return (t.todo_type || "rutin") !== "rutin";
                 }
-                // For "all" tab, show only tambahan (rutin already shown in groups above)
-                return (t.todo_type || "rutin") !== "rutin";
+                // For "all" tab, show all todos (both rutin and tambahan)
+                return true;
               })
               .map((todo) => (
                 <li
@@ -2523,7 +2540,7 @@ const AdminTodos = () => {
                                     window.open(
                                       file.full_url ||
                                         file.url ||
-                                        `/storage/${file.path}`,
+                                        getStorageUrl(`storage/${file.path}`),
                                       "_blank"
                                     )
                                   }
@@ -2532,7 +2549,7 @@ const AdminTodos = () => {
                                       window.open(
                                         file.full_url ||
                                           file.url ||
-                                          `/storage/${file.path}`,
+                                          getStorageUrl(`storage/${file.path}`),
                                         "_blank"
                                       );
                                   }}
@@ -2542,16 +2559,23 @@ const AdminTodos = () => {
                                     src={
                                       file.full_url ||
                                       file.url ||
-                                      `/storage/${file.path}`
+                                      getStorageUrl(`storage/${file.path}`)
                                     }
                                     alt={file.name || `Evidence ${index + 1}`}
                                     className="w-full h-40 object-cover"
                                     onError={(e) => {
-                                      console.log(
-                                        "Image failed to load:",
-                                        file.full_url || file.url
-                                      );
-                                      e.target.style.display = "none";
+                                      console.log("Image failed to load:", {
+                                        src: file.full_url || file.url,
+                                        file: file,
+                                        error: e
+                                      });
+                                      // Try fallback URL with correct backend port
+                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
+                                      if (e.target.src !== fallbackUrl) {
+                                        e.target.src = fallbackUrl;
+                                      } else {
+                                        e.target.style.display = "none";
+                                      }
                                     }}
                                   />
                                 </div>
@@ -2562,7 +2586,7 @@ const AdminTodos = () => {
                                     href={
                                       file.full_url ||
                                       file.url ||
-                                      `/storage/${file.path}`
+                                      getStorageUrl(`storage/${file.path}`)
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -2650,7 +2674,7 @@ const AdminTodos = () => {
                                     window.open(
                                       file.full_url ||
                                         file.url ||
-                                        `/storage/${file.path}`,
+                                        getStorageUrl(`storage/${file.path}`),
                                       "_blank"
                                     )
                                   }
@@ -2659,7 +2683,7 @@ const AdminTodos = () => {
                                       window.open(
                                         file.full_url ||
                                           file.url ||
-                                          `/storage/${file.path}`,
+                                          getStorageUrl(`storage/${file.path}`),
                                         "_blank"
                                       );
                                   }}
@@ -2669,16 +2693,23 @@ const AdminTodos = () => {
                                     src={
                                       file.full_url ||
                                       file.url ||
-                                      `/storage/${file.path}`
+                                      getStorageUrl(`storage/${file.path}`)
                                     }
                                     alt={file.name || `Evidence ${index + 1}`}
                                     className="w-full h-40 object-cover"
                                     onError={(e) => {
-                                      console.log(
-                                        "Image failed to load:",
-                                        file.full_url || file.url
-                                      );
-                                      e.target.style.display = "none";
+                                      console.log("Image failed to load:", {
+                                        src: file.full_url || file.url,
+                                        file: file,
+                                        error: e
+                                      });
+                                      // Try fallback URL with correct backend port
+                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
+                                      if (e.target.src !== fallbackUrl) {
+                                        e.target.src = fallbackUrl;
+                                      } else {
+                                        e.target.style.display = "none";
+                                      }
                                     }}
                                   />
                                 </div>
@@ -2689,7 +2720,7 @@ const AdminTodos = () => {
                                     href={
                                       file.full_url ||
                                       file.url ||
-                                      `/storage/${file.path}`
+                                      getStorageUrl(`storage/${file.path}`)
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -2788,7 +2819,7 @@ const AdminTodos = () => {
                                     window.open(
                                       file.full_url ||
                                         file.url ||
-                                        `/storage/${file.path}`,
+                                        getStorageUrl(`storage/${file.path}`),
                                       "_blank"
                                     )
                                   }
@@ -2797,7 +2828,7 @@ const AdminTodos = () => {
                                       window.open(
                                         file.full_url ||
                                           file.url ||
-                                          `/storage/${file.path}`,
+                                          getStorageUrl(`storage/${file.path}`),
                                         "_blank"
                                       );
                                   }}
@@ -2807,13 +2838,24 @@ const AdminTodos = () => {
                                     src={
                                       file.full_url ||
                                       file.url ||
-                                      `/storage/${file.path}`
+                                      getStorageUrl(`storage/${file.path}`)
                                     }
                                     alt={file.name || `Evidence ${index + 1}`}
                                     className="w-full h-32 object-cover"
-                                    onError={(e) =>
-                                      (e.target.style.display = "none")
-                                    }
+                                    onError={(e) => {
+                                      console.log("Image failed to load:", {
+                                        src: file.full_url || file.url,
+                                        file: file,
+                                        error: e
+                                      });
+                                      // Try fallback URL with correct backend port
+                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
+                                      if (e.target.src !== fallbackUrl) {
+                                        e.target.src = fallbackUrl;
+                                      } else {
+                                        e.target.style.display = "none";
+                                      }
+                                    }}
                                   />
                                 </div>
                               ) : (
@@ -2823,7 +2865,7 @@ const AdminTodos = () => {
                                     href={
                                       file.full_url ||
                                       file.url ||
-                                      `/storage/${file.path}`
+                                      getStorageUrl(`storage/${file.path}`)
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"
