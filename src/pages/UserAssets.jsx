@@ -20,6 +20,7 @@ const UserAssets = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleAssetUpdated = (updatedAsset) => {
     setAssets((prev) =>
@@ -116,7 +117,18 @@ const UserAssets = () => {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">

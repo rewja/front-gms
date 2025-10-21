@@ -43,28 +43,24 @@ export const getUserSummary = async (userId) => {
 
 export const exportPersonalActivities = async (filters = {}) => {
   const params = new URLSearchParams();
-  
   Object.keys(filters).forEach(key => {
     if (filters[key] !== '' && filters[key] !== null && filters[key] !== undefined) {
       params.append(key, filters[key]);
     }
   });
-
-  const response = await api.get(`/activities/export?${params.toString()}`);
-  return response.data;
+  const response = await api.get(`/activities/export?${params.toString()}` , { responseType: 'blob' });
+  return response;
 };
 
 export const exportAllActivities = async (filters = {}) => {
   const params = new URLSearchParams();
-  
   Object.keys(filters).forEach(key => {
     if (filters[key] !== '' && filters[key] !== null && filters[key] !== undefined) {
       params.append(key, filters[key]);
     }
   });
-
-  const response = await api.get(`/activities/export?${params.toString()}`);
-  return response.data;
+  const response = await api.get(`/activities/export?${params.toString()}`, { responseType: 'blob' });
+  return response;
 };
 
 export const clearOldLogs = async (data) => {

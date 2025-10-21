@@ -38,8 +38,13 @@ const Layout = ({ children }) => {
     navigate("/login");
   };
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const handleReload = () => {
-    window.location.reload();
+    setRefreshKey((prev) => prev + 1);
+    window.dispatchEvent(
+      new CustomEvent("refreshData", { detail: { refreshKey: refreshKey + 1 } })
+    );
   };
 
   // Update time every second

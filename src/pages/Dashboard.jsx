@@ -24,6 +24,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastFetchTime, setLastFetchTime] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,7 +210,18 @@ const Dashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, t]);
+  }, [user, t, refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
+    };
+  }, []);
 
 
   const handleQuickAction = (action) => {

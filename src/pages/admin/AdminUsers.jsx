@@ -24,6 +24,7 @@ const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -217,7 +218,18 @@ const AdminUsers = () => {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
+    };
+  }, []);
 
   // Auto-detect role from search results
   useEffect(() => {

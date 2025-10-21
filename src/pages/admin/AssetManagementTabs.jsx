@@ -46,6 +46,7 @@ const AssetManagementTabs = () => {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [activeTab, setActiveTab] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -204,7 +205,18 @@ const AssetManagementTabs = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, t]);
+  }, [user, t, refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
+    };
+  }, []);
 
   const isProcurementRelevant = (asset) => {
     if (!asset) return false;

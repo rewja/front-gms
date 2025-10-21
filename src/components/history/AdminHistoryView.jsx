@@ -69,14 +69,14 @@ const AdminHistoryView = () => {
   const handleExport = async () => {
     try {
       const response = await exportAllActivities(filters);
-      // Create download link
-      const blob = new Blob([JSON.stringify(response.data.data, null, 2)], {
-        type: 'application/json'
-      });
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `system-activities-${new Date().toISOString().split('T')[0]}.json`;
+      const suggest = response.headers['content-disposition'] || '';
+      const match = suggest.match(/filename="?([^";]+)"?/i);
+      const filename = match ? match[1] : `system-activities-${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -42,6 +42,7 @@ const AdminRequests = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -279,6 +280,17 @@ const AdminRequests = () => {
     load();
     return () => {
       cancelled = true;
+    };
+  }, [refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
     };
   }, []);
 

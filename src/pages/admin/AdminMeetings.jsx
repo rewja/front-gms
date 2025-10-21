@@ -29,6 +29,7 @@ const AdminMeetings = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [roomFilter, setRoomFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -203,7 +204,18 @@ const AdminMeetings = () => {
 
   useEffect(() => {
     loadData();
-  }, [t]);
+  }, [t, refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener('refreshData', handleRefreshData);
+    return () => {
+      window.removeEventListener('refreshData', handleRefreshData);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">

@@ -33,6 +33,7 @@ const AdminVisitors = () => {
   const [visitors, setVisitors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingVisitor, setEditingVisitor] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -280,6 +281,17 @@ const AdminVisitors = () => {
   useEffect(() => {
     loadVisitors(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
+    };
   }, []);
 
   // Stop camera when modal closes or scan source changes away from manual

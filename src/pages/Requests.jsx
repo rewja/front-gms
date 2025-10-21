@@ -49,6 +49,7 @@ const Requests = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -489,7 +490,18 @@ const Requests = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, t]);
+  }, [user, t, refreshKey]);
+
+  // Listen for refresh events from Layout (soft refresh)
+  useEffect(() => {
+    const handleRefreshData = () => {
+      setRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("refreshData", handleRefreshData);
+    return () => {
+      window.removeEventListener("refreshData", handleRefreshData);
+    };
+  }, []);
 
   const filteredRequests = requests.filter((request) => {
     // Search filter
