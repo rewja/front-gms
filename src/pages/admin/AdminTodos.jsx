@@ -633,6 +633,21 @@ const AdminTodos = () => {
     return date;
   };
 
+  // Helper function to format rating display
+  const formatRating = (rating) => {
+    if (rating === null || rating === undefined) return null;
+    return Math.round(rating * 10) / 10; // Round to 1 decimal place
+  };
+
+  // Helper function to get rating label
+  const getRatingLabel = (rating) => {
+    if (rating >= 4.5) return "⭐ Excellent";
+    if (rating >= 3.5) return "⭐ Very Good";
+    if (rating >= 2.5) return "⭐ Good";
+    if (rating >= 1.5) return "⭐ Acceptable";
+    return "⭐ Poor";
+  };
+
   const formatStatusLabel = (status) => {
     if (!status) return t("common.unknown", { defaultValue: "Unknown" });
 
@@ -992,11 +1007,25 @@ const AdminTodos = () => {
 
     if (actualMinutes === null || isNaN(actualMinutes)) return null;
 
-    // Calculate rating (100% for on-time or early, decreases for overtime)
-    if (actualMinutes <= targetMinutes) return 100;
-    const overtimeRatio = actualMinutes / targetMinutes;
-    const penalty = Math.min((overtimeRatio - 1) * 50, 50);
-    return Math.max(Math.round(100 - penalty), 0);
+    // New logic: ≤100% target = perfect (5.0), >100% = penalty
+    const ratio = actualMinutes / targetMinutes;
+    
+    if (ratio <= 1.0) {
+      // Completed within or faster than target time - perfect
+      return 5.0;
+    } else if (ratio <= 1.25) {
+      // Completed in 125% of target time - good (4.0-5.0)
+      return 5.0 - ((ratio - 1.0) * 4.0);
+    } else if (ratio <= 1.5) {
+      // Completed in 150% of target time - acceptable (3.0-4.0)
+      return 4.0 - ((ratio - 1.25) * 4.0);
+    } else if (ratio <= 2.0) {
+      // Completed in 200% of target time - poor (2.0-3.0)
+      return 3.0 - ((ratio - 1.5) * 2.0);
+    } else {
+      // Completed in more than 200% of target time - very poor (1.0-2.0)
+      return Math.max(1.0, 2.0 - ((ratio - 2.0) * 0.5));
+    }
   };
 
   // Calculate distribution based on ALL todos, not filtered ones
@@ -2444,16 +2473,19 @@ const AdminTodos = () => {
                         </h4>
                         <div className="flex items-center space-x-4">
                           <div className="text-2xl font-bold text-blue-600">
-                            {selectedTodo.rating}/100
+                            {formatRating(selectedTodo.rating)}/5
                           </div>
                           <div className="flex-1">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${selectedTodo.rating}%` }}
+                                style={{ width: `${(selectedTodo.rating / 5) * 100}%` }}
                               ></div>
                             </div>
                           </div>
+                        </div>
+                        <div className="mt-2 text-sm text-gray-600">
+                          {getRatingLabel(selectedTodo.rating)}
                         </div>
                       </div>
                     )}
@@ -2937,13 +2969,18 @@ const AdminTodos = () => {
                       </label>
                       <div className="flex items-center justify-between gap-4">
                         <div className="text-2xl font-bold text-blue-600">
-                          {evaluationData.rating ?? "-"}/100
+                          {evaluationData.rating ? formatRating(evaluationData.rating) : "-"}/5
                         </div>
                         <div className="text-sm text-gray-500">
                           Nilai dihitung otomatis dari perbandingan waktu
                           pengerjaan aktual dan target.
                         </div>
                       </div>
+                      {evaluationData.rating && (
+                        <div className="mt-2 text-sm text-gray-600">
+                          {getRatingLabel(evaluationData.rating)}
+                        </div>
+                      )}
                     </div>
                   </div>
 

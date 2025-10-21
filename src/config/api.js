@@ -19,3 +19,5 @@ export const getStorageUrl = (path) => {
   // Return full URL with backend URL
   return `${config.backendUrl}/${cleanPath}`;
 };
+
+
