@@ -115,7 +115,9 @@ const AdminTodos = () => {
       case "security":
         return t("todos.securityEquipment", { defaultValue: "Security" });
       case "magang_pkl":
-        return t("common.employeeTypes.magang_pkl", { defaultValue: "Magang/PKL" });
+        return t("common.employeeTypes.magang_pkl", {
+          defaultValue: "Magang/PKL",
+        });
       case "all":
         return t("common.allCategories", { defaultValue: "All Categories" });
       default:
@@ -188,7 +190,10 @@ const AdminTodos = () => {
       } else if (dayNames.length === 2) {
         daysStr = dayNames.join(" dan ");
       } else {
-        daysStr = dayNames.slice(0, -1).join(", ") + " dan " + dayNames[dayNames.length - 1];
+        daysStr =
+          dayNames.slice(0, -1).join(", ") +
+          " dan " +
+          dayNames[dayNames.length - 1];
       }
     }
     const pattern = `Setiap ${interval} ${unitId}`;
@@ -609,7 +614,6 @@ const AdminTodos = () => {
     }
   };
 
-
   const getUserName = (userId) => {
     const user = users.find((u) => u.id === userId);
     return user ? user.name : `User ${userId}`;
@@ -645,7 +649,6 @@ const AdminTodos = () => {
           .replace(/\b\w/g, (l) => l.toUpperCase());
     }
   };
-
 
   const handleEdit = (todo) => {
     setEditingTodo(todo);
@@ -715,7 +718,10 @@ const AdminTodos = () => {
       setShowCreateModal(false);
       setEditingTodo(null);
     } catch (e) {
-      alert(e?.response?.data?.message || t("todos.saveFailed", { defaultValue: "Failed to save" }));
+      alert(
+        e?.response?.data?.message ||
+          t("todos.saveFailed", { defaultValue: "Failed to save" })
+      );
     }
   };
 
@@ -731,7 +737,11 @@ const AdminTodos = () => {
       if (error?.response?.status === 404) {
         // Todo already deleted, remove from local state
         setTodos((prev) => prev.filter((t) => t.id !== id));
-        alert(t("notifications.failedDeleteTodo", { defaultValue: "Failed to delete todo" }));
+        alert(
+          t("notifications.failedDeleteTodo", {
+            defaultValue: "Failed to delete todo",
+          })
+        );
       } else {
         alert(t("notifications.failedDeleteTodo"));
       }
@@ -750,7 +760,8 @@ const AdminTodos = () => {
       notes: "",
       warningPoints: 0,
       warningNote: "",
-      rating: todo.rating || 0,
+      // prefer automatic rating based on target vs actual; fallback to stored rating
+      rating: calculateAutomaticRating(todo) ?? todo.rating ?? 0,
     });
     setShowEvaluationModal(true);
   };
@@ -758,13 +769,11 @@ const AdminTodos = () => {
   const handleSubmitEvaluation = async () => {
     if (!selectedTodo) return;
     try {
+      // Send only action/type/notes - rating and warnings are calculated server-side
       await api.post(`/todos/${selectedTodo.id}/evaluate`, {
         action: evaluationData.action,
         type: "individual",
         notes: evaluationData.notes,
-        warning_points: evaluationData.warningPoints,
-        warning_note: evaluationData.warningNote,
-        rating: evaluationData.rating,
       });
       const [todosRes, usersRes] = await Promise.all([
         api.get("/todos/all"),
@@ -782,21 +791,28 @@ const AdminTodos = () => {
         rating: 0,
       });
     } catch (e) {
-      alert(e?.response?.data?.message || t("todos.evaluateFailed", { defaultValue: "Failed to evaluate" }));
+      alert(
+        e?.response?.data?.message ||
+          t("todos.evaluateFailed", { defaultValue: "Failed to evaluate" })
+      );
     }
   };
 
   const getDateRange = (filter) => {
-    if (!filter || filter === "" ) return null;
+    if (!filter || filter === "") return null;
     const now = new Date();
     switch (filter) {
       case "today": {
-        const start = new Date(); start.setHours(0,0,0,0);
-        const end = new Date(start); end.setDate(end.getDate() + 1);
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
         return { start, end };
       }
       case "this_week": {
-        const start = new Date(now); start.setDate(now.getDate() - now.getDay()); start.setHours(0,0,0,0);
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
+        start.setHours(0, 0, 0, 0);
         return { start, end: null };
       }
       case "this_month": {
@@ -810,8 +826,10 @@ const AdminTodos = () => {
       default: {
         if (/^\d{4}-\d{2}-\d{2}$/.test(filter)) {
           const d = new Date(filter);
-          const start = new Date(d); start.setHours(0,0,0,0);
-          const end = new Date(d); end.setHours(23,59,59,999);
+          const start = new Date(d);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(d);
+          end.setHours(23, 59, 59, 999);
           return { start, end };
         }
         return null;
@@ -844,11 +862,7 @@ const AdminTodos = () => {
       return after && before;
     })();
 
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesDate
-    );
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   const getDuration = (todo) => {
@@ -856,40 +870,72 @@ const AdminTodos = () => {
     if (todo.total_work_time_formatted) {
       return todo.total_work_time_formatted;
     }
-    
-    // If we have numeric total_work_time (in minutes), format it
-    if (todo.total_work_time && typeof todo.total_work_time === 'number') {
-      const hours = Math.floor(todo.total_work_time / 60);
-      const minutes = todo.total_work_time % 60;
-      if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-      }
+
+    // Prefer explicit minutes field provided by the API
+    const minutesField =
+      typeof todo.total_work_time_minutes === "number"
+        ? todo.total_work_time_minutes
+        : typeof todo.total_work_time === "number"
+        ? todo.total_work_time
+        : null;
+
+    if (typeof minutesField === "number") {
+      const hours = Math.floor(minutesField / 60);
+      const minutes = Math.floor(minutesField % 60);
+      if (hours > 0) return `${hours}h ${minutes}m`;
       return `${minutes}m`;
     }
-    
-    // Fallback to calculating from timestamps
-    if (todo.started_at && todo.submitted_at) {
-      const start = new Date(todo.started_at);
-      const end = new Date(todo.submitted_at);
-      const diffMs = end - start;
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      return `${diffHours}h ${diffMinutes}m`;
+
+    // Try to parse formatted string like "2h 30m"
+    if (typeof todo.total_work_time === "string") {
+      const m = todo.total_work_time.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
+      if (m) {
+        const h = parseInt(m[1] || "0", 10);
+        const mm = parseInt(m[2] || "0", 10);
+        if (!isNaN(h) || !isNaN(mm)) return `${h}h ${mm}m`;
+      }
     }
-    
+
+    // Fallback to calculating from raw timestamps (api may provide _raw iso fields)
+    const startRaw = todo.started_at_raw || todo.started_at;
+    const endRaw = todo.submitted_at_raw || todo.submitted_at;
+    if (
+      startRaw &&
+      endRaw &&
+      !isNaN(Date.parse(startRaw)) &&
+      !isNaN(Date.parse(endRaw))
+    ) {
+      const start = new Date(startRaw);
+      const end = new Date(endRaw);
+      const diffMs = end - start;
+      if (diffMs >= 0) {
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor(
+          (diffMs % (1000 * 60 * 60)) / (1000 * 60)
+        );
+        return `${diffHours}h ${diffMinutes}m`;
+      }
+    }
+
     return "-";
   };
 
   // Format target start time as HH:mm using raw ISO when available
   const getTargetStartTime = (todo) => {
     try {
-      if (todo?.target_start_at_raw && !isNaN(Date.parse(todo.target_start_at_raw))) {
+      if (
+        todo?.target_start_at_raw &&
+        !isNaN(Date.parse(todo.target_start_at_raw))
+      ) {
         const d = new Date(todo.target_start_at_raw);
         const hh = String(d.getHours()).padStart(2, "0");
         const mm = String(d.getMinutes()).padStart(2, "0");
         return `${hh}:${mm}`;
       }
-      if (typeof todo?.target_start_at === "string" && todo.target_start_at.trim()) {
+      if (
+        typeof todo?.target_start_at === "string" &&
+        todo.target_start_at.trim()
+      ) {
         const m = todo.target_start_at.match(/(\d{1,2}):(\d{2})/);
         if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
       }
@@ -899,28 +945,42 @@ const AdminTodos = () => {
 
   // Helper function to calculate automatic rating based on duration
   const calculateAutomaticRating = (todo) => {
-    if (!todo.target_duration_value || !todo.target_duration_unit || !todo.total_work_time) {
-      return null;
-    }
+    if (!todo.target_duration_value || !todo.target_duration_unit) return null;
 
     // Convert target duration to minutes
-    let targetMinutes = todo.target_duration_value;
-    if (todo.target_duration_unit === 'hours') {
+    let targetMinutes = Number(todo.target_duration_value);
+    if (isNaN(targetMinutes)) return null;
+    if (todo.target_duration_unit === "hours")
       targetMinutes = targetMinutes * 60;
+
+    // Determine actual minutes: prefer explicit minutes field, then numeric, then try parse
+    let actualMinutes = null;
+    if (typeof todo.total_work_time_minutes === "number") {
+      actualMinutes = todo.total_work_time_minutes;
+    } else if (typeof todo.total_work_time === "number") {
+      actualMinutes = todo.total_work_time;
+    } else if (typeof todo.total_work_time === "string") {
+      const m = todo.total_work_time.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
+      if (m) {
+        const h = parseInt(m[1] || "0", 10);
+        const mm = parseInt(m[2] || "0", 10);
+        actualMinutes = h * 60 + mm;
+      }
+    } else if (todo.started_at_raw && todo.submitted_at_raw) {
+      const s = Date.parse(todo.started_at_raw);
+      const e = Date.parse(todo.submitted_at_raw);
+      if (!isNaN(s) && !isNaN(e) && e >= s) {
+        actualMinutes = Math.round((e - s) / (1000 * 60));
+      }
     }
 
-    // Get actual duration in minutes
-    const actualMinutes = todo.total_work_time;
+    if (actualMinutes === null || isNaN(actualMinutes)) return null;
 
-    // Calculate rating (100% for on-time, decreases for overtime)
-    if (actualMinutes <= targetMinutes) {
-      return 100; // Perfect score for completing on time or early
-    } else {
-      // Calculate penalty for overtime
-      const overtimeRatio = actualMinutes / targetMinutes;
-      const penalty = Math.min((overtimeRatio - 1) * 50, 50); // Max 50 point penalty
-      return Math.max(100 - penalty, 0);
-    }
+    // Calculate rating (100% for on-time or early, decreases for overtime)
+    if (actualMinutes <= targetMinutes) return 100;
+    const overtimeRatio = actualMinutes / targetMinutes;
+    const penalty = Math.min((overtimeRatio - 1) * 50, 50);
+    return Math.max(Math.round(100 - penalty), 0);
   };
 
   const distribution = React.useMemo(
@@ -958,7 +1018,10 @@ const AdminTodos = () => {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!user || !["admin_ga", "admin_ga_manager", "super_admin"].includes(user.role)) {
+      if (
+        !user ||
+        !["admin_ga", "admin_ga_manager", "super_admin"].includes(user.role)
+      ) {
         setLoading(false);
         return;
       }
@@ -1100,9 +1163,15 @@ const AdminTodos = () => {
           <>
             <div
               className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "not_started" ? "ring-2 ring-yellow-500 bg-yellow-50" : ""
+                statusFilter === "not_started"
+                  ? "ring-2 ring-yellow-500 bg-yellow-50"
+                  : ""
               }`}
-              onClick={() => setStatusFilter(statusFilter === "not_started" ? "all" : "not_started")}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "not_started" ? "all" : "not_started"
+                )
+              }
               role="button"
               tabIndex={0}
             >
@@ -1127,9 +1196,15 @@ const AdminTodos = () => {
 
             <div
               className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "in_progress" ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                statusFilter === "in_progress"
+                  ? "ring-2 ring-blue-500 bg-blue-50"
+                  : ""
               }`}
-              onClick={() => setStatusFilter(statusFilter === "in_progress" ? "all" : "in_progress")}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "in_progress" ? "all" : "in_progress"
+                )
+              }
               role="button"
               tabIndex={0}
             >
@@ -1156,7 +1231,9 @@ const AdminTodos = () => {
               className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
                 statusFilter === "hold" ? "ring-2 ring-pink-500 bg-pink-50" : ""
               }`}
-              onClick={() => setStatusFilter(statusFilter === "hold" ? "all" : "hold")}
+              onClick={() =>
+                setStatusFilter(statusFilter === "hold" ? "all" : "hold")
+              }
               role="button"
               tabIndex={0}
             >
@@ -1181,9 +1258,15 @@ const AdminTodos = () => {
 
             <div
               className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "checking" ? "ring-2 ring-orange-500 bg-orange-50" : ""
+                statusFilter === "checking"
+                  ? "ring-2 ring-orange-500 bg-orange-50"
+                  : ""
               }`}
-              onClick={() => setStatusFilter(statusFilter === "checking" ? "all" : "checking")}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "checking" ? "all" : "checking"
+                )
+              }
               role="button"
               tabIndex={0}
             >
@@ -1208,9 +1291,15 @@ const AdminTodos = () => {
 
             <div
               className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "evaluating" ? "ring-2 ring-purple-500 bg-purple-50" : ""
+                statusFilter === "evaluating"
+                  ? "ring-2 ring-purple-500 bg-purple-50"
+                  : ""
               }`}
-              onClick={() => setStatusFilter(statusFilter === "evaluating" ? "all" : "evaluating")}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "evaluating" ? "all" : "evaluating"
+                )
+              }
               role="button"
               tabIndex={0}
             >
@@ -1235,9 +1324,15 @@ const AdminTodos = () => {
 
             <div
               className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "completed" ? "ring-2 ring-green-500 bg-green-50" : ""
+                statusFilter === "completed"
+                  ? "ring-2 ring-green-500 bg-green-50"
+                  : ""
               }`}
-              onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")}
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === "completed" ? "all" : "completed"
+                )
+              }
               role="button"
               tabIndex={0}
             >
@@ -1308,11 +1403,26 @@ const AdminTodos = () => {
             {showDateDropdown && (
               <div className="absolute z-10 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none mt-1">
                 {[
-                  { value: "all", label: t("todos.allTime", { defaultValue: "Semua Waktu" }) },
-                  { value: "today", label: t("todos.today", { defaultValue: "Hari Ini" }) },
-                  { value: "this_week", label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }) },
-                  { value: "this_month", label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }) },
-                  { value: "this_year", label: t("todos.thisYear", { defaultValue: "Tahun Ini" }) },
+                  {
+                    value: "all",
+                    label: t("todos.allTime", { defaultValue: "Semua Waktu" }),
+                  },
+                  {
+                    value: "today",
+                    label: t("todos.today", { defaultValue: "Hari Ini" }),
+                  },
+                  {
+                    value: "this_week",
+                    label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }),
+                  },
+                  {
+                    value: "this_month",
+                    label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }),
+                  },
+                  {
+                    value: "this_year",
+                    label: t("todos.thisYear", { defaultValue: "Tahun Ini" }),
+                  },
                 ].map((option) => (
                   <button
                     key={option.value}
@@ -1321,7 +1431,9 @@ const AdminTodos = () => {
                       setShowDateDropdown(false);
                     }}
                     className={`relative w-full text-left py-2 pl-3 pr-9 cursor-pointer hover:bg-gray-50 ${
-                      dateFilter === option.value ? "bg-accent-50 text-accent-900" : "text-gray-900"
+                      dateFilter === option.value
+                        ? "bg-accent-50 text-accent-900"
+                        : "text-gray-900"
                     }`}
                   >
                     <span className="block truncate">{option.label}</span>
@@ -1349,7 +1461,8 @@ const AdminTodos = () => {
           {/* Total count for current range */}
           <div className="flex items-center text-sm text-gray-700">
             <span>
-              {t("common.total", { defaultValue: "Total" })}: {(() => {
+              {t("common.total", { defaultValue: "Total" })}:{" "}
+              {(() => {
                 const range = getDateRange(dateFilter);
                 if (!range) return todos.length;
                 return todos.filter((t) => {
@@ -1777,24 +1890,30 @@ const AdminTodos = () => {
                                 : evalFilter === "to_evaluate"
                                 ? t.status === "checking"
                                 : t.status === "completed"
-                             )
-                             .sort((a, b) => {
-                               // Sort by scheduled_date first, then by created_at
-                               const getDateForSort = (todo) => {
-                                 if (todo.scheduled_date && !isNaN(Date.parse(todo.scheduled_date))) {
-                                   return new Date(todo.scheduled_date);
-                                 }
-                                 if (todo.created_at && !isNaN(Date.parse(todo.created_at))) {
-                                   return new Date(todo.created_at);
-                                 }
-                                 return new Date(0); // fallback to epoch
-                               };
-                               
-                               const dateA = getDateForSort(a);
-                               const dateB = getDateForSort(b);
-                               
-                               return dateA - dateB; // ascending order (earliest first)
-                             });
+                            )
+                            .sort((a, b) => {
+                              // Sort by scheduled_date first, then by created_at
+                              const getDateForSort = (todo) => {
+                                if (
+                                  todo.scheduled_date &&
+                                  !isNaN(Date.parse(todo.scheduled_date))
+                                ) {
+                                  return new Date(todo.scheduled_date);
+                                }
+                                if (
+                                  todo.created_at &&
+                                  !isNaN(Date.parse(todo.created_at))
+                                ) {
+                                  return new Date(todo.created_at);
+                                }
+                                return new Date(0); // fallback to epoch
+                              };
+
+                              const dateA = getDateForSort(a);
+                              const dateB = getDateForSort(b);
+
+                              return dateA - dateB; // ascending order (earliest first)
+                            });
                           const taskKey = `${g.key}-${uid}`;
                           const totalPages = Math.max(
                             1,
@@ -1835,7 +1954,9 @@ const AdminTodos = () => {
                                                   todoItem.status
                                                 )}`}
                                               >
-                                                {formatStatusLabel(todoItem.status)}
+                                                {formatStatusLabel(
+                                                  todoItem.status
+                                                )}
                                               </span>
                                               <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
                                                 Rutin
@@ -1847,18 +1968,36 @@ const AdminTodos = () => {
                                               {getUserName(todoItem.user_id)}
                                             </div>
                                             <div className="truncate">
-                                              {t("todos.scheduledDate", { defaultValue: "Terjadwal" })}:{" "}
+                                              {t("todos.scheduledDate", {
+                                                defaultValue: "Terjadwal",
+                                              })}
+                                              :{" "}
                                               {(() => {
-                                                const dateText = todoItem.scheduled_date
-                                                  ? new Date(todoItem.scheduled_date).toLocaleDateString('id-ID', {
-                                                      weekday: 'long',
-                                                      year: 'numeric',
-                                                      month: 'long',
-                                                      day: 'numeric'
-                                                    })
-                                                  : (todoItem.formatted_created_at || format(new Date(todoItem.created_at), "MMM dd, yyyy"));
-                                                const hhmm = getTargetStartTime(todoItem);
-                                                return hhmm ? `${dateText}, ${hhmm}` : dateText;
+                                                const dateText =
+                                                  todoItem.scheduled_date
+                                                    ? new Date(
+                                                        todoItem.scheduled_date
+                                                      ).toLocaleDateString(
+                                                        "id-ID",
+                                                        {
+                                                          weekday: "long",
+                                                          year: "numeric",
+                                                          month: "long",
+                                                          day: "numeric",
+                                                        }
+                                                      )
+                                                    : todoItem.formatted_created_at ||
+                                                      format(
+                                                        new Date(
+                                                          todoItem.created_at
+                                                        ),
+                                                        "MMM dd, yyyy"
+                                                      );
+                                                const hhmm =
+                                                  getTargetStartTime(todoItem);
+                                                return hhmm
+                                                  ? `${dateText}, ${hhmm}`
+                                                  : dateText;
                                               })()}
                                             </div>
                                             <div className="truncate">
@@ -2031,18 +2170,29 @@ const AdminTodos = () => {
                             </div>
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               <span>
-                                {t("todos.scheduledDate", { defaultValue: "Terjadwal" })}:{" "}
+                                {t("todos.scheduledDate", {
+                                  defaultValue: "Terjadwal",
+                                })}
+                                :{" "}
                                 {(() => {
                                   const dateText = todo.scheduled_date
-                                    ? new Date(todo.scheduled_date).toLocaleDateString('id-ID', {
-                                        weekday: 'long',
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
+                                    ? new Date(
+                                        todo.scheduled_date
+                                      ).toLocaleDateString("id-ID", {
+                                        weekday: "long",
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
                                       })
-                                    : (todo.formatted_created_at || format(new Date(todo.created_at), "MMM dd, yyyy"));
+                                    : todo.formatted_created_at ||
+                                      format(
+                                        new Date(todo.created_at),
+                                        "MMM dd, yyyy"
+                                      );
                                   const hhmm = getTargetStartTime(todo);
-                                  return hhmm ? `${dateText}, ${hhmm}` : dateText;
+                                  return hhmm
+                                    ? `${dateText}, ${hhmm}`
+                                    : dateText;
                                 })()}
                               </span>
 
@@ -2111,1164 +2261,1303 @@ const AdminTodos = () => {
         <ModalPortal>
           <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
             <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                {t("todos.taskDetails")}: {selectedTodo.title}
-              </h3>
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.basicInformation")}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.taskName")}:</strong> {selectedTodo.title}
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.description")}:</strong>{" "}
-                        {selectedTodo.description || "N/A"}
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.status")}:</strong>
-                        <span
-                          className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            selectedTodo.status
-                          )}`}
-                        >
-                          {formatStatusLabel(selectedTodo.status)}
-                        </span>
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.todoType")}:</strong>{" "}
-                        {(selectedTodo.todo_type || "rutin") === "rutin"
-                          ? t("todos.routine", { defaultValue: "Routine" })
-                          : t("todos.additional", { defaultValue: "Additional" })}
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.targetCategory")}:</strong>{" "}
-                        {formatTargetCategory(selectedTodo.target_category)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.user")}:</strong>{" "}
-                        {getUserName(selectedTodo.user_id)}
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.scheduledDate")}:</strong>{" "}
-                        {(() => {
-                          const dateText = selectedTodo.scheduled_date
-                            ? new Date(selectedTodo.scheduled_date).toLocaleDateString('id-ID', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              })
-                            : (selectedTodo.formatted_created_at || "N/A");
-                          const hhmm = getTargetStartTime(selectedTodo);
-                          return hhmm ? `${dateText}, ${hhmm}` : dateText;
-                        })()}
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.created")}:</strong>{" "}
-                        {selectedTodo.formatted_created_at || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Target Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.targetInfo", { defaultValue: "Informasi Target" })}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.targetStartTime", { defaultValue: "Waktu Mulai Target" })}:</strong>{" "}
-                        {selectedTodo.target_start_at || "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.targetDuration", { defaultValue: "Durasi Target" })}:</strong>{" "}
-                        {selectedTodo.target_duration_formatted || 
-                         (selectedTodo.target_duration_value && selectedTodo.target_duration_unit 
-                           ? `${selectedTodo.target_duration_value} ${selectedTodo.target_duration_unit === 'hours' ? 'jam' : 'menit'}`
-                           : "N/A")
-                        }
-                      </p>
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                  {t("todos.taskDetails")}: {selectedTodo.title}
+                </h3>
+                <div className="space-y-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {t("todos.basicInformation")}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.taskName")}:</strong>{" "}
+                          {selectedTodo.title}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.description")}:</strong>{" "}
+                          {selectedTodo.description || "N/A"}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.status")}:</strong>
+                          <span
+                            className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              selectedTodo.status
+                            )}`}
+                          >
+                            {formatStatusLabel(selectedTodo.status)}
+                          </span>
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.todoType")}:</strong>{" "}
+                          {(selectedTodo.todo_type || "rutin") === "rutin"
+                            ? t("todos.routine", { defaultValue: "Routine" })
+                            : t("todos.additional", {
+                                defaultValue: "Additional",
+                              })}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.targetCategory")}:</strong>{" "}
+                          {formatTargetCategory(selectedTodo.target_category)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.user")}:</strong>{" "}
+                          {getUserName(selectedTodo.user_id)}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.scheduledDate")}:</strong>{" "}
+                          {(() => {
+                            const dateText = selectedTodo.scheduled_date
+                              ? new Date(
+                                  selectedTodo.scheduled_date
+                                ).toLocaleDateString("id-ID", {
+                                  weekday: "long",
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })
+                              : selectedTodo.formatted_created_at || "N/A";
+                            const hhmm = getTargetStartTime(selectedTodo);
+                            return hhmm ? `${dateText}, ${hhmm}` : dateText;
+                          })()}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("todos.created")}:</strong>{" "}
+                          {selectedTodo.formatted_created_at || "N/A"}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Actual Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.actualInfo", { defaultValue: "Informasi Aktual" })}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.actualStartTime", { defaultValue: "Waktu Mulai Aktual" })}:</strong>{" "}
-                        {selectedTodo.started_at || "Belum dimulai"}
-                      </p>
+                  {/* Target Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {t("todos.targetInfo", {
+                        defaultValue: "Informasi Target",
+                      })}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.targetStartTime", {
+                              defaultValue: "Waktu Mulai Target",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.target_start_at || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.targetDuration", {
+                              defaultValue: "Durasi Target",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.target_duration_formatted ||
+                            (selectedTodo.target_duration_value &&
+                            selectedTodo.target_duration_unit
+                              ? `${selectedTodo.target_duration_value} ${
+                                  selectedTodo.target_duration_unit === "hours"
+                                    ? "jam"
+                                    : "menit"
+                                }`
+                              : "N/A")}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.actualDuration", { defaultValue: "Durasi Aktual" })}:</strong>{" "}
+                  </div>
+
+                  {/* Actual Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {t("todos.actualInfo", {
+                        defaultValue: "Informasi Aktual",
+                      })}
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.actualStartTime", {
+                              defaultValue: "Waktu Mulai Aktual",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.started_at || "Belum dimulai"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.actualDuration", {
+                              defaultValue: "Durasi Aktual",
+                            })}
+                            :
+                          </strong>{" "}
+                          {getDuration(selectedTodo)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {t("todos.duration")}
+                    </h4>
+                    <div className="text-sm text-gray-600">
+                      <p>
+                        <strong>Work Duration:</strong>{" "}
                         {getDuration(selectedTodo)}
                       </p>
                     </div>
                   </div>
-                </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.duration")}
-                  </h4>
-                  <div className="text-sm text-gray-600">
-                    <p>
-                      <strong>Work Duration:</strong>{" "}
-                      {getDuration(selectedTodo)}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedTodo.rating !== null &&
-                  selectedTodo.rating !== undefined && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Performance Rating
-                      </h4>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {selectedTodo.rating}/100
-                        </div>
-                        <div className="flex-1">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${selectedTodo.rating}%` }}
-                            ></div>
+                  {selectedTodo.rating !== null &&
+                    selectedTodo.rating !== undefined && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          Performance Rating
+                        </h4>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {selectedTodo.rating}/100
+                          </div>
+                          <div className="flex-1">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${selectedTodo.rating}%` }}
+                              ></div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                {selectedTodo.warnings &&
-                  selectedTodo.warnings.report &&
-                  selectedTodo.warnings.report.points && (
+                  {selectedTodo.warnings &&
+                    selectedTodo.warnings.report &&
+                    selectedTodo.warnings.report.points && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          Warning Report
+                        </h4>
+                        <div className="text-sm">
+                          <p className="text-gray-600">
+                            <strong>Points:</strong>{" "}
+                            {selectedTodo.warnings.report.points}
+                          </p>
+                          <p className="text-gray-600">
+                            <strong>Level:</strong>{" "}
+                            {selectedTodo.warnings.report.level}
+                          </p>
+                          <p className="text-gray-600">
+                            <strong>Note:</strong>{" "}
+                            {selectedTodo.warnings.report.note || "N/A"}
+                          </p>
+                          <p className="text-gray-600">
+                            <strong>Published:</strong>{" "}
+                            {selectedTodo.warnings.report.published_at || "N/A"}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                  {selectedTodo.hold_note && (
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-2">
-                        Warning Report
+                        {t("todos.holdInfo", {
+                          defaultValue: "Informasi Hold",
+                        })}
                       </h4>
-                      <div className="text-sm">
-                        <p className="text-gray-600">
-                          <strong>Points:</strong>{" "}
-                          {selectedTodo.warnings.report.points}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>Level:</strong>{" "}
-                          {selectedTodo.warnings.report.level}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>Note:</strong>{" "}
-                          {selectedTodo.warnings.report.note || "N/A"}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>Published:</strong>{" "}
-                          {selectedTodo.warnings.report.published_at || "N/A"}
+                      <div className="text-sm text-gray-600">
+                        <p>
+                          <strong>
+                            {t("todos.holdReason", {
+                              defaultValue: "Alasan Hold",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.hold_note}
                         </p>
                       </div>
                     </div>
                   )}
 
-                {selectedTodo.hold_note && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.holdInfo", { defaultValue: "Informasi Hold" })}
-                    </h4>
-                    <div className="text-sm text-gray-600">
-                      <p>
-                        <strong>{t("todos.holdReason", { defaultValue: "Alasan Hold" })}:</strong>{" "}
-                        {selectedTodo.hold_note}
+                  {selectedTodo.notes && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        Admin Notes
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {selectedTodo.notes}
                       </p>
                     </div>
-                  </div>
-                )}
-
-                {selectedTodo.notes && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      Admin Notes
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      {selectedTodo.notes}
-                    </p>
-                  </div>
-                )}
-
-                {selectedTodo.evidence_files &&
-                  selectedTodo.evidence_files.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {t("todos.evidenceFiles")}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {selectedTodo.evidence_files.map((file, index) => (
-                          <div
-                            key={index}
-                            className="border rounded-lg overflow-hidden bg-white"
-                          >
-                            {/\.(jpg|jpeg|png|gif)$/i.test(
-                              file.path || file.url
-                            ) ? (
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <img
-                                  src={file.url}
-                                  alt={file.name || `Evidence ${index + 1}`}
-                                  className="w-full h-40 object-cover"
-                                  onError={(e) => {
-                                    console.log(
-                                      "Image failed to load:",
-                                      file.url
-                                    );
-                                    e.target.style.display = "none";
-                                  }}
-                                />
-                              </a>
-                            ) : (
-                              <div className="p-3 flex items-center space-x-2">
-                                <Eye className="h-4 w-4 text-blue-500" />
-                                <a
-                                  href={file.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline"
-                                >
-                                  {file.name || `Evidence File ${index + 1}`}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   )}
 
-                <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Close
-                  </button>
+                  {selectedTodo.evidence_files &&
+                    selectedTodo.evidence_files.length > 0 && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {t("todos.evidenceFiles")}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedTodo.evidence_files.map((file, index) => (
+                            <div
+                              key={index}
+                              className="border rounded-lg overflow-hidden bg-white"
+                            >
+                              {/\.(jpg|jpeg|png|gif)$/i.test(
+                                file.path || file.url || file.full_url
+                              ) ? (
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() =>
+                                    window.open(
+                                      file.full_url ||
+                                        file.url ||
+                                        `/storage/${file.path}`,
+                                      "_blank"
+                                    )
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      window.open(
+                                        file.full_url ||
+                                          file.url ||
+                                          `/storage/${file.path}`,
+                                        "_blank"
+                                      );
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <img
+                                    src={
+                                      file.full_url ||
+                                      file.url ||
+                                      `/storage/${file.path}`
+                                    }
+                                    alt={file.name || `Evidence ${index + 1}`}
+                                    className="w-full h-40 object-cover"
+                                    onError={(e) => {
+                                      console.log(
+                                        "Image failed to load:",
+                                        file.full_url || file.url
+                                      );
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="p-3 flex items-center space-x-2">
+                                  <Eye className="h-4 w-4 text-blue-500" />
+                                  <a
+                                    href={
+                                      file.full_url ||
+                                      file.url ||
+                                      `/storage/${file.path}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    {file.name || `Evidence File ${index + 1}`}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => setShowDetailModal(false)}
+                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Evidence Modal */}
       {showEvidenceModal && selectedTodo && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                {t("todos.evidence")} untuk: {selectedTodo.title}
-              </h3>
-              <div className="space-y-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.taskDetails")}
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {selectedTodo.description}
-                  </p>
-                  <div className="text-xs text-gray-500">
-                    <p>{t("todos.user")}: {getUserName(selectedTodo.user_id)}</p>
-                    <p>
-                      {t("todos.submitted")}: {selectedTodo.formatted_submitted_at || "N/A"}
-                    </p>
-                    <p>{t("todos.duration")}: {getDuration(selectedTodo)}</p>
-                    <p>
-                      {t("todos.created")}: {selectedTodo.formatted_created_at || "N/A"}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedTodo.evidence_files &&
-                  selectedTodo.evidence_files.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {t("todos.evidenceFiles")}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {selectedTodo.evidence_files.map((file, index) => (
-                          <div
-                            key={index}
-                            className="border rounded-lg overflow-hidden bg-white"
-                          >
-                            {/\.(jpg|jpeg|png|gif)$/i.test(
-                              file.path || file.url
-                            ) ? (
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <img
-                                  src={file.url}
-                                  alt={file.name || `Evidence ${index + 1}`}
-                                  className="w-full h-40 object-cover"
-                                  onError={(e) => {
-                                    console.log(
-                                      "Image failed to load:",
-                                      file.url
-                                    );
-                                    e.target.style.display = "none";
-                                  }}
-                                />
-                              </a>
-                            ) : (
-                              <div className="p-3 flex items-center space-x-2">
-                                <Eye className="h-4 w-4 text-blue-500" />
-                                <a
-                                  href={file.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline"
-                                >
-                                  {file.name || `Evidence File ${index + 1}`}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                {selectedTodo.evidence_path && !selectedTodo.evidence_files && (
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                  {t("todos.evidence")} untuk: {selectedTodo.title}
+                </h3>
+                <div className="space-y-6">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-2">
-                      Evidence File
+                      {t("todos.taskDetails")}
                     </h4>
-                    <div className="flex items-center space-x-2">
-                      <Eye className="h-4 w-4 text-blue-500" />
-                      <a
-                        href={`/storage/${selectedTodo.evidence_path}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 underline"
-                      >
-                        View Evidence File
-                      </a>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {selectedTodo.description}
+                    </p>
+                    <div className="text-xs text-gray-500">
+                      <p>
+                        {t("todos.user")}: {getUserName(selectedTodo.user_id)}
+                      </p>
+                      <p>
+                        {t("todos.submitted")}:{" "}
+                        {selectedTodo.formatted_submitted_at || "N/A"}
+                      </p>
+                      <p>
+                        {t("todos.duration")}: {getDuration(selectedTodo)}
+                      </p>
+                      <p>
+                        {t("todos.created")}:{" "}
+                        {selectedTodo.formatted_created_at || "N/A"}
+                      </p>
                     </div>
                   </div>
-                )}
 
-                <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowEvidenceModal(false);
-                      setSelectedTodo(null);
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowEvidenceModal(false);
-                      handleEvaluate(selectedTodo);
-                    }}
-                    className="btn-primary px-6 py-3 text-sm font-medium"
-                  >
-                    Evaluate Task
-                  </button>
+                  {selectedTodo.evidence_files &&
+                    selectedTodo.evidence_files.length > 0 && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {t("todos.evidenceFiles")}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedTodo.evidence_files.map((file, index) => (
+                            <div
+                              key={index}
+                              className="border rounded-lg overflow-hidden bg-white"
+                            >
+                              {/\.(jpg|jpeg|png|gif)$/i.test(
+                                file.path || file.url || file.full_url
+                              ) ? (
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() =>
+                                    window.open(
+                                      file.full_url ||
+                                        file.url ||
+                                        `/storage/${file.path}`,
+                                      "_blank"
+                                    )
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      window.open(
+                                        file.full_url ||
+                                          file.url ||
+                                          `/storage/${file.path}`,
+                                        "_blank"
+                                      );
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <img
+                                    src={
+                                      file.full_url ||
+                                      file.url ||
+                                      `/storage/${file.path}`
+                                    }
+                                    alt={file.name || `Evidence ${index + 1}`}
+                                    className="w-full h-40 object-cover"
+                                    onError={(e) => {
+                                      console.log(
+                                        "Image failed to load:",
+                                        file.full_url || file.url
+                                      );
+                                      e.target.style.display = "none";
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="p-3 flex items-center space-x-2">
+                                  <Eye className="h-4 w-4 text-blue-500" />
+                                  <a
+                                    href={
+                                      file.full_url ||
+                                      file.url ||
+                                      `/storage/${file.path}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    {file.name || `Evidence File ${index + 1}`}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  {selectedTodo.evidence_path &&
+                    !selectedTodo.evidence_files && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          Evidence File
+                        </h4>
+                        <div className="flex items-center space-x-2">
+                          <Eye className="h-4 w-4 text-blue-500" />
+                          <a
+                            href={`/storage/${selectedTodo.evidence_path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline"
+                          >
+                            View Evidence File
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEvidenceModal(false);
+                        setSelectedTodo(null);
+                      }}
+                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowEvidenceModal(false);
+                        handleEvaluate(selectedTodo);
+                      }}
+                      className="btn-primary px-6 py-3 text-sm font-medium"
+                    >
+                      Evaluate Task
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Evaluation Modal */}
       {showEvaluationModal && selectedTodo && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                {t("todos.evaluateTask")}: {selectedTodo.title}
-              </h3>
-              <div className="space-y-6">
-                
-                {/* Evidence Review Section */}
-                {selectedTodo.evidence_files && selectedTodo.evidence_files.length > 0 && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-3">
-                      {t("todos.evidenceReview", { defaultValue: "Review Bukti Pengerjaan" })}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {selectedTodo.evidence_files.map((file, index) => (
-                        <div
-                          key={index}
-                          className="border rounded-lg overflow-hidden bg-white"
-                        >
-                          {/\.(jpg|jpeg|png|gif)$/i.test(
-                            file.path || file.url
-                          ) ? (
-                            <a
-                              href={file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                  {t("todos.evaluateTask")}: {selectedTodo.title}
+                </h3>
+                <div className="space-y-6">
+                  {/* Evidence Review Section */}
+                  {selectedTodo.evidence_files &&
+                    selectedTodo.evidence_files.length > 0 && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-3">
+                          {t("todos.evidenceReview", {
+                            defaultValue: "Review Bukti Pengerjaan",
+                          })}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedTodo.evidence_files.map((file, index) => (
+                            <div
+                              key={index}
+                              className="border rounded-lg overflow-hidden bg-white"
                             >
-                              <img
-                                src={file.url}
-                                alt={file.name || `Evidence ${index + 1}`}
-                                className="w-full h-32 object-cover"
-                              />
-                            </a>
-                          ) : (
-                            <div className="p-3 flex items-center space-x-2">
-                              <Eye className="h-4 w-4 text-blue-500" />
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 underline text-sm"
-                              >
-                                {file.name || `Evidence File ${index + 1}`}
-                              </a>
+                              {/\.(jpg|jpeg|png|gif)$/i.test(
+                                file.path || file.url || file.full_url
+                              ) ? (
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() =>
+                                    window.open(
+                                      file.full_url ||
+                                        file.url ||
+                                        `/storage/${file.path}`,
+                                      "_blank"
+                                    )
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      window.open(
+                                        file.full_url ||
+                                          file.url ||
+                                          `/storage/${file.path}`,
+                                        "_blank"
+                                      );
+                                  }}
+                                  className="cursor-pointer"
+                                >
+                                  <img
+                                    src={
+                                      file.full_url ||
+                                      file.url ||
+                                      `/storage/${file.path}`
+                                    }
+                                    alt={file.name || `Evidence ${index + 1}`}
+                                    className="w-full h-32 object-cover"
+                                    onError={(e) =>
+                                      (e.target.style.display = "none")
+                                    }
+                                  />
+                                </div>
+                              ) : (
+                                <div className="p-3 flex items-center space-x-2">
+                                  <Eye className="h-4 w-4 text-blue-500" />
+                                  <a
+                                    href={
+                                      file.full_url ||
+                                      file.url ||
+                                      `/storage/${file.path}`
+                                    }
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline text-sm"
+                                  >
+                                    {file.name || `Evidence File ${index + 1}`}
+                                  </a>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                    )}
+
+                  {/* Task Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      {t("todos.taskInfo", { defaultValue: "Informasi Tugas" })}
+                    </h4>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      <p>
+                        <strong>{t("todos.user")}:</strong>{" "}
+                        {getUserName(selectedTodo.user_id)}
+                      </p>
+                      <p>
+                        <strong>{t("todos.duration")}:</strong>{" "}
+                        {getDuration(selectedTodo)}
+                      </p>
+                      <p>
+                        <strong>{t("todos.targetDuration")}:</strong>{" "}
+                        {selectedTodo.target_duration_formatted || "N/A"}
+                      </p>
+                      {selectedTodo.evidence_note && (
+                        <p>
+                          <strong>
+                            {t("todos.userNote", {
+                              defaultValue: "Catatan User",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.evidence_note}
+                        </p>
+                      )}
                     </div>
                   </div>
-                )}
-
-                {/* Task Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.taskInfo", { defaultValue: "Informasi Tugas" })}
-                  </h4>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p><strong>{t("todos.user")}:</strong> {getUserName(selectedTodo.user_id)}</p>
-                    <p><strong>{t("todos.duration")}:</strong> {getDuration(selectedTodo)}</p>
-                    <p><strong>{t("todos.targetDuration")}:</strong> {selectedTodo.target_duration_formatted || "N/A"}</p>
-                    {selectedTodo.evidence_note && (
-                      <p><strong>{t("todos.userNote", { defaultValue: "Catatan User" })}:</strong> {selectedTodo.evidence_note}</p>
-                    )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("common.notes")}
+                    </label>
+                    <textarea
+                      value={evaluationData.notes}
+                      onChange={(e) =>
+                        setEvaluationData({
+                          ...evaluationData,
+                          notes: e.target.value,
+                        })
+                      }
+                      rows={4}
+                      className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                      placeholder={t("todos.evaluationPlaceholder")}
+                    />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("common.notes")}
-                  </label>
-                  <textarea
-                    value={evaluationData.notes}
-                    onChange={(e) =>
-                      setEvaluationData({
-                        ...evaluationData,
-                        notes: e.target.value,
-                      })
-                    }
-                    rows={4}
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    placeholder={t("todos.evaluationPlaceholder")}
-                  />
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Warning Points (0-100)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={evaluationData.warningPoints}
-                    onChange={(e) =>
-                      setEvaluationData({
-                        ...evaluationData,
-                        warningPoints: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
+                  <div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Performance Rating (otomatis)
+                      </label>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {evaluationData.rating ?? "-"}/100
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Nilai dihitung otomatis dari perbandingan waktu
+                          pengerjaan aktual dan target.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Warning Note
-                  </label>
-                  <textarea
-                    value={evaluationData.warningNote}
-                    onChange={(e) =>
-                      setEvaluationData({
-                        ...evaluationData,
-                        warningNote: e.target.value,
-                      })
-                    }
-                    rows={3}
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    placeholder={t("todos.warningPlaceholder")}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Performance Rating (0-100)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={evaluationData.rating}
-                    onChange={(e) =>
-                      setEvaluationData({
-                        ...evaluationData,
-                        rating: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    placeholder={t("todos.performancePlaceholder")}
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowEvaluationModal(false);
-                      setSelectedTodo(null);
-                      setEvaluationData({
-                        action: "approve",
-                        notes: "",
-                        warningPoints: 0,
-                        warningNote: "",
-                        rating: 0,
-                      });
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    {t("todos.cancel")}
-                  </button>
-                  <button
-                    onClick={handleSubmitEvaluation}
-                    className="btn-primary px-6 py-3 text-sm font-medium"
-                  >
-                    {t("todos.evaluate")}
-                  </button>
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEvaluationModal(false);
+                        setSelectedTodo(null);
+                        setEvaluationData({
+                          action: "approve",
+                          notes: "",
+                          warningPoints: 0,
+                          warningNote: "",
+                          rating: 0,
+                        });
+                      }}
+                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {t("todos.cancel")}
+                    </button>
+                    <button
+                      onClick={handleSubmitEvaluation}
+                      className="btn-primary px-6 py-3 text-sm font-medium"
+                    >
+                      {t("todos.evaluate")}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Create/Edit Modal */}
       {showCreateModal && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                {editingTodo ? t("common.editTodo") : t("common.createNewTodo")}
-              </h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (formData.todo_type === "tambahan") {
-                    const dateStr = formData.scheduled_date || "";
-                    const startTime = formData.target_start_at || "";
-                    const endTime = formData.target_end_at || "";
-                    setCreateSummary({
-                      type: "tambahan",
-                      title: formData.title,
-                      description: formData.description,
-                      priority: formData.priority,
-                      target_category: formData.target_category,
-                      selected_users: formData.selected_user_ids?.length || 0,
-                      date: dateStr,
-                      start_time: startTime,
-                      end_time: endTime,
-                    });
-                  } else {
-                    const unit = formData.recurrence_unit;
-                    const interval = formData.recurrence_interval;
-                    const days =
-                      Array.isArray(formData.days_of_week) &&
-                      formData.days_of_week.length
-                        ? formData.days_of_week
-                            .slice()
-                            .sort((a, b) => a - b)
-                            .map(
-                              (d) =>
-                                [
-                                  "Sun",
-                                  "Mon",
-                                  "Tue",
-                                  "Wed",
-                                  "Thu",
-                                  "Fri",
-                                  "Sat",
-                                ][d]
-                            )
-                            .join(", ")
-                        : unit === "week"
-                        ? "-"
-                        : "";
-                    setCreateSummary({
-                      type: "rutin",
-                      title: formData.title,
-                      description: formData.description,
-                      priority: formData.priority,
-                      target_category: formData.target_category,
-                      selected_users: formData.selected_user_ids?.length || 0,
-                      start:
-                        formData.recurrence_start_date ||
-                        new Date().toISOString().slice(0, 10),
-                      pattern: `Every ${interval} ${unit}${
-                        interval > 1 ? "s" : ""
-                      }`,
-                      days,
-                      preview: createRoutinePreviewCount,
-                    });
-                  }
-                  setShowCreateConfirm(true);
-                }}
-                className="space-y-8"
-              >
-                {/* Informasi Penugasan */}
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                    Informasi Penugasan
-                  </h3>
-                  <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t("todos.targetAssignment")}
-                      </label>
-                      <select
-                        value={formData.target_category}
-                        onChange={(e) => {
-                          setFormData({
-                            ...formData,
-                            target_category: e.target.value,
-                            selected_user_ids: [],
-                          });
-                          setAssignAllInCategory(false);
-                        }}
-                        className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      >
-                        <option value="all">{t("todos.allCategory")}</option>
-                        <option value="ob">
-                          {t("todos.officeBoy")}
-                        </option>
-                        <option value="driver">
-                          {t("todos.driverEquipment")}
-                        </option>
-                        <option value="security">
-                          {t("todos.securityEquipment")}
-                        </option>
-                        <option value="magang_pkl">
-                          {t("common.employeeTypes.magang_pkl")}
-                        </option>
-                      </select>
-                    </div>
-
-                    {formData.target_category !== "all" && (
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                  {editingTodo
+                    ? t("common.editTodo")
+                    : t("common.createNewTodo")}
+                </h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (formData.todo_type === "tambahan") {
+                      const dateStr = formData.scheduled_date || "";
+                      const startTime = formData.target_start_at || "";
+                      const endTime = formData.target_end_at || "";
+                      setCreateSummary({
+                        type: "tambahan",
+                        title: formData.title,
+                        description: formData.description,
+                        priority: formData.priority,
+                        target_category: formData.target_category,
+                        selected_users: formData.selected_user_ids?.length || 0,
+                        date: dateStr,
+                        start_time: startTime,
+                        end_time: endTime,
+                      });
+                    } else {
+                      const unit = formData.recurrence_unit;
+                      const interval = formData.recurrence_interval;
+                      const days =
+                        Array.isArray(formData.days_of_week) &&
+                        formData.days_of_week.length
+                          ? formData.days_of_week
+                              .slice()
+                              .sort((a, b) => a - b)
+                              .map(
+                                (d) =>
+                                  [
+                                    "Sun",
+                                    "Mon",
+                                    "Tue",
+                                    "Wed",
+                                    "Thu",
+                                    "Fri",
+                                    "Sat",
+                                  ][d]
+                              )
+                              .join(", ")
+                          : unit === "week"
+                          ? "-"
+                          : "";
+                      setCreateSummary({
+                        type: "rutin",
+                        title: formData.title,
+                        description: formData.description,
+                        priority: formData.priority,
+                        target_category: formData.target_category,
+                        selected_users: formData.selected_user_ids?.length || 0,
+                        start:
+                          formData.recurrence_start_date ||
+                          new Date().toISOString().slice(0, 10),
+                        pattern: `Every ${interval} ${unit}${
+                          interval > 1 ? "s" : ""
+                        }`,
+                        days,
+                        preview: createRoutinePreviewCount,
+                      });
+                    }
+                    setShowCreateConfirm(true);
+                  }}
+                  className="space-y-8"
+                >
+                  {/* Informasi Penugasan */}
+                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                      Informasi Penugasan
+                    </h3>
+                    <div className="space-y-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("todos.assignTo")} (Cari & Pilih Ganda)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder={`Cari pengguna ${formData.target_category}...`}
-                          value={modalUserSearch}
-                          onChange={(e) => setModalUserSearch(e.target.value)}
-                          className="mb-3 block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        />
-                        
-                        {/* Assign to All Option */}
-                        <div className="mb-3">
-                          <label className="flex items-center gap-2 px-3 py-2 border rounded-md bg-blue-50">
-                            <input
-                              type="checkbox"
-                              checked={assignAllInCategory}
-                              onChange={(e) => {
-                                setAssignAllInCategory(e.target.checked);
-                                if (e.target.checked) {
-                                  const allUserIds = users
-                                    .filter((u) => u.category === formData.target_category)
-                                    .map((u) => u.id);
-                                  setFormData({
-                                    ...formData,
-                                    selected_user_ids: allUserIds,
-                                  });
-                                } else {
-                                  setFormData({
-                                    ...formData,
-                                    selected_user_ids: [],
-                                  });
-                                }
-                              }}
-                            />
-                            <span className="text-sm font-medium text-blue-900">
-                              {t("todos.assignToAll")}
-                            </span>
-                          </label>
-                        </div>
-
-                        <div className="max-h-40 overflow-auto border rounded-md">
-                          {users
-                            .filter((u) => u.category === formData.target_category)
-                            .filter(
-                              (u) =>
-                                !modalUserSearch ||
-                                u.name
-                                  .toLowerCase()
-                                  .includes(modalUserSearch.toLowerCase())
-                            )
-                            .map((u) => (
-                              <label
-                                key={u.id}
-                                className="flex items-center gap-2 px-3 py-3 border-b last:border-b-0 hover:bg-gray-50"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={formData.selected_user_ids.includes(u.id)}
-                                  onChange={(e) => {
-                                    const next = new Set(formData.selected_user_ids);
-                                    if (e.target.checked) next.add(u.id);
-                                    else next.delete(u.id);
-                                    setFormData({
-                                      ...formData,
-                                      selected_user_ids: Array.from(next),
-                                    });
-                                    setAssignAllInCategory(false);
-                                  }}
-                                />
-                                <span className="text-sm">{u.name}</span>
-                              </label>
-                            ))}
-                          {users.filter(
-                            (u) =>
-                              u.category === formData.target_category &&
-                              (!modalUserSearch ||
-                                u.name
-                                  .toLowerCase()
-                                  .includes(modalUserSearch.toLowerCase()))
-                          ).length === 0 && (
-                            <div className="px-3 py-4 text-sm text-gray-500 text-center">
-                              {t("common.noUsersFound")}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Informasi Tugas */}
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                    Informasi Tugas
-                  </h3>
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t("todos.taskName")}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                        className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        placeholder="Masukkan nama tugas..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t("todos.description")}
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    rows={4}
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    placeholder="Masukkan deskripsi tugas..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t("todos.todoType")}
-                  </label>
-                  <select
-                    value={formData.todo_type}
-                    onChange={(e) =>
-                      setFormData({ ...formData, todo_type: e.target.value })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  >
-                        <option value="rutin">{t("todos.routine")}</option>
-                        <option value="tambahan">{t("todos.additional")}</option>
-                  </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Waktu */}
-                <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                    Waktu
-                  </h3>
-                  <div className="space-y-6">
-                {formData.todo_type === "tambahan" && (
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {t("todos.startDate")}
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.scheduled_date || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            scheduled_date: e.target.value,
-                          })
-                        }
-                        className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Jam Mulai
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.target_start_at || ""}
-                        onChange={(e) => {
-                          const selectedTime = e.target.value;
-                          const now = new Date();
-                          const today = now.toISOString().slice(0, 10);
-                          
-                          // For today's date, prevent selecting past times
-                          if (formData.scheduled_date === today) {
-                            const selectedDateTime = new Date(`${today}T${selectedTime}`);
-                            if (selectedDateTime < now) {
-                                  notifyError("Waktu mulai tidak boleh lebih awal dari waktu saat ini");
-                              return;
-                            }
-                          }
-                          
-                          setFormData({
-                            ...formData,
-                            target_start_at: selectedTime,
-                          });
-                        }}
-                        className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      />
-                    </div>
-                    
-                    {/* Target Duration Fields */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Target Durasi
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={formData.target_duration_value || ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              target_duration_value: e.target.value,
-                            })
-                          }
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          placeholder="Masukkan durasi target"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Satuan Durasi
+                          {t("todos.targetAssignment")}
                         </label>
                         <select
-                          value={formData.target_duration_unit}
-                          onChange={(e) =>
+                          value={formData.target_category}
+                          onChange={(e) => {
                             setFormData({
                               ...formData,
-                              target_duration_unit: e.target.value,
-                            })
-                          }
+                              target_category: e.target.value,
+                              selected_user_ids: [],
+                            });
+                            setAssignAllInCategory(false);
+                          }}
                           className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
                         >
-                          <option value="minutes">Menit</option>
-                          <option value="hours">Jam</option>
+                          <option value="all">{t("todos.allCategory")}</option>
+                          <option value="ob">{t("todos.officeBoy")}</option>
+                          <option value="driver">
+                            {t("todos.driverEquipment")}
+                          </option>
+                          <option value="security">
+                            {t("todos.securityEquipment")}
+                          </option>
+                          <option value="magang_pkl">
+                            {t("common.employeeTypes.magang_pkl")}
+                          </option>
                         </select>
                       </div>
-                    </div>
-                  </div>
-                )}
 
-                {formData.todo_type === "rutin" && (
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {t("todos.startDate")}
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.recurrence_start_date}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            recurrence_start_date: e.target.value,
-                          })
-                        }
-                        className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Jam Mulai
-                      </label>
-                      <input
-                        type="time"
-                        value={formData.target_start_at || ""}
-                        onChange={(e) => {
-                          const selectedTime = e.target.value;
-                          const now = new Date();
-                          const today = now.toISOString().slice(0, 10);
-                          
-                          // For today's date, prevent selecting past times
-                          if (formData.recurrence_start_date === today) {
-                            const selectedDateTime = new Date(`${today}T${selectedTime}`);
-                            if (selectedDateTime < now) {
-                                  notifyError("Waktu mulai tidak boleh lebih awal dari waktu saat ini");
-                              return;
-                            }
-                          }
-                          
-                          setFormData({
-                            ...formData,
-                            target_start_at: selectedTime,
-                          });
-                        }}
-                        className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                              {t("todos.every")}
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={formData.recurrence_interval}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recurrence_interval: parseInt(
-                                e.target.value || "1"
-                              ),
-                            })
-                          }
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                              {t("todos.unit")}
-                        </label>
-                        <select
-                          value={formData.recurrence_unit}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recurrence_unit: e.target.value,
-                            })
-                          }
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        >
-                              <option value="day">{t("todos.day")}</option>
-                              <option value="week">{t("todos.week")}</option>
-                              <option value="month">{t("todos.month")}</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {formData.recurrence_unit === "week" && (
-                      <div className="grid grid-cols-1 gap-3 mt-2">
+                      {formData.target_category !== "all" && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-3">
-                                {t("todos.days")}
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {t("todos.assignTo")} (Cari & Pilih Ganda)
                           </label>
-                          <div className="grid grid-cols-4 gap-2 text-sm">
-                            {[
-                                  { v: 1, l: "Sen" },
-                                  { v: 2, l: "Sel" },
-                                  { v: 3, l: "Rab" },
-                                  { v: 4, l: "Kam" },
-                                  { v: 5, l: "Jum" },
-                                  { v: 6, l: "Sab" },
-                                  { v: 0, l: "Min" },
-                            ].map((d) => (
-                              <label
-                                key={d.v}
-                                    className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={(Array.isArray(formData.days_of_week)
-                                    ? formData.days_of_week
-                                    : []
-                                  ).includes(d.v)}
-                                  onChange={(e) => {
-                                    const base = Array.isArray(
-                                      formData.days_of_week
-                                    )
-                                      ? formData.days_of_week
-                                      : [];
-                                    const next = new Set(base);
-                                    if (e.target.checked) next.add(d.v);
-                                    else next.delete(d.v);
+                          <input
+                            type="text"
+                            placeholder={`Cari pengguna ${formData.target_category}...`}
+                            value={modalUserSearch}
+                            onChange={(e) => setModalUserSearch(e.target.value)}
+                            className="mb-3 block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                          />
+
+                          {/* Assign to All Option */}
+                          <div className="mb-3">
+                            <label className="flex items-center gap-2 px-3 py-2 border rounded-md bg-blue-50">
+                              <input
+                                type="checkbox"
+                                checked={assignAllInCategory}
+                                onChange={(e) => {
+                                  setAssignAllInCategory(e.target.checked);
+                                  if (e.target.checked) {
+                                    const allUserIds = users
+                                      .filter(
+                                        (u) =>
+                                          u.category ===
+                                          formData.target_category
+                                      )
+                                      .map((u) => u.id);
                                     setFormData({
                                       ...formData,
-                                      days_of_week: Array.from(next),
+                                      selected_user_ids: allUserIds,
                                     });
-                                  }}
-                                />
-                                <span>{d.l}</span>
-                              </label>
-                            ))}
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      selected_user_ids: [],
+                                    });
+                                  }
+                                }}
+                              />
+                              <span className="text-sm font-medium text-blue-900">
+                                {t("todos.assignToAll")}
+                              </span>
+                            </label>
                           </div>
-                              <p className="text-xs text-gray-500 mt-2">
-                            Pilih hari-hari dalam minggu untuk penjadwalan.
-                          </p>
-                    </div>
-                  </div>
-                )}
 
-                {/* Target Duration Fields for Routine */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Target Durasi
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={formData.target_duration_value || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          target_duration_value: e.target.value,
-                        })
-                      }
-                      className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      placeholder="Masukkan durasi target"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Satuan Durasi
-                    </label>
-                    <select
-                      value={formData.target_duration_unit}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          target_duration_unit: e.target.value,
-                        })
-                      }
-                      className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    >
-                      <option value="minutes">Menit</option>
-                      <option value="hours">Jam</option>
-                    </select>
-                  </div>
-                </div>
-
-                        <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 border border-blue-200">
-                          <p className="font-medium mb-2">Perkiraan Tugas:</p>
-                          <p>
-                            Perkiraan 30 hari ke depan — sekitar {createRoutinePreviewPerUser} tugas per orang × {createRoutinePreviewUsers} orang = {createRoutinePreviewCount} tugas.
-                          </p>
-                </div>
+                          <div className="max-h-40 overflow-auto border rounded-md">
+                            {users
+                              .filter(
+                                (u) => u.category === formData.target_category
+                              )
+                              .filter(
+                                (u) =>
+                                  !modalUserSearch ||
+                                  u.name
+                                    .toLowerCase()
+                                    .includes(modalUserSearch.toLowerCase())
+                              )
+                              .map((u) => (
+                                <label
+                                  key={u.id}
+                                  className="flex items-center gap-2 px-3 py-3 border-b last:border-b-0 hover:bg-gray-50"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.selected_user_ids.includes(
+                                      u.id
+                                    )}
+                                    onChange={(e) => {
+                                      const next = new Set(
+                                        formData.selected_user_ids
+                                      );
+                                      if (e.target.checked) next.add(u.id);
+                                      else next.delete(u.id);
+                                      setFormData({
+                                        ...formData,
+                                        selected_user_ids: Array.from(next),
+                                      });
+                                      setAssignAllInCategory(false);
+                                    }}
+                                  />
+                                  <span className="text-sm">{u.name}</span>
+                                </label>
+                              ))}
+                            {users.filter(
+                              (u) =>
+                                u.category === formData.target_category &&
+                                (!modalUserSearch ||
+                                  u.name
+                                    .toLowerCase()
+                                    .includes(modalUserSearch.toLowerCase()))
+                            ).length === 0 && (
+                              <div className="px-3 py-4 text-sm text-gray-500 text-center">
+                                {t("common.noUsersFound")}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Informasi Tugas */}
+                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                      Informasi Tugas
+                    </h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {t("todos.taskName")}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.title}
+                          onChange={(e) =>
+                            setFormData({ ...formData, title: e.target.value })
+                          }
+                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                          placeholder="Masukkan nama tugas..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {t("todos.description")}
+                        </label>
+                        <textarea
+                          value={formData.description}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              description: e.target.value,
+                            })
+                          }
+                          rows={4}
+                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                          placeholder="Masukkan deskripsi tugas..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {t("todos.todoType")}
+                        </label>
+                        <select
+                          value={formData.todo_type}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              todo_type: e.target.value,
+                            })
+                          }
+                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                        >
+                          <option value="rutin">{t("todos.routine")}</option>
+                          <option value="tambahan">
+                            {t("todos.additional")}
+                          </option>
+                        </select>
+                      </div>
                     </div>
+                  </div>
 
+                  {/* Waktu */}
+                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                      Waktu
+                    </h3>
+                    <div className="space-y-6">
+                      {formData.todo_type === "tambahan" && (
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {t("todos.startDate")}
+                            </label>
+                            <input
+                              type="date"
+                              value={formData.scheduled_date || ""}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  scheduled_date: e.target.value,
+                                })
+                              }
+                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Jam Mulai
+                            </label>
+                            <input
+                              type="time"
+                              value={formData.target_start_at || ""}
+                              onChange={(e) => {
+                                const selectedTime = e.target.value;
+                                const now = new Date();
+                                const today = now.toISOString().slice(0, 10);
 
+                                // For today's date, prevent selecting past times
+                                if (formData.scheduled_date === today) {
+                                  const selectedDateTime = new Date(
+                                    `${today}T${selectedTime}`
+                                  );
+                                  if (selectedDateTime < now) {
+                                    notifyError(
+                                      "Waktu mulai tidak boleh lebih awal dari waktu saat ini"
+                                    );
+                                    return;
+                                  }
+                                }
 
-                <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setEditingTodo(null);
-                      setAssignAllInCategory(false);
-                      setFormData({
-                        title: "",
-                        description: "",
-                        todo_type: "rutin",
-                        target_category: "all",
-                        target_user_id: "",
-                        selected_user_ids: [],
-                        recurrence_start_date: "",
-                        recurrence_interval: 1,
-                        recurrence_unit: "day",
-                        recurrence_count: 0,
-                        days_of_week: [],
-                        scheduled_date: "",
-                        target_start_at: "",
-                        target_end_at: "",
-                        target_duration_value: "",
-                        target_duration_unit: "minutes",
-                      });
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    {t("todos.cancel")}
-                  </button>
-                  <button type="submit" className="btn-primary px-6 py-3 text-sm font-medium">
-                    {editingTodo ? t("common.update") : t("todos.create")}
-                  </button>
-                </div>
-              </form>
+                                setFormData({
+                                  ...formData,
+                                  target_start_at: selectedTime,
+                                });
+                              }}
+                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+
+                          {/* Target Duration Fields */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Target Durasi
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={formData.target_duration_value || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    target_duration_value: e.target.value,
+                                  })
+                                }
+                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                                placeholder="Masukkan durasi target"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Satuan Durasi
+                              </label>
+                              <select
+                                value={formData.target_duration_unit}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    target_duration_unit: e.target.value,
+                                  })
+                                }
+                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                              >
+                                <option value="minutes">Menit</option>
+                                <option value="hours">Jam</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {formData.todo_type === "rutin" && (
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              {t("todos.startDate")}
+                            </label>
+                            <input
+                              type="date"
+                              value={formData.recurrence_start_date}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  recurrence_start_date: e.target.value,
+                                })
+                              }
+                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Jam Mulai
+                            </label>
+                            <input
+                              type="time"
+                              value={formData.target_start_at || ""}
+                              onChange={(e) => {
+                                const selectedTime = e.target.value;
+                                const now = new Date();
+                                const today = now.toISOString().slice(0, 10);
+
+                                // For today's date, prevent selecting past times
+                                if (formData.recurrence_start_date === today) {
+                                  const selectedDateTime = new Date(
+                                    `${today}T${selectedTime}`
+                                  );
+                                  if (selectedDateTime < now) {
+                                    notifyError(
+                                      "Waktu mulai tidak boleh lebih awal dari waktu saat ini"
+                                    );
+                                    return;
+                                  }
+                                }
+
+                                setFormData({
+                                  ...formData,
+                                  target_start_at: selectedTime,
+                                });
+                              }}
+                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {t("todos.every")}
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={formData.recurrence_interval}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    recurrence_interval: parseInt(
+                                      e.target.value || "1"
+                                    ),
+                                  })
+                                }
+                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {t("todos.unit")}
+                              </label>
+                              <select
+                                value={formData.recurrence_unit}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    recurrence_unit: e.target.value,
+                                  })
+                                }
+                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                              >
+                                <option value="day">{t("todos.day")}</option>
+                                <option value="week">{t("todos.week")}</option>
+                                <option value="month">
+                                  {t("todos.month")}
+                                </option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {formData.recurrence_unit === "week" && (
+                            <div className="grid grid-cols-1 gap-3 mt-2">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
+                                  {t("todos.days")}
+                                </label>
+                                <div className="grid grid-cols-4 gap-2 text-sm">
+                                  {[
+                                    { v: 1, l: "Sen" },
+                                    { v: 2, l: "Sel" },
+                                    { v: 3, l: "Rab" },
+                                    { v: 4, l: "Kam" },
+                                    { v: 5, l: "Jum" },
+                                    { v: 6, l: "Sab" },
+                                    { v: 0, l: "Min" },
+                                  ].map((d) => (
+                                    <label
+                                      key={d.v}
+                                      className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={(Array.isArray(
+                                          formData.days_of_week
+                                        )
+                                          ? formData.days_of_week
+                                          : []
+                                        ).includes(d.v)}
+                                        onChange={(e) => {
+                                          const base = Array.isArray(
+                                            formData.days_of_week
+                                          )
+                                            ? formData.days_of_week
+                                            : [];
+                                          const next = new Set(base);
+                                          if (e.target.checked) next.add(d.v);
+                                          else next.delete(d.v);
+                                          setFormData({
+                                            ...formData,
+                                            days_of_week: Array.from(next),
+                                          });
+                                        }}
+                                      />
+                                      <span>{d.l}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  Pilih hari-hari dalam minggu untuk
+                                  penjadwalan.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Target Duration Fields for Routine */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Target Durasi
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={formData.target_duration_value || ""}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    target_duration_value: e.target.value,
+                                  })
+                                }
+                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                                placeholder="Masukkan durasi target"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Satuan Durasi
+                              </label>
+                              <select
+                                value={formData.target_duration_unit}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    target_duration_unit: e.target.value,
+                                  })
+                                }
+                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                              >
+                                <option value="minutes">Menit</option>
+                                <option value="hours">Jam</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 border border-blue-200">
+                            <p className="font-medium mb-2">Perkiraan Tugas:</p>
+                            <p>
+                              Perkiraan 30 hari ke depan — sekitar{" "}
+                              {createRoutinePreviewPerUser} tugas per orang ×{" "}
+                              {createRoutinePreviewUsers} orang ={" "}
+                              {createRoutinePreviewCount} tugas.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateModal(false);
+                        setEditingTodo(null);
+                        setAssignAllInCategory(false);
+                        setFormData({
+                          title: "",
+                          description: "",
+                          todo_type: "rutin",
+                          target_category: "all",
+                          target_user_id: "",
+                          selected_user_ids: [],
+                          recurrence_start_date: "",
+                          recurrence_interval: 1,
+                          recurrence_unit: "day",
+                          recurrence_count: 0,
+                          days_of_week: [],
+                          scheduled_date: "",
+                          target_start_at: "",
+                          target_end_at: "",
+                          target_duration_value: "",
+                          target_duration_unit: "minutes",
+                        });
+                      }}
+                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      {t("todos.cancel")}
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary px-6 py-3 text-sm font-medium"
+                    >
+                      {editingTodo ? t("common.update") : t("todos.create")}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
@@ -3610,7 +3899,8 @@ const AdminTodos = () => {
                 <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600 border border-gray-200">
                   <p className="font-medium mb-1">Preview:</p>
                   <p>
-                    Sekitar <strong>{routinePreviewCount}</strong> tugas akan dibuat bulan ini.
+                    Sekitar <strong>{routinePreviewCount}</strong> tugas akan
+                    dibuat bulan ini.
                   </p>
                 </div>
 
@@ -3625,7 +3915,10 @@ const AdminTodos = () => {
                   >
                     {t("common.cancel")}
                   </button>
-                  <button type="submit" className="btn-primary px-6 py-3 text-sm font-medium">
+                  <button
+                    type="submit"
+                    className="btn-primary px-6 py-3 text-sm font-medium"
+                  >
                     {t("common.save")}
                   </button>
                 </div>
@@ -3638,208 +3931,229 @@ const AdminTodos = () => {
       {/* Confirm Create Routine Modal */}
       {showCreateConfirm && createSummary && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1100] flex items-center justify-center p-4">
-          <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {t("common.confirmDetails")}
-              </h3>
-              <div className="text-sm text-gray-700 space-y-2">
-                <div>
-                  <span className="text-gray-500">{t("todos.taskName")}:</span>{" "}
-                  {createSummary.title}
-                </div>
-                {createSummary.description && (
+          <div className="fixed inset-0 bg-gray-900/60 z-[1100] flex items-center justify-center p-4">
+            <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {t("common.confirmDetails")}
+                </h3>
+                <div className="text-sm text-gray-700 space-y-2">
                   <div>
-                    <span className="text-gray-500">Description:</span>{" "}
-                    {createSummary.description}
+                    <span className="text-gray-500">
+                      {t("todos.taskName")}:
+                    </span>{" "}
+                    {createSummary.title}
                   </div>
-                )}
-                <div>
-                  <span className="text-gray-500">{t("todos.targetAssignment")}:</span>{" "}
-                  {formatTargetCategory(createSummary.target_category)}
-                  {createSummary.selected_users
-                    ? ` (${createSummary.selected_users} selected)`
-                    : ""}
-                </div>
-                {createSummary.type === "tambahan" ? (
-                  <>
+                  {createSummary.description && (
                     <div>
-                      <span className="text-gray-500">Date:</span>{" "}
-                      {createSummary.date || "-"}
+                      <span className="text-gray-500">Description:</span>{" "}
+                      {createSummary.description}
                     </div>
-                    <div>
-                      <span className="text-gray-500">Start Time:</span>{" "}
-                      {createSummary.start_time || "-"}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">End Time:</span>{" "}
-                      {createSummary.end_time || "-"}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <span className="text-gray-500">Start:</span>{" "}
-                      {createSummary.start}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Pattern:</span>{" "}
-                      {createSummary.pattern}
-                    </div>
-                    {createSummary.days && (
+                  )}
+                  <div>
+                    <span className="text-gray-500">
+                      {t("todos.targetAssignment")}:
+                    </span>{" "}
+                    {formatTargetCategory(createSummary.target_category)}
+                    {createSummary.selected_users
+                      ? ` (${createSummary.selected_users} selected)`
+                      : ""}
+                  </div>
+                  {createSummary.type === "tambahan" ? (
+                    <>
                       <div>
-                        <span className="text-gray-500">Days:</span>{" "}
-                        {createSummary.days}
+                        <span className="text-gray-500">Date:</span>{" "}
+                        {createSummary.date || "-"}
                       </div>
-                    )}
-                    <div className="text-xs text-gray-500 mt-2">
-                      Akan membuat sekitar <b>{createSummary.preview}</b> tugas bulan ini.
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCreateConfirm(false);
-                  }}
-                  className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  {t("common.back")}
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (isCreating) return; // guard against double clicks
-                    setIsCreating(true);
-                    try {
-                      if (editingTodo) {
-                        await api.patch(`/todos/${editingTodo.id}`, formData);
-                      } else {
-                        const payload = { ...formData };
-                        if (assignAllInCategory) payload.selected_user_ids = [];
-                        if (payload.todo_type === "tambahan") {
-                          // compose MySQL-friendly datetimes (local) YYYY-MM-DD HH:mm:ss
-                          const dateStr = payload.scheduled_date || "";
-                          const fmt = (d, t) => {
-                            if (!d || !t) return null;
-                            const [hh = "00", mm = "00"] = String(t).split(":");
-                            return `${d} ${hh.padStart(2, "0")}:${mm.padStart(
-                              2,
-                              "0"
-                            )}:00`;
-                          };
-                          payload.target_start_at = fmt(
-                            dateStr,
-                            payload.target_start_at
-                          );
-                          payload.target_end_at = fmt(
-                            dateStr,
-                            payload.target_end_at
-                          );
-                          // Normalize empties to null for backend validator compatibility
-                          // TODO: review this merge decision — ensure empty strings are not sent for date fields
-                          if (!payload.target_start_at) payload.target_start_at = null;
-                          if (!payload.target_end_at) payload.target_end_at = null;
-                          if (!payload.scheduled_date) payload.scheduled_date = null;
-                          delete payload.recurrence_start_date;
-                          delete payload.recurrence_interval;
-                          delete payload.recurrence_unit;
-                          delete payload.recurrence_count;
-                          delete payload.days_of_week;
-                        } else {
-                          // Routine: avoid sending stray time-only values
-                          if (payload.target_start_at && payload.target_start_at.length <= 5) {
-                            payload.target_start_at = null;
-                          }
-                          if (payload.target_end_at && payload.target_end_at.length <= 5) {
-                            payload.target_end_at = null;
-                          }
-                          if (!payload.recurrence_start_date) payload.recurrence_start_date = null;
-                        }
-                        // Common: convert empty string dates to null
-                        if (!payload.due_date) payload.due_date = null;
-                        await api.post("/todos", payload);
-                      }
-                      const res = await api.get("/todos/all");
-                      setTodos(res.data.data || res.data);
+                      <div>
+                        <span className="text-gray-500">Start Time:</span>{" "}
+                        {createSummary.start_time || "-"}
+                      </div>
+                      <div>
+                        <span className="text-gray-500">End Time:</span>{" "}
+                        {createSummary.end_time || "-"}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-gray-500">Start:</span>{" "}
+                        {createSummary.start}
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Pattern:</span>{" "}
+                        {createSummary.pattern}
+                      </div>
+                      {createSummary.days && (
+                        <div>
+                          <span className="text-gray-500">Days:</span>{" "}
+                          {createSummary.days}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 mt-2">
+                        Akan membuat sekitar <b>{createSummary.preview}</b>{" "}
+                        tugas bulan ini.
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
                       setShowCreateConfirm(false);
-                      setShowCreateModal(false);
-                      setEditingTodo(null);
-                    } catch (e) {
-                      alert(e?.response?.data?.message || "Failed to save");
-                    } finally {
-                      setIsCreating(false);
-                    }
-                  }}
-                  className="btn-primary px-6 py-3 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={isCreating}
-                >
-                   {t("todos.create")}
-                </button>
+                    }}
+                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    {t("common.back")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (isCreating) return; // guard against double clicks
+                      setIsCreating(true);
+                      try {
+                        if (editingTodo) {
+                          await api.patch(`/todos/${editingTodo.id}`, formData);
+                        } else {
+                          const payload = { ...formData };
+                          if (assignAllInCategory)
+                            payload.selected_user_ids = [];
+                          if (payload.todo_type === "tambahan") {
+                            // compose MySQL-friendly datetimes (local) YYYY-MM-DD HH:mm:ss
+                            const dateStr = payload.scheduled_date || "";
+                            const fmt = (d, t) => {
+                              if (!d || !t) return null;
+                              const [hh = "00", mm = "00"] =
+                                String(t).split(":");
+                              return `${d} ${hh.padStart(2, "0")}:${mm.padStart(
+                                2,
+                                "0"
+                              )}:00`;
+                            };
+                            payload.target_start_at = fmt(
+                              dateStr,
+                              payload.target_start_at
+                            );
+                            payload.target_end_at = fmt(
+                              dateStr,
+                              payload.target_end_at
+                            );
+                            // Normalize empties to null for backend validator compatibility
+                            // TODO: review this merge decision — ensure empty strings are not sent for date fields
+                            if (!payload.target_start_at)
+                              payload.target_start_at = null;
+                            if (!payload.target_end_at)
+                              payload.target_end_at = null;
+                            if (!payload.scheduled_date)
+                              payload.scheduled_date = null;
+                            delete payload.recurrence_start_date;
+                            delete payload.recurrence_interval;
+                            delete payload.recurrence_unit;
+                            delete payload.recurrence_count;
+                            delete payload.days_of_week;
+                          } else {
+                            // Routine: avoid sending stray time-only values
+                            if (
+                              payload.target_start_at &&
+                              payload.target_start_at.length <= 5
+                            ) {
+                              payload.target_start_at = null;
+                            }
+                            if (
+                              payload.target_end_at &&
+                              payload.target_end_at.length <= 5
+                            ) {
+                              payload.target_end_at = null;
+                            }
+                            if (!payload.recurrence_start_date)
+                              payload.recurrence_start_date = null;
+                          }
+                          // Common: convert empty string dates to null
+                          if (!payload.due_date) payload.due_date = null;
+                          await api.post("/todos", payload);
+                        }
+                        const res = await api.get("/todos/all");
+                        setTodos(res.data.data || res.data);
+                        setShowCreateConfirm(false);
+                        setShowCreateModal(false);
+                        setEditingTodo(null);
+                      } catch (e) {
+                        alert(e?.response?.data?.message || "Failed to save");
+                      } finally {
+                        setIsCreating(false);
+                      }
+                    }}
+                    className="btn-primary px-6 py-3 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isCreating}
+                  >
+                    {t("todos.create")}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Routine Group Detail Modal (read-only) */}
       {showRoutineDetail && routineDetail && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1100] flex items-center justify-center p-4">
-          <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
-            <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {t("todos.routineDetails")}
-              </h3>
-              <div className="text-sm text-gray-700 space-y-2">
-                <div>
-                  <span className="text-gray-500">{t("todos.taskName")}:</span>{" "}
-                  {routineDetail.title}
-                </div>
-                {routineDetail.description && (
+          <div className="fixed inset-0 bg-gray-900/60 z-[1100] flex items-center justify-center p-4">
+            <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {t("todos.routineDetails")}
+                </h3>
+                <div className="text-sm text-gray-700 space-y-2">
                   <div>
-                    <span className="text-gray-500">Description:</span>{" "}
-                    {routineDetail.description}
+                    <span className="text-gray-500">
+                      {t("todos.taskName")}:
+                    </span>{" "}
+                    {routineDetail.title}
                   </div>
-                )}
-                <div>
-                  <span className="text-gray-500">{t("todos.targetAssignment")}:</span>{" "}
-                  {formatTargetCategory(routineDetail.target_category)}
-                </div>
-                <div>
-                  <span className="text-gray-500">{t("todos.start")}:</span>{" "}
-                  {routineDetail.start}
-                </div>
-                <div>
-                  <span className="text-gray-500">Pengulangan:</span>{" "}
-                  {routineDetail.pattern}
-                </div>
-                {routineDetail.days && (
+                  {routineDetail.description && (
                     <div>
-                    <span className="text-gray-500">{t("todos.days")}:</span>{" "}
+                      <span className="text-gray-500">Description:</span>{" "}
+                      {routineDetail.description}
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">
+                      {t("todos.targetAssignment")}:
+                    </span>{" "}
+                    {formatTargetCategory(routineDetail.target_category)}
+                  </div>
+                  <div>
+                    <span className="text-gray-500">{t("todos.start")}:</span>{" "}
+                    {routineDetail.start}
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Pengulangan:</span>{" "}
+                    {routineDetail.pattern}
+                  </div>
+                  {routineDetail.days && (
+                    <div>
+                      <span className="text-gray-500">{t("todos.days")}:</span>{" "}
                       {routineDetail.days}
                     </div>
-                )}
-              </div>
-              <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRoutineDetail(false);
-                    setRoutineDetail(null);
-                  }}
-                  className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  {t("common.close")}
-                </button>
+                  )}
+                </div>
+                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRoutineDetail(false);
+                      setRoutineDetail(null);
+                    }}
+                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    {t("common.close")}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 

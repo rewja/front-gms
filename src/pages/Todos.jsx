@@ -38,7 +38,8 @@ const Todos = () => {
   const [todoToHold, setTodoToHold] = useState(null);
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
   const [evidenceNote, setEvidenceNote] = useState("");
-  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceFiles, setEvidenceFiles] = useState([]); // multiple files
+  const [evidencePreviews, setEvidencePreviews] = useState([]); // { file, url }
   const [todoToSubmit, setTodoToSubmit] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -65,7 +66,6 @@ const Todos = () => {
   const [visibleCount, setVisibleCount] = useState(5);
   const [loadingStates, setLoadingStates] = useState({});
   const [todayNotStarted, setTodayNotStarted] = useState(0);
-
 
   // No need for getEffectiveDateFilter - use dateFilter directly
 
@@ -133,7 +133,7 @@ const Todos = () => {
     }
 
     const now = new Date();
-    
+
     switch (filter) {
       case "today":
         const today = new Date();
@@ -141,7 +141,7 @@ const Todos = () => {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         return { start: today, end: tomorrow };
-        
+
       case "yesterday":
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
@@ -149,21 +149,21 @@ const Todos = () => {
         const todayStart = new Date(yesterday);
         todayStart.setDate(todayStart.getDate() + 1);
         return { start: yesterday, end: todayStart };
-        
+
       case "this_week":
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
         return { start: startOfWeek, end: null };
-        
+
       case "this_month":
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         return { start: startOfMonth, end: null };
-        
+
       case "this_year":
         const startOfYear = new Date(now.getFullYear(), 0, 1);
         return { start: startOfYear, end: null };
-        
+
       default:
         // Custom date filter
         const selectedDate = new Date(filter);
@@ -196,7 +196,7 @@ const Todos = () => {
         // Use getTaskDate for consistent date filtering (scheduled_date first, then created_at)
         const todoDate = getTaskDate(todo);
         if (!todoDate) return false;
-        
+
         const isAfterStart = todoDate >= dateRange.start;
         const isBeforeEnd = !dateRange.end || todoDate < dateRange.end;
         return isAfterStart && isBeforeEnd;
@@ -243,7 +243,6 @@ const Todos = () => {
     }
   };
 
-
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
@@ -261,8 +260,18 @@ const Todos = () => {
 
     // Array nama bulan dalam bahasa Indonesia
     const months = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
     ];
 
     const dayName = days[date.getDay()];
@@ -277,57 +286,71 @@ const Todos = () => {
   };
 
   const getDuration = (todo) => {
-    // Prefer formatted duration from backend
-    if (todo.total_work_time_formatted) {
-      return todo.total_work_time_formatted;
-    }
-    
-    // If we have numeric total_work_time (in minutes), format it
-    if (todo.total_work_time && typeof todo.total_work_time === 'number') {
-      const hours = Math.floor(todo.total_work_time / 60);
-      const minutes = todo.total_work_time % 60;
-      if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-      }
+    // 1) Prefer formatted duration from backend (backwards compatible names)
+    if (todo.total_work_time_formatted) return todo.total_work_time_formatted;
+    if (todo.total_work_time && typeof todo.total_work_time === "string") return todo.total_work_time;
+
+    // 2) Numeric minutes (new API field: total_work_time_minutes)
+    const minutesVal =
+      typeof todo.total_work_time_minutes === "number"
+        ? todo.total_work_time_minutes
+        : typeof todo.total_work_time === "number"
+        ? todo.total_work_time
+        : null;
+    if (minutesVal !== null) {
+      const hours = Math.floor(minutesVal / 60);
+      const minutes = minutesVal % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
       return `${minutes}m`;
     }
-    
-    // Fallback to calculating from timestamps
-    if (todo.started_at && todo.submitted_at) {
-      const start = new Date(todo.started_at);
-      const end = new Date(todo.submitted_at);
-      const diffMs = end - start;
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      return `${diffHours}h ${diffMinutes}m`;
-    }
-    
-    // If task is in progress but not completed, show current duration
-    if (todo.started_at && todo.status === 'in_progress') {
-      const start = new Date(todo.started_at);
-      const now = new Date();
-      const diffMs = now - start;
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      if (diffHours > 0) {
-        return `${diffHours}h ${diffMinutes}m (ongoing)`;
+
+    // 3) Fallback: use raw ISO timestamps when available (started_at_raw / submitted_at_raw)
+    const startIso = todo.started_at_raw || todo.started_at;
+    const endIso = todo.submitted_at_raw || todo.submitted_at;
+    if (startIso && endIso) {
+      const start = new Date(startIso);
+      const end = new Date(endIso);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        const diffMs = end - start;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        return `${diffHours}h ${diffMinutes}m`;
       }
-      return `${diffMinutes}m (ongoing)`;
     }
-    
+
+    // 4) If task is in progress but not completed, compute ongoing duration from started_at (raw preferred)
+    const startOngoing = todo.started_at_raw || todo.started_at;
+    if (startOngoing && todo.status === "in_progress") {
+      const start = new Date(startOngoing);
+      if (!isNaN(start.getTime())) {
+        const now = new Date();
+        const diffMs = now - start;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        if (diffHours > 0) return `${diffHours}h ${diffMinutes}m (ongoing)`;
+        return `${diffMinutes}m (ongoing)`;
+      }
+    }
+
     return "-";
   };
 
   // Format target start time as HH:mm using raw ISO when available
   const getTargetStartTime = (todo) => {
     try {
-      if (todo?.target_start_at_raw && !isNaN(Date.parse(todo.target_start_at_raw))) {
+      if (
+        todo?.target_start_at_raw &&
+        !isNaN(Date.parse(todo.target_start_at_raw))
+      ) {
         const d = new Date(todo.target_start_at_raw);
         const hh = String(d.getHours()).padStart(2, "0");
         const mm = String(d.getMinutes()).padStart(2, "0");
         return `${hh}:${mm}`;
       }
-      if (typeof todo?.target_start_at === "string" && todo.target_start_at.trim()) {
+      if (
+        typeof todo?.target_start_at === "string" &&
+        todo.target_start_at.trim()
+      ) {
         // Fallback: try to extract HH:mm from formatted string "..., HH:mm:ss"
         const m = todo.target_start_at.match(/(\d{1,2}):(\d{2})/);
         if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
@@ -399,8 +422,8 @@ const Todos = () => {
 
   const handleStatusChange = async (id, newStatus) => {
     const loadingKey = `${id}-${newStatus}`;
-    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
-    
+    setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
     try {
       if (newStatus === "in_progress") {
         await api.patch(`/todos/${id}/start`);
@@ -408,15 +431,28 @@ const Todos = () => {
         await api.patch(`/todos/${id}/hold`);
       } else if (newStatus === "completed") {
         // Check if todo has evidence before allowing completion
-        const todo = todos.find(t => t.id === id);
-        if (!todo.evidence_path && (!todo.evidence_paths || todo.evidence_paths.length === 0)) {
-          notifyError(t("todos.uploadEvidenceFirst", { defaultValue: "Harap unggah bukti terlebih dahulu sebelum menyelesaikan tugas" }));
+        const todo = todos.find((t) => t.id === id);
+        if (
+          !todo.evidence_path &&
+          (!todo.evidence_paths || todo.evidence_paths.length === 0)
+        ) {
+          notifyError(
+            t("todos.uploadEvidenceFirst", {
+              defaultValue:
+                "Harap unggah bukti terlebih dahulu sebelum menyelesaikan tugas",
+            })
+          );
           return;
         }
         await api.patch(`/todos/${id}/complete`);
       } else if (newStatus === "checking") {
         // For checking status, evidence should be uploaded via submit button, not direct status change
-        notifyError(t("todos.useSubmitButton", { defaultValue: "Gunakan tombol 'Submit Evidence' untuk mengirim bukti" }));
+        notifyError(
+          t("todos.useSubmitButton", {
+            defaultValue:
+              "Gunakan tombol 'Submit Evidence' untuk mengirim bukti",
+          })
+        );
         return;
       } else {
         await api.patch(`/todos/${id}`, { status: newStatus });
@@ -427,14 +463,14 @@ const Todos = () => {
     } catch (err) {
       handleApiError(err, "update");
     } finally {
-      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
   const handleFileUpload = async (id, file) => {
     const loadingKey = `${id}-upload`;
-    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
-    
+    setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
     try {
       const form = new FormData();
       form.append("evidence", file);
@@ -466,7 +502,7 @@ const Todos = () => {
     } catch (err) {
       handleApiError(err, "upload");
     } finally {
-      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -484,62 +520,80 @@ const Todos = () => {
   const handleSubmitEvidenceClick = (todo) => {
     setTodoToSubmit(todo);
     setEvidenceNote("");
-    setEvidenceFile(null);
+    setEvidenceFiles([]);
     setShowEvidenceModal(true);
   };
 
   const handleHoldSubmit = async () => {
     if (!holdNote.trim()) {
-      notifyError(t("todos.holdReasonRequired", { defaultValue: "Masukkan alasan untuk menahan tugas ini" }));
+      notifyError(
+        t("todos.holdReasonRequired", {
+          defaultValue: "Masukkan alasan untuk menahan tugas ini",
+        })
+      );
       return;
     }
 
     const loadingKey = `${todoToHold.id}-hold`;
-    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
-    
+    setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
     try {
       await api.patch(`/todos/${todoToHold.id}/hold`, { hold_note: holdNote });
       const res = await api.get("/todos");
       setTodos(res.data.data || res.data);
-      success(t("todos.taskPutOnHold", { defaultValue: "Tugas berhasil ditahan" }));
+      success(
+        t("todos.taskPutOnHold", { defaultValue: "Tugas berhasil ditahan" })
+      );
       setShowHoldModal(false);
       setHoldNote("");
       setTodoToHold(null);
     } catch (err) {
       handleApiError(err, "hold");
     } finally {
-      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
   const handleSubmitEvidenceSubmit = async () => {
-    if (!evidenceFile) {
-      notifyError(t("todos.evidenceFormPhoto", { defaultValue: "Foto Bukti" }) + " " + t("common.required", { defaultValue: "wajib diisi" }));
+    if (!evidenceFiles || evidenceFiles.length === 0) {
+      notifyError(
+        t("todos.evidenceFormPhoto", { defaultValue: "Foto Bukti" }) +
+          " " +
+          t("common.required", { defaultValue: "wajib diisi" })
+      );
       return;
     }
 
     const loadingKey = `${todoToSubmit.id}-submit-evidence`;
-    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
-    
+    setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
     try {
       const form = new FormData();
-      form.append("evidence", evidenceFile);
+      // append multiple files as evidence[]
+      evidenceFiles.forEach((file) => form.append("evidence[]", file));
       if (evidenceNote.trim()) {
         form.append("evidence_note", evidenceNote);
       }
 
-      await api.post(`/todos/${todoToSubmit.id}/submit`, form, { isForm: true });
+      await api.post(`/todos/${todoToSubmit.id}/submit`, form, {
+        isForm: true,
+      });
       const res = await api.get("/todos");
       setTodos(res.data.data || res.data);
-      success(t("todos.todoUpdated", { defaultValue: "Tugas berhasil diperbarui" }));
+      success(
+        t("todos.todoUpdated", { defaultValue: "Tugas berhasil diperbarui" })
+      );
       setShowEvidenceModal(false);
       setEvidenceNote("");
-      setEvidenceFile(null);
+      // revoke object URLs
+      evidencePreviews.forEach((p) => URL.revokeObjectURL(p.url));
+      setEvidencePreviews([]);
+      setEvidenceFiles([]);
       setTodoToSubmit(null);
     } catch (err) {
       handleApiError(err, "submit");
     } finally {
-      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -548,7 +602,7 @@ const Todos = () => {
 
   const isRunnableInFilter = (todo) => {
     if (!todo) return true;
-    
+
     // Use getTaskDate for consistent date handling
     const todoDate = getTaskDate(todo);
     if (!todoDate) return true;
@@ -583,19 +637,28 @@ const Todos = () => {
   const canStartTask = (todo) => {
     // If no target time is set, allow starting
     if (!todo.target_start_at && !todo.target_start_at_raw) return true;
-    
+
     // Prefer raw ISO if present
     let targetDateTime = null;
     try {
-      if (todo.target_start_at_raw && !isNaN(Date.parse(todo.target_start_at_raw))) {
+      if (
+        todo.target_start_at_raw &&
+        !isNaN(Date.parse(todo.target_start_at_raw))
+      ) {
         targetDateTime = new Date(todo.target_start_at_raw);
-      } else if (todo.scheduled_date && typeof todo.target_start_at === "string") {
+      } else if (
+        todo.scheduled_date &&
+        typeof todo.target_start_at === "string"
+      ) {
         // If target_start_at is like "HH:mm" or "HH:mm:ss", compose with scheduled_date
         const timeStr = todo.target_start_at.trim();
         // Accept both HH:mm and localized full strings; try simple HH:mm first
         if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeStr)) {
           const [hh, mm = "00", ss = "00"] = timeStr.split(":");
-          const composed = `${todo.scheduled_date} ${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+          const composed = `${todo.scheduled_date} ${String(hh).padStart(
+            2,
+            "0"
+          )}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
           if (!isNaN(Date.parse(composed))) targetDateTime = new Date(composed);
         }
       }
@@ -605,7 +668,9 @@ const Todos = () => {
     if (!targetDateTime || isNaN(targetDateTime.getTime())) return true;
 
     const now = new Date();
-    const tenMinutesBefore = new Date(targetDateTime.getTime() - 10 * 60 * 1000);
+    const tenMinutesBefore = new Date(
+      targetDateTime.getTime() - 10 * 60 * 1000
+    );
     return now >= tenMinutesBefore;
   };
 
@@ -638,7 +703,6 @@ const Todos = () => {
       return false;
     }
 
-
     // Date filter (based on scheduled_date when present, fallback to created_at)
     if (dateFilter && dateFilter !== "all" && dateFilter !== "") {
       const todoDate = getTaskDate(todo);
@@ -651,7 +715,6 @@ const Todos = () => {
         if (!(isAfterStart && isBeforeEnd)) return false;
       }
     }
-
 
     return true;
   });
@@ -667,7 +730,7 @@ const Todos = () => {
       // Use getTaskDate for consistent date filtering
       const todoDate = getTaskDate(todo);
       if (!todoDate) return false;
-      
+
       const isAfterStart = todoDate >= dateRange.start;
       const isBeforeEnd = !dateRange.end || todoDate < dateRange.end;
       return isAfterStart && isBeforeEnd;
@@ -687,16 +750,15 @@ const Todos = () => {
       }
       return new Date(0); // fallback to epoch
     };
-    
+
     const dateA = getDateForSort(a);
     const dateB = getDateForSort(b);
-    
+
     return dateA - dateB; // ascending order (earliest first)
   });
 
   // Lazy slice for horizontal list
   const visibleTodos = sortedTodos.slice(0, Math.max(5, visibleCount));
-
 
   // Get active filter count
   const getActiveFilterCount = () => {
@@ -714,7 +776,6 @@ const Todos = () => {
     setStatusFilter("all");
     setDateFilter("today");
   };
-
 
   // Personal statistics
   const averageDurationMinutes = (() => {
@@ -770,7 +831,9 @@ const Todos = () => {
               return isToday(t.scheduled_date);
             };
             const count = (list || []).filter(
-              (t) => (t.status || "").toString() === "not_started" && isRunnableToday(t)
+              (t) =>
+                (t.status || "").toString() === "not_started" &&
+                isRunnableToday(t)
             ).length;
             setTodayNotStarted(count);
           } catch {}
@@ -778,7 +841,10 @@ const Todos = () => {
       } catch (e) {
         console.error("Error loading todos:", e);
         if (!cancelled)
-          setError(e?.response?.data?.message || t("common.failedToLoad", { defaultValue: "Gagal memuat" }));
+          setError(
+            e?.response?.data?.message ||
+              t("common.failedToLoad", { defaultValue: "Gagal memuat" })
+          );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -794,9 +860,9 @@ const Todos = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t("nav.todos")}
-          </h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {t("nav.todos")}
+            </h1>
             {todayNotStarted > 0 && (
               <span className="inline-flex items-center justify-center w-6 h-6 text-[12px] font-semibold rounded-full bg-red-500 text-white">
                 {todayNotStarted}
@@ -897,11 +963,17 @@ const Todos = () => {
             {/* Status Cards - 6 Statuses (Clickable for Filtering) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
               {/* Not Started */}
-              <div 
+              <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "not_started" ? "ring-2 ring-yellow-500 bg-yellow-50" : ""
+                  statusFilter === "not_started"
+                    ? "ring-2 ring-yellow-500 bg-yellow-50"
+                    : ""
                 }`}
-                onClick={() => setStatusFilter(statusFilter === "not_started" ? "all" : "not_started")}
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === "not_started" ? "all" : "not_started"
+                  )
+                }
               >
                 <div className="p-3 sm:p-4">
                   <div className="flex flex-col items-center text-center">
@@ -921,11 +993,17 @@ const Todos = () => {
               </div>
 
               {/* In Progress */}
-              <div 
+              <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "in_progress" ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                  statusFilter === "in_progress"
+                    ? "ring-2 ring-blue-500 bg-blue-50"
+                    : ""
                 }`}
-                onClick={() => setStatusFilter(statusFilter === "in_progress" ? "all" : "in_progress")}
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === "in_progress" ? "all" : "in_progress"
+                  )
+                }
               >
                 <div className="p-3 sm:p-4">
                   <div className="flex flex-col items-center text-center">
@@ -945,11 +1023,15 @@ const Todos = () => {
               </div>
 
               {/* Hold */}
-              <div 
+              <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "hold" ? "ring-2 ring-pink-500 bg-pink-50" : ""
+                  statusFilter === "hold"
+                    ? "ring-2 ring-pink-500 bg-pink-50"
+                    : ""
                 }`}
-                onClick={() => setStatusFilter(statusFilter === "hold" ? "all" : "hold")}
+                onClick={() =>
+                  setStatusFilter(statusFilter === "hold" ? "all" : "hold")
+                }
               >
                 <div className="p-3 sm:p-4">
                   <div className="flex flex-col items-center text-center">
@@ -969,11 +1051,17 @@ const Todos = () => {
               </div>
 
               {/* Checking */}
-              <div 
+              <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "checking" ? "ring-2 ring-orange-500 bg-orange-50" : ""
+                  statusFilter === "checking"
+                    ? "ring-2 ring-orange-500 bg-orange-50"
+                    : ""
                 }`}
-                onClick={() => setStatusFilter(statusFilter === "checking" ? "all" : "checking")}
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === "checking" ? "all" : "checking"
+                  )
+                }
               >
                 <div className="p-3 sm:p-4">
                   <div className="flex flex-col items-center text-center">
@@ -993,11 +1081,17 @@ const Todos = () => {
               </div>
 
               {/* Evaluating */}
-              <div 
+              <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "evaluating" ? "ring-2 ring-purple-500 bg-purple-50" : ""
+                  statusFilter === "evaluating"
+                    ? "ring-2 ring-purple-500 bg-purple-50"
+                    : ""
                 }`}
-                onClick={() => setStatusFilter(statusFilter === "evaluating" ? "all" : "evaluating")}
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === "evaluating" ? "all" : "evaluating"
+                  )
+                }
               >
                 <div className="p-3 sm:p-4">
                   <div className="flex flex-col items-center text-center">
@@ -1017,11 +1111,17 @@ const Todos = () => {
               </div>
 
               {/* Completed */}
-              <div 
+              <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "completed" ? "ring-2 ring-green-500 bg-green-50" : ""
+                  statusFilter === "completed"
+                    ? "ring-2 ring-green-500 bg-green-50"
+                    : ""
                 }`}
-                onClick={() => setStatusFilter(statusFilter === "completed" ? "all" : "completed")}
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === "completed" ? "all" : "completed"
+                  )
+                }
               >
                 <div className="p-3 sm:p-4">
                   <div className="flex flex-col items-center text-center">
@@ -1040,7 +1140,6 @@ const Todos = () => {
                 </div>
               </div>
             </div>
-
           </>
         )}
       </div>
@@ -1059,7 +1158,9 @@ const Todos = () => {
                   <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
                 </div>
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  {t("todos.avgCompletionDuration", { defaultValue: "Rata-rata Durasi Penyelesaian" })}
+                  {t("todos.avgCompletionDuration", {
+                    defaultValue: "Rata-rata Durasi Penyelesaian",
+                  })}
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                   <span className="font-bold text-gray-900 dark:text-gray-100">
@@ -1096,10 +1197,28 @@ const Todos = () => {
                 onKeyDown={(e) => {
                   if (showDateDropdown) {
                     const options = [
-                      { value: "today", label: t("todos.today", { defaultValue: "Hari Ini" }) },
-                      { value: "this_week", label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }) },
-                      { value: "this_month", label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }) },
-                      { value: "yesterday", label: t("todos.yesterday", { defaultValue: "Kemarin" }) },
+                      {
+                        value: "today",
+                        label: t("todos.today", { defaultValue: "Hari Ini" }),
+                      },
+                      {
+                        value: "this_week",
+                        label: t("todos.thisWeek", {
+                          defaultValue: "Minggu Ini",
+                        }),
+                      },
+                      {
+                        value: "this_month",
+                        label: t("todos.thisMonth", {
+                          defaultValue: "Bulan Ini",
+                        }),
+                      },
+                      {
+                        value: "yesterday",
+                        label: t("todos.yesterday", {
+                          defaultValue: "Kemarin",
+                        }),
+                      },
                     ];
 
                     if (e.key === "ArrowDown") {
@@ -1135,7 +1254,7 @@ const Todos = () => {
               {!showDateDropdown && (
                 <div className="absolute inset-0 flex items-center pl-3 pr-10 pointer-events-none">
                   <span className="text-gray-900 text-sm sm:text-base">
-                    {dateFilter === "today" 
+                    {dateFilter === "today"
                       ? t("todos.today", { defaultValue: "Hari Ini" })
                       : dateFilter === "this_week"
                       ? t("todos.thisWeek", { defaultValue: "Minggu Ini" })
@@ -1143,8 +1262,10 @@ const Todos = () => {
                       ? t("todos.thisMonth", { defaultValue: "Bulan Ini" })
                       : dateFilter === "yesterday"
                       ? t("todos.yesterday", { defaultValue: "Kemarin" })
-                      : dateFilter || t("todos.selectDate", { defaultValue: "Pilih Tanggal" })
-                    }
+                      : dateFilter ||
+                        t("todos.selectDate", {
+                          defaultValue: "Pilih Tanggal",
+                        })}
                   </span>
                 </div>
               )}
@@ -1159,35 +1280,46 @@ const Todos = () => {
             {showDateDropdown && (
               <div className="absolute z-10 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none mt-1">
                 {[
-                  { value: "today", label: t("todos.today", { defaultValue: "Hari Ini" }) },
-                  { value: "this_week", label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }) },
-                  { value: "this_month", label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }) },
-                  { value: "yesterday", label: t("todos.yesterday", { defaultValue: "Kemarin" }) },
-                ]
-                  .map((option) => (
-                    <button
-                      key={option.value}
-                      data-value={option.value}
-                      onClick={() => {
-                        setDateFilter(option.value);
-                        setShowDateDropdown(false);
-                      }}
-                      className={`relative w-full text-left py-2 pl-3 pr-9 cursor-pointer hover:bg-gray-50 ${
-                        datePreselected === option.value
-                          ? "bg-blue-50 text-blue-900"
-                          : dateFilter === option.value
-                          ? "bg-accent-50 text-accent-900"
-                          : "text-gray-900"
-                      }`}
-                    >
-                      <span className="block truncate">{option.label}</span>
-                      {dateFilter === option.value && (
-                        <span className="absolute inset-y-0 right-0 flex items-center pr-4">
-                          <Check className="h-4 w-4 text-accent-600" />
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                  {
+                    value: "today",
+                    label: t("todos.today", { defaultValue: "Hari Ini" }),
+                  },
+                  {
+                    value: "this_week",
+                    label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }),
+                  },
+                  {
+                    value: "this_month",
+                    label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }),
+                  },
+                  {
+                    value: "yesterday",
+                    label: t("todos.yesterday", { defaultValue: "Kemarin" }),
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    data-value={option.value}
+                    onClick={() => {
+                      setDateFilter(option.value);
+                      setShowDateDropdown(false);
+                    }}
+                    className={`relative w-full text-left py-2 pl-3 pr-9 cursor-pointer hover:bg-gray-50 ${
+                      datePreselected === option.value
+                        ? "bg-blue-50 text-blue-900"
+                        : dateFilter === option.value
+                        ? "bg-accent-50 text-accent-900"
+                        : "text-gray-900"
+                    }`}
+                  >
+                    <span className="block truncate">{option.label}</span>
+                    {dateFilter === option.value && (
+                      <span className="absolute inset-y-0 right-0 flex items-center pr-4">
+                        <Check className="h-4 w-4 text-accent-600" />
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -1196,7 +1328,14 @@ const Todos = () => {
           <div className="relative">
             <input
               type="date"
-              value={dateFilter && !["today", "this_week", "this_month", "yesterday"].includes(dateFilter) ? dateFilter : ""}
+              value={
+                dateFilter &&
+                !["today", "this_week", "this_month", "yesterday"].includes(
+                  dateFilter
+                )
+                  ? dateFilter
+                  : ""
+              }
               onChange={(e) => setDateFilter(e.target.value)}
               className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
               placeholder="Pilih tanggal khusus"
@@ -1211,7 +1350,7 @@ const Todos = () => {
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
-                        <input
+          <input
             type="text"
             placeholder={t("todos.searchTodos")}
             value={searchTerm}
@@ -1253,7 +1392,9 @@ const Todos = () => {
                         </h3>
                         <div className="flex flex-wrap gap-2">
                           <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${getStatusColor(todo.status)}`}
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${getStatusColor(
+                              todo.status
+                            )}`}
                           >
                             {formatStatusLabel(todo.status)}
                           </span>
@@ -1276,16 +1417,20 @@ const Todos = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2 text-xs text-gray-500">
                         <div className="flex items-center">
                           <span className="truncate">
-                            {t("todos.scheduledDate", { defaultValue: "Tanggal Terjadwal" })}:{" "}
-                            {todo.scheduled_date 
-                              ? new Date(todo.scheduled_date).toLocaleDateString('id-ID', { 
-                                  weekday: 'long', 
-                                  year: 'numeric', 
-                                  month: 'long', 
-                                  day: 'numeric' 
+                            {t("todos.scheduledDate", {
+                              defaultValue: "Tanggal Terjadwal",
+                            })}
+                            :{" "}
+                            {todo.scheduled_date
+                              ? new Date(
+                                  todo.scheduled_date
+                                ).toLocaleDateString("id-ID", {
+                                  weekday: "long",
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
                                 })
-                              : (todo.formatted_created_at || "N/A")
-                            }
+                              : todo.formatted_created_at || "N/A"}
                           </span>
                         </div>
                         {(() => {
@@ -1293,13 +1438,19 @@ const Todos = () => {
                           return hhmm ? (
                             <div className="flex items-center">
                               <span className="truncate">
-                                {t("todos.startTime", { defaultValue: "Jam Mulai" })}: {hhmm}
+                                {t("todos.startTime", {
+                                  defaultValue: "Jam Mulai",
+                                })}
+                                : {hhmm}
                               </span>
                             </div>
                           ) : null;
                         })()}
                         <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          <span>{t("todos.duration", { defaultValue: "Durasi" })}: {getDuration(todo)}</span>
+                          <span>
+                            {t("todos.duration", { defaultValue: "Durasi" })}:{" "}
+                            {getDuration(todo)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1325,10 +1476,25 @@ const Todos = () => {
                                     ? "bg-green-500 hover:bg-green-600"
                                     : "bg-gray-400 cursor-not-allowed"
                                 }`}
-                                disabled={!canAct || !canStart || loadingStates[`${todo.id}-in_progress`]}
-                                title={!canStart ? t("todos.cannotStartYet", { defaultValue: "Belum bisa dimulai. Tunggu 10 menit sebelum waktu target." }) : ""}
+                                disabled={
+                                  !canAct ||
+                                  !canStart ||
+                                  loadingStates[`${todo.id}-in_progress`]
+                                }
+                                title={
+                                  !canStart
+                                    ? t("todos.cannotStartYet", {
+                                        defaultValue:
+                                          "Belum bisa dimulai. Tunggu 10 menit sebelum waktu target.",
+                                      })
+                                    : ""
+                                }
                               >
-                              {loadingStates[`${todo.id}-in_progress`] ? "..." : t("common.start", { defaultValue: "Mulai" })}
+                                {loadingStates[`${todo.id}-in_progress`]
+                                  ? "..."
+                                  : t("common.start", {
+                                      defaultValue: "Mulai",
+                                    })}
                               </button>
                             )}
 
@@ -1342,9 +1508,16 @@ const Todos = () => {
                                     ? "bg-blue-500 hover:bg-blue-600"
                                     : "bg-gray-400 cursor-not-allowed"
                                 }`}
-                                disabled={!canAct || loadingStates[`${todo.id}-in_progress`]}
+                                disabled={
+                                  !canAct ||
+                                  loadingStates[`${todo.id}-in_progress`]
+                                }
                               >
-                              {loadingStates[`${todo.id}-in_progress`] ? "..." : t("common.resume", { defaultValue: "Lanjutkan" })}
+                                {loadingStates[`${todo.id}-in_progress`]
+                                  ? "..."
+                                  : t("common.resume", {
+                                      defaultValue: "Lanjutkan",
+                                    })}
                               </button>
                             )}
 
@@ -1357,12 +1530,20 @@ const Todos = () => {
                                       ? "bg-yellow-500 hover:bg-yellow-600"
                                       : "bg-gray-400 cursor-not-allowed"
                                   }`}
-                                  disabled={!canAct || loadingStates[`${todo.id}-hold`]}
+                                  disabled={
+                                    !canAct || loadingStates[`${todo.id}-hold`]
+                                  }
                                 >
-                                  {loadingStates[`${todo.id}-hold`] ? "..." : t("common.hold", { defaultValue: "Tahan" })}
+                                  {loadingStates[`${todo.id}-hold`]
+                                    ? "..."
+                                    : t("common.hold", {
+                                        defaultValue: "Tahan",
+                                      })}
                                 </button>
                                 <button
-                                  onClick={() => handleSubmitEvidenceClick(todo)}
+                                  onClick={() =>
+                                    handleSubmitEvidenceClick(todo)
+                                  }
                                   className={`text-white text-xs px-3 py-1.5 rounded-lg transition-colors ${
                                     canAct
                                       ? "bg-blue-500 hover:bg-blue-600"
@@ -1370,25 +1551,38 @@ const Todos = () => {
                                   }`}
                                   disabled={!canAct}
                                 >
-                                  {t("todos.submitEvidence", { defaultValue: "Bukti Menyelesaikan Tugas" })}
+                                  {t("todos.submitEvidence", {
+                                    defaultValue: "Bukti Menyelesaikan Tugas",
+                                  })}
                                 </button>
                               </>
                             )}
 
                             {todo.status === "evaluating" && (
-                              <label className={`${
-                                !loadingStates[`${todo.id}-upload`]
-                                  ? "bg-purple-500 hover:bg-purple-600 cursor-pointer"
-                                  : "bg-gray-400 cursor-not-allowed"
-                              } text-white text-xs px-3 py-1.5 rounded-lg transition-colors`}>
-                                {loadingStates[`${todo.id}-upload`] ? t("common.loading", { defaultValue: "Mengunggah..." }) : t("common.reuploadEvidence", { defaultValue: "Unggah Ulang Bukti" })}
+                              <label
+                                className={`${
+                                  !loadingStates[`${todo.id}-upload`]
+                                    ? "bg-purple-500 hover:bg-purple-600 cursor-pointer"
+                                    : "bg-gray-400 cursor-not-allowed"
+                                } text-white text-xs px-3 py-1.5 rounded-lg transition-colors`}
+                              >
+                                {loadingStates[`${todo.id}-upload`]
+                                  ? t("common.loading", {
+                                      defaultValue: "Mengunggah...",
+                                    })
+                                  : t("common.reuploadEvidence", {
+                                      defaultValue: "Unggah Ulang Bukti",
+                                    })}
                                 <input
                                   type="file"
                                   className="hidden"
                                   accept="image/*"
                                   onChange={(e) => {
                                     if (!loadingStates[`${todo.id}-upload`]) {
-                                      handleFileUpload(todo.id, e.target.files[0]);
+                                      handleFileUpload(
+                                        todo.id,
+                                        e.target.files[0]
+                                      );
                                     }
                                   }}
                                   disabled={loadingStates[`${todo.id}-upload`]}
@@ -1410,7 +1604,9 @@ const Todos = () => {
                               <button
                                 onClick={() => handleEdit(todo)}
                                 className="p-1.5 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-colors"
-                                title={t("common.editTodo", { defaultValue: "Edit Tugas" })}
+                                title={t("common.editTodo", {
+                                  defaultValue: "Edit Tugas",
+                                })}
                               >
                                 <Edit className="h-4 w-4" />
                               </button>
@@ -1421,7 +1617,9 @@ const Todos = () => {
                               <button
                                 onClick={() => handleDelete(todo.id)}
                                 className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                                title={t("common.deleteTodo", { defaultValue: "Hapus Tugas" })}
+                                title={t("common.deleteTodo", {
+                                  defaultValue: "Hapus Tugas",
+                                })}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -1445,7 +1643,8 @@ const Todos = () => {
                     className="px-3 py-1.5 text-sm border rounded bg-white hover:bg-gray-50"
                     onClick={() => setVisibleCount(5)}
                   >
-                    ← {t("common.backToTop", { defaultValue: "Kembali ke atas" })}
+                    ←{" "}
+                    {t("common.backToTop", { defaultValue: "Kembali ke atas" })}
                   </button>
                 )}
                 {sortedTodos.length > visibleTodos.length && (
@@ -1468,590 +1667,834 @@ const Todos = () => {
       {/* Modal */}
       {showModal && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-lg shadow-sm rounded-xl bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingTodo ? t("common.edit") : t("todos.createNew")}
-              </h3>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    {t("todos.targetUser", { defaultValue: "Target Pengguna" })}
-                  </label>
-                  <select
-                    value={formData.target_category}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        target_category: e.target.value,
-                      })
-                    }
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  >
-                    <option value="all">{t("todos.allType", { defaultValue: "Semua Tipe" })}</option>
-                    <option value="ob">OB</option>
-                    <option value="driver">Driver</option>
-                    <option value="security">Security</option>
-                  </select>
-                </div>
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-lg shadow-sm rounded-xl bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {editingTodo ? t("common.edit") : t("todos.createNew")}
+                </h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t("todos.targetUser", {
+                        defaultValue: "Target Pengguna",
+                      })}
+                    </label>
+                    <select
+                      value={formData.target_category}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          target_category: e.target.value,
+                        })
+                      }
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                    >
+                      <option value="all">
+                        {t("todos.allType", { defaultValue: "Semua Tipe" })}
+                      </option>
+                      <option value="ob">OB</option>
+                      <option value="driver">Driver</option>
+                      <option value="security">Security</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    {t("todos.taskName", { defaultValue: "Nama Tugas" })}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t("todos.taskName", { defaultValue: "Nama Tugas" })}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    {t("common.description")}
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    rows={3}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t("common.description")}
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
+                      rows={3}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                    />
+                  </div>
 
-                {/* Priority field removed intentionally */}
+                  {/* Priority field removed intentionally */}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    {t("todos.todoType")}
-                  </label>
-                  <select
-                    value={formData.todo_type}
-                    onChange={(e) =>
-                      setFormData({ ...formData, todo_type: e.target.value })
-                    }
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  >
-                    <option value="rutin">{t("todos.routine")}</option>
-                    <option value="tambahan">{t("todos.additional")}</option>
-                  </select>
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t("todos.todoType")}
+                    </label>
+                    <select
+                      value={formData.todo_type}
+                      onChange={(e) =>
+                        setFormData({ ...formData, todo_type: e.target.value })
+                      }
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                    >
+                      <option value="rutin">{t("todos.routine")}</option>
+                      <option value="tambahan">{t("todos.additional")}</option>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    {t("todos.startDate")}
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, due_date: e.target.value })
-                    }
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t("todos.startDate")}
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, due_date: e.target.value })
+                      }
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    {t("todos.startTime")}
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={formData.target_start_at}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        target_start_at: e.target.value,
-                      })
-                    }
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      {t("todos.startTime")}
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.target_start_at}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          target_start_at: e.target.value,
+                        })
+                      }
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                    />
+                  </div>
 
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false);
-                      setEditingTodo(null);
-                      setFormData({
-                        title: "",
-                        description: "",
-                        priority: "medium",
-                        due_date: "",
-                        target_start_at: "",
-                        target_end_at: "",
-                        todo_type: "rutin",
-                        target_category: "all",
-                        target_user_id: "",
-                      });
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("common.cancel")}
-                  </button>
-                  <button type="submit" className="btn-primary px-4 py-2">
-                    {editingTodo ? t("common.update") : t("common.create")}
-                  </button>
-                </div>
-              </form>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowModal(false);
+                        setEditingTodo(null);
+                        setFormData({
+                          title: "",
+                          description: "",
+                          priority: "medium",
+                          due_date: "",
+                          target_start_at: "",
+                          target_end_at: "",
+                          todo_type: "rutin",
+                          target_category: "all",
+                          target_user_id: "",
+                        });
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button type="submit" className="btn-primary px-4 py-2">
+                      {editingTodo ? t("common.update") : t("common.create")}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Detail Modal */}
       {showDetailModal && selectedTodo && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-3xl shadow-sm rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Detail Tugas: {selectedTodo.title}
-              </h3>
-              <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.basicInformation", { defaultValue: "Informasi Dasar" })}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.taskName", { defaultValue: "Nama Tugas" })}:</strong> {selectedTodo.title}
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("common.description")}:</strong>{" "}
-                        {selectedTodo.description || "N/A"}
-                      </p>
-                      {/* Priority info removed */}
-                      <p className="text-gray-600">
-                        <strong>{t("common.statusLabel", { defaultValue: "Status" })}:</strong>
-                        <span
-                          className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                            selectedTodo.status
-                          )}`}
-                        >
-                          {formatStatusLabel(selectedTodo.status)}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.scheduledDate", { defaultValue: "Tanggal Terjadwal" })}:</strong>{" "}
-                        {selectedTodo.scheduled_date 
-                          ? new Date(selectedTodo.scheduled_date).toLocaleDateString('id-ID', { 
-                              weekday: 'long', 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })
-                          : (selectedTodo.formatted_created_at || "N/A")
-                        }
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>{t("todos.submitted", { defaultValue: "Dikirim" })}:</strong>{" "}
-                        {selectedTodo.formatted_submitted_at || t("todos.taskNotCompleted", { defaultValue: "Tugas belum selesai" })}
-                      </p>
-                      {selectedTodo.status === "hold" && selectedTodo.hold_note && (
-                      <p className="text-gray-600">
-                          <strong>{t("todos.holdReason", { defaultValue: "Alasan Ditahan" })}:</strong>{" "}
-                          {selectedTodo.hold_note}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-3">
-                    {t("todos.timelineDuration", { defaultValue: "Jadwal & Durasi" })}
-                  </h4>
-                  <div className="space-y-3">
-                    {/* Target Information */}
-                    <div className="bg-white p-3 rounded border">
-                      <h5 className="font-medium text-gray-800 mb-2">{t("todos.targetInfo", { defaultValue: "Target" })}</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                            <strong>{t("todos.scheduledStart", { defaultValue: "Jadwal Mulai" })}:</strong>{" "}
-                            {selectedTodo.target_start_at || t("common.notSet", { defaultValue: "Belum diatur" })}
-                      </p>
-                        </div>
-                        <div>
-                      <p className="text-gray-600">
-                            <strong>{t("todos.estimatedDuration", { defaultValue: "Perkiraan Durasi" })}:</strong>{" "}
-                            {selectedTodo.target_duration_value && selectedTodo.target_duration_unit 
-                              ? `${selectedTodo.target_duration_value} ${selectedTodo.target_duration_unit === "hours" ? t("todos.hours", { defaultValue: "jam" }) : t("todos.minutes", { defaultValue: "menit" })}`
-                              : t("common.notSet", { defaultValue: "Belum diatur" })
-                            }
-                      </p>
-                    </div>
-                      </div>
-                    </div>
-
-                    {/* Actual Information */}
-                    <div className="bg-white p-3 rounded border">
-                      <h5 className="font-medium text-gray-800 mb-2">{t("todos.actualInfo", { defaultValue: "Aktual" })}</h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-600">
-                            <strong>{t("todos.actualStartTime", { defaultValue: "Waktu Mulai" })}:</strong>{" "}
-                            {selectedTodo.started_at || t("todos.notStarted", { defaultValue: "Belum dimulai" })}
-                      </p>
-                        </div>
-                        <div>
-                      <p className="text-gray-600">
-                            <strong>{t("todos.actualDuration", { defaultValue: "Durasi Aktual" })}:</strong>{" "}
-                            {getDuration(selectedTodo)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Last Updated */}
-                    <div className="text-xs text-gray-500">
-                      <strong>{t("common.lastUpdated", { defaultValue: "Terakhir diperbarui" })}:</strong>{" "}
-                      {selectedTodo.updated_at || t("common.unknown", { defaultValue: "Tidak diketahui" })}
-                    </div>
-                  </div>
-                </div>
-
-                {selectedTodo.rating !== null &&
-                  selectedTodo.rating !== undefined && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {t("todos.automaticPerformanceRating", { defaultValue: "Rating Kinerja Otomatis" })}
-                      </h4>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {selectedTodo.rating}/100
-                        </div>
-                        <div className="flex-1">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${selectedTodo.rating}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {t("todos.ratingCalculationNote", { defaultValue: "Rating dihitung otomatis berdasarkan waktu penyelesaian vs target durasi" })}
-                      </p>
-                    </div>
-                  )}
-
-                {selectedTodo.notes && (
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-3xl shadow-sm rounded-xl bg-white max-h-[90vh] overflow-y-auto">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Detail Tugas: {selectedTodo.title}
+                </h3>
+                <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.adminNotes")}
+                      {t("todos.basicInformation", {
+                        defaultValue: "Informasi Dasar",
+                      })}
                     </h4>
-                    <p className="text-sm text-gray-600">
-                      {selectedTodo.notes}
-                    </p>
-                  </div>
-                )}
-
-                {selectedTodo.evidence_files &&
-                  selectedTodo.evidence_files.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {t("todos.evidenceFiles", { defaultValue: "File Bukti" })}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {selectedTodo.evidence_files.map((file, index) => (
-                          <div
-                            key={index}
-                            className="border rounded-lg overflow-hidden bg-white"
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.taskName", {
+                              defaultValue: "Nama Tugas",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.title}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>{t("common.description")}:</strong>{" "}
+                          {selectedTodo.description || "N/A"}
+                        </p>
+                        {/* Priority info removed */}
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("common.statusLabel", {
+                              defaultValue: "Status",
+                            })}
+                            :
+                          </strong>
+                          <span
+                            className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                              selectedTodo.status
+                            )}`}
                           >
-                            {/\.(jpg|jpeg|png|gif)$/i.test(
-                              file.path || file.url
-                            ) ? (
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <img
-                                  src={file.url}
-                                  alt={file.name || `Evidence ${index + 1}`}
-                                  className="w-full h-40 object-cover"
-                                />
-                              </a>
-                            ) : (
-                              <div className="p-3 flex items-center space-x-2">
-                                <Eye className="h-4 w-4 text-blue-500" />
-                                <a
-                                  href={file.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline"
-                                >
-                                  {file.name || `Evidence File ${index + 1}`}
-                                </a>
-                              </div>
-                            )}
+                            {formatStatusLabel(selectedTodo.status)}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.scheduledDate", {
+                              defaultValue: "Tanggal Terjadwal",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.scheduled_date
+                            ? new Date(
+                                selectedTodo.scheduled_date
+                              ).toLocaleDateString("id-ID", {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : selectedTodo.formatted_created_at || "N/A"}
+                        </p>
+                        <p className="text-gray-600">
+                          <strong>
+                            {t("todos.submitted", { defaultValue: "Dikirim" })}:
+                          </strong>{" "}
+                          {selectedTodo.formatted_submitted_at ||
+                            t("todos.taskNotCompleted", {
+                              defaultValue: "Tugas belum selesai",
+                            })}
+                        </p>
+                        {/* hold note moved to its own panel below to match admin UI */}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-3">
+                      {t("todos.timelineDuration", {
+                        defaultValue: "Jadwal & Durasi",
+                      })}
+                    </h4>
+                    <div className="space-y-3">
+                      {/* Target Information */}
+                      <div className="bg-white p-3 rounded border">
+                        <h5 className="font-medium text-gray-800 mb-2">
+                          {t("todos.targetInfo", { defaultValue: "Target" })}
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-600">
+                              <strong>
+                                {t("todos.scheduledStart", {
+                                  defaultValue: "Jadwal Mulai",
+                                })}
+                                :
+                              </strong>{" "}
+                              {selectedTodo.target_start_at ||
+                                t("common.notSet", {
+                                  defaultValue: "Belum diatur",
+                                })}
+                            </p>
                           </div>
-                        ))}
+                          <div>
+                            <p className="text-gray-600">
+                              <strong>
+                                {t("todos.estimatedDuration", {
+                                  defaultValue: "Perkiraan Durasi",
+                                })}
+                                :
+                              </strong>{" "}
+                              {selectedTodo.target_duration_value &&
+                              selectedTodo.target_duration_unit
+                                ? `${selectedTodo.target_duration_value} ${
+                                    selectedTodo.target_duration_unit ===
+                                    "hours"
+                                      ? t("todos.hours", {
+                                          defaultValue: "jam",
+                                        })
+                                      : t("todos.minutes", {
+                                          defaultValue: "menit",
+                                        })
+                                  }`
+                                : t("common.notSet", {
+                                    defaultValue: "Belum diatur",
+                                  })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actual Information */}
+                      <div className="bg-white p-3 rounded border">
+                        <h5 className="font-medium text-gray-800 mb-2">
+                          {t("todos.actualInfo", { defaultValue: "Aktual" })}
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-gray-600">
+                              <strong>
+                                {t("todos.actualStartTime", {
+                                  defaultValue: "Waktu Mulai",
+                                })}
+                                :
+                              </strong>{" "}
+                              {selectedTodo.started_at ||
+                                t("todos.notStarted", {
+                                  defaultValue: "Belum dimulai",
+                                })}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600">
+                              <strong>
+                                {t("todos.actualDuration", {
+                                  defaultValue: "Durasi Aktual",
+                                })}
+                                :
+                              </strong>{" "}
+                              {getDuration(selectedTodo)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Last Updated */}
+                      <div className="text-xs text-gray-500">
+                        <strong>
+                          {t("common.lastUpdated", {
+                            defaultValue: "Terakhir diperbarui",
+                          })}
+                          :
+                        </strong>{" "}
+                        {selectedTodo.updated_at ||
+                          t("common.unknown", {
+                            defaultValue: "Tidak diketahui",
+                          })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedTodo.hold_note && (
+                    <div className="bg-gray-50 p-4 rounded-lg mt-3">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        {t("todos.holdInfo", {
+                          defaultValue: "Informasi Hold",
+                        })}
+                      </h4>
+                      <div className="text-sm text-gray-600">
+                        <p>
+                          <strong>
+                            {t("todos.holdReason", {
+                              defaultValue: "Alasan Hold",
+                            })}
+                            :
+                          </strong>{" "}
+                          {selectedTodo.hold_note}
+                        </p>
                       </div>
                     </div>
                   )}
 
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("common.close", { defaultValue: "Tutup" })}
-                  </button>
+                  {selectedTodo.rating !== null &&
+                    selectedTodo.rating !== undefined && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {t("todos.automaticPerformanceRating", {
+                            defaultValue: "Rating Kinerja Otomatis",
+                          })}
+                        </h4>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {selectedTodo.rating}/100
+                          </div>
+                          <div className="flex-1">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${selectedTodo.rating}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {t("todos.ratingCalculationNote", {
+                            defaultValue:
+                              "Rating dihitung otomatis berdasarkan waktu penyelesaian vs target durasi",
+                          })}
+                        </p>
+                      </div>
+                    )}
+
+                  {selectedTodo.notes && (
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        {t("todos.adminNotes")}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {selectedTodo.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedTodo.evidence_files &&
+                    selectedTodo.evidence_files.length > 0 && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {t("todos.evidenceFiles", {
+                            defaultValue: "File Bukti",
+                          })}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedTodo.evidence_files.map((file, index) => (
+                            <div
+                              key={index}
+                              className="border rounded-lg overflow-hidden bg-white"
+                            >
+                              {/\.(jpg|jpeg|png|gif)$/i.test(
+                                file.path || file.url || file.full_url
+                              ) ? (
+                                <a
+                                  href={file.full_url || file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <img
+                                    src={file.full_url || file.url}
+                                    alt={file.name || `Evidence ${index + 1}`}
+                                    className="w-full h-40 object-cover"
+                                  />
+                                </a>
+                              ) : (
+                                <div className="p-3 flex items-center space-x-2">
+                                  <Eye className="h-4 w-4 text-blue-500" />
+                                  <a
+                                    href={file.full_url || file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    {file.name || `Evidence File ${index + 1}`}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowDetailModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {t("common.close", { defaultValue: "Tutup" })}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Evidence Modal */}
       {showEvidenceModal && selectedTodo && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-4xl shadow-sm rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {t("todos.evidenceFor", { defaultValue: "Bukti untuk" })}: {selectedTodo.title}
-              </h3>
-              <div className="space-y-4">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-gray-900 mb-2">
-                    {t("todos.taskDetails", { defaultValue: "Detail Tugas" })}
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {selectedTodo.description}
-                  </p>
-                  <div className="text-xs text-gray-500">
-                    <p>{t("common.statusLabel", { defaultValue: "Status" })}: {formatStatusLabel(selectedTodo.status)}</p>
-                    <p>{t("todos.submitted", { defaultValue: "Dikirim" })}: {selectedTodo.formatted_submitted_at || "N/A"}</p>
-                    <p>{t("todos.duration", { defaultValue: "Durasi" })}: {getDuration(selectedTodo)}</p>
-                    {selectedTodo.rating && (
-                      <p>{t("todos.rating", { defaultValue: "Rating" })}: {selectedTodo.rating}/100 ({t("todos.autoCalculated", { defaultValue: "Otomatis" })})</p>
-                    )}
-                  </div>
-                </div>
-
-                {selectedTodo.evidence_files &&
-                  selectedTodo.evidence_files.length > 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {t("todos.evidenceFiles", { defaultValue: "File Bukti" })}
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {selectedTodo.evidence_files.map((file, index) => (
-                          <div
-                            key={index}
-                            className="border rounded-lg overflow-hidden bg-white"
-                          >
-                            {/\.(jpg|jpeg|png|gif)$/i.test(
-                              file.path || file.url
-                            ) ? (
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <img
-                                  src={file.url}
-                                  alt={file.name || `Evidence ${index + 1}`}
-                                  className="w-full h-40 object-cover"
-                                />
-                              </a>
-                            ) : (
-                              <div className="p-3 flex items-center space-x-2">
-                                <Eye className="h-4 w-4 text-blue-500" />
-                                <a
-                                  href={file.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline"
-                                >
-                                  {file.name || `Evidence File ${index + 1}`}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                {selectedTodo.evidence_path && !selectedTodo.evidence_files && (
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-4xl shadow-sm rounded-xl bg-white max-h-[90vh] overflow-y-auto">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {t("todos.evidenceFor", { defaultValue: "Bukti untuk" })}:{" "}
+                  {selectedTodo.title}
+                </h3>
+                <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.evidence")}
+                      {t("todos.taskDetails", { defaultValue: "Detail Tugas" })}
                     </h4>
-                    {/\.(jpg|jpeg|png|gif)$/i.test(
-                      selectedTodo.evidence_path
-                    ) ? (
-                      <a
-                        href={`/storage/${selectedTodo.evidence_path}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <img
-                          src={`/storage/${selectedTodo.evidence_path}`}
-                          alt="Evidence"
-                          className="w-full max-h-64 object-contain rounded"
-                        />
-                      </a>
-                    ) : (
-                      <div className="flex items-center space-x-2">
-                        <Eye className="h-4 w-4 text-blue-500" />
-                        <a
-                          href={`/storage/${selectedTodo.evidence_path}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline"
-                        >
-                          {t("todos.viewEvidenceFile", { defaultValue: "Lihat File Bukti" })}
-                        </a>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {selectedTodo.description}
+                    </p>
+                    <div className="text-xs text-gray-500">
+                      <p>
+                        {t("common.statusLabel", { defaultValue: "Status" })}:{" "}
+                        {formatStatusLabel(selectedTodo.status)}
+                      </p>
+                      <p>
+                        {t("todos.submitted", { defaultValue: "Dikirim" })}:{" "}
+                        {selectedTodo.formatted_submitted_at || "N/A"}
+                      </p>
+                      <p>
+                        {t("todos.duration", { defaultValue: "Durasi" })}:{" "}
+                        {getDuration(selectedTodo)}
+                      </p>
+                      {selectedTodo.rating && (
+                        <p>
+                          {t("todos.rating", { defaultValue: "Rating" })}:{" "}
+                          {selectedTodo.rating}/100 (
+                          {t("todos.autoCalculated", {
+                            defaultValue: "Otomatis",
+                          })}
+                          )
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedTodo.evidence_files &&
+                    selectedTodo.evidence_files.length > 0 && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {t("todos.evidenceFiles", {
+                            defaultValue: "File Bukti",
+                          })}
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                          {selectedTodo.evidence_files.map((file, index) => (
+                            <div
+                              key={index}
+                              className="border rounded-lg overflow-hidden bg-white"
+                            >
+                              {/\.(jpg|jpeg|png|gif)$/i.test(
+                                file.path || file.url
+                              ) ? (
+                                <a
+                                  href={file.full_url || file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <img
+                                    src={file.full_url || file.url}
+                                    alt={file.name || `Evidence ${index + 1}`}
+                                    className="w-full h-40 object-cover"
+                                  />
+                                </a>
+                              ) : (
+                                <div className="p-3 flex items-center space-x-2">
+                                  <Eye className="h-4 w-4 text-blue-500" />
+                                  <a
+                                    href={file.full_url || file.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    {file.name || `Evidence File ${index + 1}`}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-                  </div>
-                )}
 
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowEvidenceModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("common.close", { defaultValue: "Tutup" })}
-                  </button>
+                  {selectedTodo.evidence_path &&
+                    !selectedTodo.evidence_files && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-2">
+                          {t("todos.evidence")}
+                        </h4>
+                        {(() => {
+                          const legacyUrl = `/storage/${selectedTodo.evidence_path}`;
+                          const fileUrl =
+                            selectedTodo.evidence_files && selectedTodo.evidence_files.length > 0
+                              ? (selectedTodo.evidence_files[0].full_url || selectedTodo.evidence_files[0].url)
+                              : legacyUrl;
+                          return /\.(jpg|jpeg|png|gif)$/i.test(fileUrl) ? (
+                            <a href={fileUrl} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={fileUrl}
+                                alt="Evidence"
+                                className="w-full max-h-64 object-contain rounded"
+                              />
+                            </a>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <Eye className="h-4 w-4 text-blue-500" />
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {t("todos.viewEvidenceFile", {
+                                  defaultValue: "Lihat File Bukti",
+                                })}
+                              </a>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setShowEvidenceModal(false)}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {t("common.close", { defaultValue: "Tutup" })}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Hold Modal */}
       {showHoldModal && todoToHold && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-md shadow-sm rounded-xl bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {t("todos.holdTask", { defaultValue: "Tahan Tugas" })}: {todoToHold.title}
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("todos.holdReason", { defaultValue: "Alasan Ditahan" })} *
-                  </label>
-                  <textarea
-                    value={holdNote}
-                    onChange={(e) => setHoldNote(e.target.value)}
-                    rows={4}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={t("todos.holdPlaceholder", { defaultValue: "Masukkan alasan untuk menahan tugas ini..." })}
-                  />
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => {
-                      setShowHoldModal(false);
-                      setHoldNote("");
-                      setTodoToHold(null);
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("common.cancel", { defaultValue: "Batal" })}
-                  </button>
-                  <button
-                    onClick={handleHoldSubmit}
-                    disabled={!holdNote.trim() || loadingStates[`${todoToHold.id}-hold`]}
-                    className="px-4 py-2 bg-yellow-500 text-white rounded-md text-sm font-medium hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {loadingStates[`${todoToHold.id}-hold`] ? t("common.loading", { defaultValue: "Memproses..." }) : t("todos.holdTask", { defaultValue: "Tahan Tugas" })}
-                  </button>
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-md shadow-sm rounded-xl bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {t("todos.holdTask", { defaultValue: "Tahan Tugas" })}:{" "}
+                  {todoToHold.title}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("todos.holdReason", {
+                        defaultValue: "Alasan Ditahan",
+                      })}{" "}
+                      *
+                    </label>
+                    <textarea
+                      value={holdNote}
+                      onChange={(e) => setHoldNote(e.target.value)}
+                      rows={4}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder={t("todos.holdPlaceholder", {
+                        defaultValue:
+                          "Masukkan alasan untuk menahan tugas ini...",
+                      })}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowHoldModal(false);
+                        setHoldNote("");
+                        setTodoToHold(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {t("common.cancel", { defaultValue: "Batal" })}
+                    </button>
+                    <button
+                      onClick={handleHoldSubmit}
+                      disabled={
+                        !holdNote.trim() ||
+                        loadingStates[`${todoToHold.id}-hold`]
+                      }
+                      className="px-4 py-2 bg-yellow-500 text-white rounded-md text-sm font-medium hover:bg-yellow-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {loadingStates[`${todoToHold.id}-hold`]
+                        ? t("common.loading", { defaultValue: "Memproses..." })
+                        : t("todos.holdTask", { defaultValue: "Tahan Tugas" })}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
 
       {/* Submit Evidence Modal */}
       {showEvidenceModal && todoToSubmit && (
         <ModalPortal>
-        <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-          <div className="relative mx-auto p-5 border border-gray-200 w-full max-w-md shadow-sm rounded-xl bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {t("todos.submitEvidence", { defaultValue: "Bukti Menyelesaikan Tugas" })}: {todoToSubmit.title}
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("todos.evidenceFormNote", { defaultValue: "Catatan Bukti" })}
-                  </label>
-                  <textarea
-                    value={evidenceNote}
-                    onChange={(e) => setEvidenceNote(e.target.value)}
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={t("todos.evidenceFormNotePlaceholder", { defaultValue: "Masukkan catatan untuk pengiriman bukti..." })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("todos.evidenceFormPhoto", { defaultValue: "Foto Bukti" })} *
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setEvidenceFile(e.target.files[0])}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  {evidenceFile && (
-                    <p className="text-sm text-green-600 mt-1">
-                      File dipilih: {evidenceFile.name}
-                    </p>
-                  )}
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => {
-                      setShowEvidenceModal(false);
-                      setEvidenceNote("");
-                      setEvidenceFile(null);
-                      setTodoToSubmit(null);
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("common.cancel", { defaultValue: "Batal" })}
-                  </button>
-                  <button
-                    onClick={handleSubmitEvidenceSubmit}
-                    disabled={!evidenceFile || loadingStates[`${todoToSubmit.id}-submit-evidence`]}
-                    className="px-4 py-2 bg-green-500 text-white rounded-md text-sm font-medium hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {loadingStates[`${todoToSubmit.id}-submit-evidence`] ? t("common.loading", { defaultValue: "Memproses..." }) : t("todos.submitEvidence", { defaultValue: "Bukti Menyelesaikan Tugas" })}
-                  </button>
+          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
+            <div className="relative mx-auto p-6 border border-gray-200 w-full max-w-2xl shadow-sm rounded-xl bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  {t("todos.submitEvidence", {
+                    defaultValue: "Bukti Menyelesaikan Tugas",
+                  })}
+                  : {todoToSubmit.title}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("todos.evidenceFormNote", {
+                        defaultValue: "Catatan Bukti",
+                      })}
+                    </label>
+                    <textarea
+                      value={evidenceNote}
+                      onChange={(e) => setEvidenceNote(e.target.value)}
+                      rows={5}
+                      className="w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder={t("todos.evidenceFormNotePlaceholder", {
+                        defaultValue:
+                          "Masukkan catatan untuk pengiriman bukti...",
+                      })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t("todos.evidenceFormPhoto", {
+                        defaultValue: "Foto Bukti",
+                      })}{" "}
+                      *
+                    </label>
+
+                    <div className="mb-2 text-xs text-gray-500">
+                      {t("todos.evidenceMaxFiles", {
+                        defaultValue:
+                          "Maks 5 file. Anda dapat memilih beberapa foto sekaligus.",
+                      })}
+                    </div>
+
+                    <label className="relative flex items-center justify-center w-full border-2 border-dashed border-gray-300 rounded-md p-6 cursor-pointer hover:border-accent-500">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []).slice(
+                            0,
+                            5
+                          );
+                          // create previews
+                          const previews = files.map((f) => ({
+                            file: f,
+                            url: URL.createObjectURL(f),
+                          }));
+                          // revoke previous previews
+                          evidencePreviews.forEach((p) =>
+                            URL.revokeObjectURL(p.url)
+                          );
+                          setEvidenceFiles(files);
+                          setEvidencePreviews(previews);
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        required
+                      />
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-gray-700">
+                          {t("todos.chooseFiles", {
+                            defaultValue: "Pilih file atau seret ke sini",
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {t("todos.dragDropHint", {
+                            defaultValue:
+                              "Tarik dan lepas atau klik untuk memilih gambar (maks 5)",
+                          })}
+                        </div>
+                      </div>
+                    </label>
+
+                    {evidencePreviews && evidencePreviews.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3">
+                        {evidencePreviews.map((p, idx) => (
+                          <div
+                            key={idx}
+                            className="relative border rounded overflow-hidden bg-white"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => window.open(p.url, "_blank")}
+                              className="block w-full h-28 overflow-hidden"
+                            >
+                              <img
+                                src={p.url}
+                                alt={p.file.name}
+                                className="w-full h-28 object-cover"
+                              />
+                            </button>
+                            <div className="p-2 text-xs text-gray-700 truncate">
+                              {p.file.name}
+                            </div>
+                            <div className="p-1 text-[11px] text-gray-500">
+                              {Math.round(p.file.size / 1024)} KB
+                            </div>
+                            <button
+                              type="button"
+                              className="absolute top-1 right-1 text-white bg-red-500 rounded-full p-1 text-xs"
+                              onClick={() => {
+                                // revoke object URL and remove
+                                URL.revokeObjectURL(p.url);
+                                setEvidencePreviews((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                                setEvidenceFiles((prev) =>
+                                  prev.filter((_, i) => i !== idx)
+                                );
+                              }}
+                              title={t("common.delete", {
+                                defaultValue: "Hapus",
+                              })}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowEvidenceModal(false);
+                        setEvidenceNote("");
+                        setEvidenceFiles([]);
+                        setTodoToSubmit(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      {t("common.cancel", { defaultValue: "Batal" })}
+                    </button>
+                    <button
+                      onClick={handleSubmitEvidenceSubmit}
+                      disabled={
+                        !evidenceFiles ||
+                        evidenceFiles.length === 0 ||
+                        loadingStates[`${todoToSubmit.id}-submit-evidence`]
+                      }
+                      className="px-4 py-2 bg-green-500 text-white rounded-md text-sm font-medium hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {loadingStates[`${todoToSubmit.id}-submit-evidence`]
+                        ? t("common.loading", { defaultValue: "Memproses..." })
+                        : t("todos.submitEvidence", {
+                            defaultValue: "Bukti Menyelesaikan Tugas",
+                          })}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
         </ModalPortal>
       )}
     </div>
