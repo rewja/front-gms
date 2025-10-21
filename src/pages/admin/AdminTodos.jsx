@@ -622,30 +622,8 @@ const AdminTodos = () => {
 
   // Logical task date helper (prefer scheduled_date when present)
   const getTaskDate = (todo) => {
-    // Try different date fields in order of preference
-    const dateStr = todo?.scheduled_date || todo?.target_start_at || todo?.created_at;
-    if (!dateStr) return null;
-    
-    const date = new Date(dateStr);
-    // Check if date is valid
-    if (isNaN(date.getTime())) return null;
-    
-    return date;
-  };
-
-  // Helper function to format rating display
-  const formatRating = (rating) => {
-    if (rating === null || rating === undefined) return null;
-    return Math.round(rating * 10) / 10; // Round to 1 decimal place
-  };
-
-  // Helper function to get rating label
-  const getRatingLabel = (rating) => {
-    if (rating >= 4.5) return "⭐ Excellent";
-    if (rating >= 3.5) return "⭐ Very Good";
-    if (rating >= 2.5) return "⭐ Good";
-    if (rating >= 1.5) return "⭐ Acceptable";
-    return "⭐ Poor";
+    const dateStr = todo?.scheduled_date || todo?.created_at;
+    return dateStr ? new Date(dateStr) : null;
   };
 
   const formatStatusLabel = (status) => {
@@ -822,7 +800,7 @@ const AdminTodos = () => {
   };
 
   const getDateRange = (filter) => {
-    if (!filter || filter === "" || filter === "all") return null;
+    if (!filter || filter === "") return null;
     const now = new Date();
     switch (filter) {
       case "today": {
@@ -836,23 +814,15 @@ const AdminTodos = () => {
         const start = new Date(now);
         start.setDate(now.getDate() - now.getDay());
         start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 7);
-        return { start, end };
+        return { start, end: null };
       }
       case "this_month": {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setMonth(end.getMonth() + 1);
-        return { start, end };
+        return { start, end: null };
       }
       case "this_year": {
         const start = new Date(now.getFullYear(), 0, 1);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setFullYear(end.getFullYear() + 1);
-        return { start, end };
+        return { start, end: null };
       }
       default: {
         if (/^\d{4}-\d{2}-\d{2}$/.test(filter)) {
@@ -860,7 +830,7 @@ const AdminTodos = () => {
           const start = new Date(d);
           start.setHours(0, 0, 0, 0);
           const end = new Date(d);
-          end.setDate(end.getDate() + 1);
+          end.setHours(23, 59, 59, 999);
           return { start, end };
         }
         return null;
@@ -1007,38 +977,25 @@ const AdminTodos = () => {
 
     if (actualMinutes === null || isNaN(actualMinutes)) return null;
 
-    // New logic: ≤100% target = perfect (5.0), >100% = penalty
-    const ratio = actualMinutes / targetMinutes;
-    
-    if (ratio <= 1.0) {
-      // Completed within or faster than target time - perfect
-      return 5.0;
-    } else if (ratio <= 1.25) {
-      // Completed in 125% of target time - good (4.0-5.0)
-      return 5.0 - ((ratio - 1.0) * 4.0);
-    } else if (ratio <= 1.5) {
-      // Completed in 150% of target time - acceptable (3.0-4.0)
-      return 4.0 - ((ratio - 1.25) * 4.0);
-    } else if (ratio <= 2.0) {
-      // Completed in 200% of target time - poor (2.0-3.0)
-      return 3.0 - ((ratio - 1.5) * 2.0);
-    } else {
-      // Completed in more than 200% of target time - very poor (1.0-2.0)
-      return Math.max(1.0, 2.0 - ((ratio - 2.0) * 0.5));
-    }
+    // Calculate rating (100% for on-time or early, decreases for overtime)
+    if (actualMinutes <= targetMinutes) return 100;
+    const overtimeRatio = actualMinutes / targetMinutes;
+    const penalty = Math.min((overtimeRatio - 1) * 50, 50);
+    return Math.max(Math.round(100 - penalty), 0);
   };
 
-  // Calculate distribution based on ALL todos, not filtered ones
   const distribution = React.useMemo(
     () => ({
-      not_started: todos.filter((t) => t.status === "not_started").length,
-      in_progress: todos.filter((t) => t.status === "in_progress").length,
-      hold: todos.filter((t) => t.status === "hold").length,
-      checking: todos.filter((t) => t.status === "checking").length,
-      evaluating: todos.filter((t) => t.status === "evaluating").length,
-      completed: todos.filter((t) => t.status === "completed").length,
+      not_started: filteredTodos.filter((t) => t.status === "not_started")
+        .length,
+      in_progress: filteredTodos.filter((t) => t.status === "in_progress")
+        .length,
+      hold: filteredTodos.filter((t) => t.status === "hold").length,
+      checking: filteredTodos.filter((t) => t.status === "checking").length,
+      evaluating: filteredTodos.filter((t) => t.status === "evaluating").length,
+      completed: filteredTodos.filter((t) => t.status === "completed").length,
     }),
-    [todos]
+    [filteredTodos]
   );
 
   // Close dropdowns when clicking outside
@@ -1151,11 +1108,9 @@ const AdminTodos = () => {
 
       {/* Tabs: All / Rutin / Tambahan (match Asset Management style) */}
       {(() => {
-        // Calculate counts based on ALL todos, not filtered ones
-        const allCount = todos.length;
-        const rutinCount = todos.filter((t) => (t.todo_type || "rutin") === "rutin").length;
-        const tambahanCount = todos.filter((t) => (t.todo_type || "rutin") !== "rutin").length;
-        
+        const tambahanCount = filteredTodos.filter(
+          (t) => (t.todo_type || "rutin") !== "rutin"
+        ).length;
         return (
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
@@ -1167,7 +1122,7 @@ const AdminTodos = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                {t("todos.allTodos")} ({allCount})
+                {t("todos.allTodos")} ({filteredTodos.length})
               </button>
               <button
                 onClick={() => setTodoTab("rutin")}
@@ -1177,7 +1132,7 @@ const AdminTodos = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                {t("todos.routine")} ({rutinCount})
+                {t("todos.routine")} ({routineGroups.length})
               </button>
               <button
                 onClick={() => setTodoTab("tambahan")}
@@ -2077,19 +2032,16 @@ const AdminTodos = () => {
                                         >
                                           <Eye className="h-4 w-4" />
                                         </button>
-                                        {/* Edit - Admin can edit todos, but not if already evaluated */}
-                                        {todoItem.status !== "completed" && todoItem.status !== "evaluated" && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleEdit(todoItem);
-                                            }}
-                                            className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
-                                            title={t("common.edit")}
-                                          >
-                                            <Edit className="h-4 w-4" />
-                                          </button>
-                                        )}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(todoItem);
+                                          }}
+                                          className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                                          title={t("common.edit")}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </button>
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2167,8 +2119,8 @@ const AdminTodos = () => {
                 } else if (todoTab === "tambahan") {
                   return (t.todo_type || "rutin") !== "rutin";
                 }
-                // For "all" tab, show all todos (both rutin and tambahan)
-                return true;
+                // For "all" tab, show only tambahan (rutin already shown in groups above)
+                return (t.todo_type || "rutin") !== "rutin";
               })
               .map((todo) => (
                 <li
@@ -2279,16 +2231,14 @@ const AdminTodos = () => {
                           <Eye className="h-4 w-4" />
                         </button>
 
-                        {/* Edit - Admin can edit all todos, but not if already evaluated */}
-                        {todo.status !== "completed" && todo.status !== "evaluated" && (
-                          <button
-                            onClick={() => handleEdit(todo)}
-                            className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200"
-                            title={t("common.editTodo")}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                        )}
+                        {/* Edit - Admin can edit all todos */}
+                        <button
+                          onClick={() => handleEdit(todo)}
+                          className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200"
+                          title={t("common.editTodo")}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
 
                         {/* Delete - Admin can delete all todos */}
                         <button
@@ -2478,19 +2428,16 @@ const AdminTodos = () => {
                         </h4>
                         <div className="flex items-center space-x-4">
                           <div className="text-2xl font-bold text-blue-600">
-                            {formatRating(selectedTodo.rating)}/5
+                            {selectedTodo.rating}/100
                           </div>
                           <div className="flex-1">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${(selectedTodo.rating / 5) * 100}%` }}
+                                style={{ width: `${selectedTodo.rating}%` }}
                               ></div>
                             </div>
                           </div>
-                        </div>
-                        <div className="mt-2 text-sm text-gray-600">
-                          {getRatingLabel(selectedTodo.rating)}
                         </div>
                       </div>
                     )}
@@ -2974,18 +2921,13 @@ const AdminTodos = () => {
                       </label>
                       <div className="flex items-center justify-between gap-4">
                         <div className="text-2xl font-bold text-blue-600">
-                          {evaluationData.rating ? formatRating(evaluationData.rating) : "-"}/5
+                          {evaluationData.rating ?? "-"}/100
                         </div>
                         <div className="text-sm text-gray-500">
                           Nilai dihitung otomatis dari perbandingan waktu
                           pengerjaan aktual dan target.
                         </div>
                       </div>
-                      {evaluationData.rating && (
-                        <div className="mt-2 text-sm text-gray-600">
-                          {getRatingLabel(evaluationData.rating)}
-                        </div>
-                      )}
                     </div>
                   </div>
 
