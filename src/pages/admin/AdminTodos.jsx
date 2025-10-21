@@ -2077,16 +2077,19 @@ const AdminTodos = () => {
                                         >
                                           <Eye className="h-4 w-4" />
                                         </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEdit(todoItem);
-                                          }}
-                                          className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
-                                          title={t("common.edit")}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </button>
+                                        {/* Edit - Admin can edit todos, but not if already evaluated */}
+                                        {todoItem.status !== "completed" && todoItem.status !== "evaluated" && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEdit(todoItem);
+                                            }}
+                                            className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                                            title={t("common.edit")}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </button>
+                                        )}
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2276,14 +2279,16 @@ const AdminTodos = () => {
                           <Eye className="h-4 w-4" />
                         </button>
 
-                        {/* Edit - Admin can edit all todos */}
-                        <button
-                          onClick={() => handleEdit(todo)}
-                          className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200"
-                          title={t("common.editTodo")}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
+                        {/* Edit - Admin can edit all todos, but not if already evaluated */}
+                        {todo.status !== "completed" && todo.status !== "evaluated" && (
+                          <button
+                            onClick={() => handleEdit(todo)}
+                            className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200"
+                            title={t("common.editTodo")}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
 
                         {/* Delete - Admin can delete all todos */}
                         <button
