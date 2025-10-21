@@ -35,6 +35,11 @@ const resources = {
           export: "Exported",
           import: "Imported",
           failed_login: "Failed Login",
+          start_todo: "Started Todo",
+          hold_todo: "Put On Hold",
+          complete_todo: "Completed Todo",
+          evaluate: "Evaluated",
+          create_routine_batch: "Created Routine Batch",
         },
         models: {
           todo: "Todo",
@@ -1138,6 +1143,11 @@ const resources = {
           export: "Mengekspor",
           import: "Mengimpor",
           failed_login: "Gagal Masuk",
+          start_todo: "Memulai Tugas",
+          hold_todo: "Menunda Tugas",
+          complete_todo: "Menyelesaikan Tugas",
+          evaluate: "Mengevaluasi",
+          create_routine_batch: "Membuat Batch Rutin",
         },
         models: {
           todo: "Tugas",

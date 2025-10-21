@@ -9,6 +9,13 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
     { value: 'create', label: t('activities.actions.create') },
     { value: 'update', label: t('activities.actions.update') },
     { value: 'delete', label: t('activities.actions.delete') },
+    { value: 'start_todo', label: t('activities.actions.start_todo') },
+    { value: 'hold_todo', label: t('activities.actions.hold_todo') },
+    { value: 'complete_todo', label: t('activities.actions.complete_todo') },
+    { value: 'evaluate', label: t('activities.actions.evaluate') },
+    { value: 'create_routine_batch', label: t('activities.actions.create_routine_batch') },
+    { value: 'export', label: t('activities.actions.export') },
+    { value: 'import', label: t('activities.actions.import') },
     { value: 'login', label: t('activities.actions.login') },
     { value: 'logout', label: t('activities.actions.logout') },
   ]), [t]);
