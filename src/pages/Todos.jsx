@@ -1200,25 +1200,19 @@ const Todos = () => {
                     const options = [
                       {
                         value: "today",
-                        label: t("todos.today", { defaultValue: "Hari Ini" }),
+                        label: t("common.dateFilter.today"),
                       },
                       {
                         value: "this_week",
-                        label: t("todos.thisWeek", {
-                          defaultValue: "Minggu Ini",
-                        }),
+                        label: t("common.dateFilter.thisWeek"),
                       },
                       {
                         value: "this_month",
-                        label: t("todos.thisMonth", {
-                          defaultValue: "Bulan Ini",
-                        }),
+                        label: t("common.dateFilter.thisMonth"),
                       },
                       {
                         value: "yesterday",
-                        label: t("todos.yesterday", {
-                          defaultValue: "Kemarin",
-                        }),
+                        label: t("common.dateFilter.yesterday"),
                       },
                     ];
 
@@ -1256,17 +1250,15 @@ const Todos = () => {
                 <div className="absolute inset-0 flex items-center pl-3 pr-10 pointer-events-none">
                   <span className="text-gray-900 text-sm sm:text-base">
                     {dateFilter === "today"
-                      ? t("todos.today", { defaultValue: "Hari Ini" })
+                      ? t("common.dateFilter.today")
                       : dateFilter === "this_week"
-                      ? t("todos.thisWeek", { defaultValue: "Minggu Ini" })
+                      ? t("common.dateFilter.thisWeek")
                       : dateFilter === "this_month"
-                      ? t("todos.thisMonth", { defaultValue: "Bulan Ini" })
+                      ? t("common.dateFilter.thisMonth")
                       : dateFilter === "yesterday"
-                      ? t("todos.yesterday", { defaultValue: "Kemarin" })
+                      ? t("common.dateFilter.yesterday")
                       : dateFilter ||
-                        t("todos.selectDate", {
-                          defaultValue: "Pilih Tanggal",
-                        })}
+                        t("todos.selectDate")}
                   </span>
                 </div>
               )}
@@ -1283,19 +1275,19 @@ const Todos = () => {
                 {[
                   {
                     value: "today",
-                    label: t("todos.today", { defaultValue: "Hari Ini" }),
+                    label: t("common.dateFilter.today"),
                   },
                   {
                     value: "this_week",
-                    label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }),
+                    label: t("common.dateFilter.thisWeek"),
                   },
                   {
                     value: "this_month",
-                    label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }),
+                    label: t("common.dateFilter.thisMonth"),
                   },
                   {
                     value: "yesterday",
-                    label: t("todos.yesterday", { defaultValue: "Kemarin" }),
+                    label: t("common.dateFilter.yesterday"),
                   },
                 ].map((option) => (
                   <button

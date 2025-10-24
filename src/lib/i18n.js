@@ -239,6 +239,7 @@ const resources = {
           thisWeek: "This Week",
           thisMonth: "This Month",
           thisYear: "This Year",
+          yesterday: "Yesterday",
         },
         status: {
           pending: "Pending",
@@ -593,15 +594,11 @@ const resources = {
         users: "users",
         estimatedTasks: "estimated tasks",
         nextOccurrences: "Next Occurrences",
+        selectDate: "Select Date",
         // Added to support AdminTodos create form and filters
         officeBoy: "Office Boy",
         driverEquipment: "Driver",
         securityEquipment: "Security",
-        today: "Today",
-        thisWeek: "This Week",
-        thisMonth: "This Month",
-        thisYear: "This Year",
-        yesterday: "Yesterday",
         status: "Status",
       },
       meetings: {
@@ -1109,11 +1106,6 @@ const resources = {
         officeBoy: "Office Boy",
         driverEquipment: "Driver",
         securityEquipment: "Security",
-        today: "Hari Ini",
-        thisWeek: "Minggu Ini",
-        thisMonth: "Bulan Ini",
-        thisYear: "Tahun Ini",
-        yesterday: "Kemarin",
       },
       nav: {
         dashboard: "Dasbor",
@@ -1254,6 +1246,7 @@ const resources = {
           thisWeek: "Minggu Ini",
           thisMonth: "Bulan Ini",
           thisYear: "Tahun Ini",
+          yesterday: "Kemarin",
         },
         search: "Cari",
         filter: "Filter",
@@ -1651,6 +1644,7 @@ const resources = {
         users: "pengguna",
         estimatedTasks: "estimasi tugas",
         nextOccurrences: "Jadwal Selanjutnya",
+        selectDate: "Pilih Tanggal",
       },
       meetings: {
         title: "Manajemen Rapat",
