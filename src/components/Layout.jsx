@@ -22,6 +22,7 @@ import {
   History,
   UserCheck,
 } from "lucide-react";
+import Logo from "./Logo";
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -281,9 +282,12 @@ const Layout = ({ children }) => {
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white dark:bg-gray-900 shadow-xl border-r border-gray-200 dark:border-gray-800">
           <div className="flex h-16 items-center justify-between px-4 border-b border-gray-200">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {t("app.title")}
-            </h1>
+            <div className="flex items-center gap-3">
+              <Logo size="medium" className="object-contain" />
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {t("app.title")}
+              </h1>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -332,9 +336,12 @@ const Layout = ({ children }) => {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-grow flex-col overflow-y-auto bg-white dark:bg-gray-900 shadow-lg border-r border-gray-200 dark:border-gray-800">
           <div className="flex h-16 items-center px-4 border-b border-gray-200 dark:border-gray-800">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {t("app.title")}
-            </h1>
+            <div className="flex items-center gap-3">
+              <Logo size="medium" className="object-contain" />
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {t("app.title")}
+              </h1>
+            </div>
           </div>
 
           {/* Time display in desktop sidebar */}

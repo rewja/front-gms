@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
 // remove mock data; use real API via AuthContext
-import { Building2, Mail, Lock, Sun, Moon, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Sun, Moon, Eye, EyeOff } from "lucide-react";
 import Quote from "../components/Quote";
+import Logo from "../components/Logo";
 
 const Login = () => {
   const { t, i18n } = useTranslation();
@@ -110,8 +111,8 @@ const Login = () => {
       <div className="max-w-xs w-full space-y-4 sm:max-w-sm sm:space-y-6 md:max-w-md md:space-y-8">
         {/* Header Section */}
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 flex items-center justify-center rounded-full bg-primary-50 dark:bg-blue-900/30">
-            <Building2 className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary-700 dark:text-blue-400" />
+          <div className="mx-auto h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 flex items-center justify-center rounded-full bg-primary-50 dark:bg-blue-900/30 p-4">
+            <Logo size="xxlarge" className="object-contain" />
           </div>
           <h2 className="mt-4 sm:mt-5 md:mt-6 text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
             GMS
