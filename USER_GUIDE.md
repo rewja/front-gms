@@ -1,4 +1,4 @@
-# GAMS User Guide
+# GMS User Guide
 
 ## Table of Contents
 1. [Getting Started](#getting-started)
@@ -13,7 +13,7 @@
 ## Getting Started
 
 ### Login
-1. Open your web browser and navigate to the GAMS application
+1. Open your web browser and navigate to the GMS application
 2. Enter your email address and password
 3. Click "Sign in"
 4. You will be redirected to your dashboard
@@ -223,14 +223,14 @@ The dashboard provides an overview of your activities and quick access to common
 - Contact support if the issue continues
 
 ### Browser Compatibility
-GAMS works best with the following browsers:
+GMS works best with the following browsers:
 - Chrome 90+
 - Firefox 88+
 - Safari 14+
 - Edge 90+
 
 ### Mobile Access
-GAMS is fully responsive and works on mobile devices. For the best experience:
+GMS is fully responsive and works on mobile devices. For the best experience:
 - Use a modern mobile browser
 - Ensure you have a stable internet connection
 - Use landscape mode for better viewing
@@ -261,8 +261,8 @@ If you need assistance:
 ### Q: How do I change my password?
 A: Contact your administrator to change your password.
 
-### Q: Can I access GAMS from my mobile phone?
-A: Yes, GAMS is fully responsive and works on mobile devices.
+### Q: Can I access GMS from my mobile phone?
+A: Yes, GMS is fully responsive and works on mobile devices.
 
 ### Q: What file types can I upload as evidence?
 A: You can upload JPG, PNG, PDF, DOC, and DOCX files up to 10MB.
@@ -285,8 +285,8 @@ A: No, you can only see your own tasks unless you have admin privileges.
 ### Q: What if I need help with a specific task?
 A: Contact your supervisor or use the task description field to ask questions.
 
-### Q: How often should I check GAMS?
-A: Check GAMS daily to stay updated on your tasks and requests.
+### Q: How often should I check GMS?
+A: Check GMS daily to stay updated on your tasks and requests.
 
 
 

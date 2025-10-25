@@ -1,4 +1,4 @@
-// Test utilities for GAMS application
+// Test utilities for GMS application
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '../contexts/ThemeContext';

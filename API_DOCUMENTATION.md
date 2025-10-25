@@ -1,7 +1,7 @@
-# GAMS API Documentation
+# GMS API Documentation
 
 ## Overview
-The General Affairs Management System (GAMS) provides a comprehensive REST API for managing todos, users, requests, meetings, assets, and visitors.
+The General Affairs Management System (GMS) provides a comprehensive REST API for managing todos, users, requests, meetings, assets, and visitors.
 
 ## Base URL
 ```
@@ -386,7 +386,7 @@ field_name: file
 
 ## Webhooks
 
-GAMS supports webhooks for real-time notifications:
+GMS supports webhooks for real-time notifications:
 
 ### Available Events
 - `todo.created`

@@ -1,8 +1,8 @@
-# Panduan Internasionalisasi (i18n) GAMS
+# Panduan Internasionalisasi (i18n) GMS
 
 ## Pengenalan
 
-Sistem GAMS sekarang mendukung dua bahasa:
+Sistem GMS sekarang mendukung dua bahasa:
 - **Bahasa Indonesia** (default) 
 - **Bahasa Inggris**
 
@@ -363,7 +363,7 @@ Jika terjemahan tidak muncul:
 
 ## Kesimpulan
 
-Dengan sistem i18n ini, semua teks dalam aplikasi GAMS dapat dengan mudah diterjemahkan ke bahasa Indonesia dan Inggris. Sistem ini memungkinkan:
+Dengan sistem i18n ini, semua teks dalam aplikasi GMS dapat dengan mudah diterjemahkan ke bahasa Indonesia dan Inggris. Sistem ini memungkinkan:
 
 - ✅ Terjemahan otomatis berdasarkan preferensi user
 - ✅ Manajemen terjemahan terpusat
@@ -371,7 +371,7 @@ Dengan sistem i18n ini, semua teks dalam aplikasi GAMS dapat dengan mudah diterj
 - ✅ Mudah menambah bahasa baru di masa depan
 - ✅ Performa yang baik dengan lazy loading
 
-Selamat menggunakan sistem internasionalisasi GAMS! 🎉
+Selamat menggunakan sistem internasionalisasi GMS! 🎉
 
 
 

@@ -540,56 +540,64 @@ const AdminMeetings = () => {
         ) : (
           <div className="space-y-4">
             {filteredMeetings.map((meeting) => (
-              <div key={meeting.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                <div className="p-4">
-                  {/* Header Row */}
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-3">
-                    <div className="flex items-center space-x-4 mb-2 lg:mb-0">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {formatDateOnly(meeting.start_time)}
+              <div key={meeting.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+                <div className="p-5">
+                  {/* Header Section */}
+                  <div className="mb-4">
+                    {/* Date & Time Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6">
+                        <div className="flex items-center text-sm text-gray-600 mb-2 sm:mb-0">
+                          <Calendar className="h-4 w-4 mr-2 text-blue-500" />
+                          <span className="font-semibold">{formatDateOnly(meeting.start_time)}</span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="h-4 w-4 mr-2 text-green-500" />
+                          <span className="font-semibold">
+                            {new Date(meeting.start_time).toLocaleTimeString('id-ID', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })} - {new Date(meeting.end_time).toLocaleTimeString('id-ID', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {new Date(meeting.start_time).toLocaleTimeString('id-ID', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })} - {new Date(meeting.end_time).toLocaleTimeString('id-ID', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
+                      
+                      {/* Status Tags */}
+                      <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(meeting.status)}`}>
+                          {getStatusText(meeting.status)}
+                        </span>
+                        <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
+                          {meeting.booking_type === 'internal' ? 'Internal' : (meeting.booking_type === 'public' || meeting.booking_type === 'external') ? 'Eksternal' : (meeting.booking_type || '-')}
+                        </span>
+                        <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-violet-100 text-violet-800">
+                          {normalizePriority(meeting.prioritas) === 'vip' ? 'VIP' : 'Reguler'}
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(meeting.status)}`}>
-                        {getStatusText(meeting.status)}
-                      </span>
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        {meeting.booking_type === 'internal' ? 'Internal' : (meeting.booking_type === 'public' || meeting.booking_type === 'external') ? 'Eksternal' : (meeting.booking_type || '-')}
-                      </span>
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                        {normalizePriority(meeting.prioritas) === 'vip' ? 'VIP' : 'Reguler'}
-                      </span>
                     </div>
                   </div>
 
-                  {/* Content Row */}
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 mb-3 lg:mb-0">
-                      <div className="flex items-center text-sm">
-                        <Building className="h-4 w-4 mr-2 text-gray-400" />
-                        <span className="font-medium text-gray-900">{meeting.room_name}</span>
+                  {/* Content Section */}
+                  <div className="mb-4">
+                    {/* Room & Organizer */}
+                    <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                      <div className="flex items-center text-sm mb-2">
+                        <Building className="h-4 w-4 mr-2 text-gray-500" />
+                        <span className="font-semibold text-gray-900">{meeting.room_name}</span>
                       </div>
                       <div className="text-sm text-gray-600">
                         <span className="font-medium">Pemohon:</span> {meeting.organizer_name || getUserName(meeting.user_id, meeting.user)}
                       </div>
                     </div>
 
-                    {/* Checking Status */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-3 lg:mb-0">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">GA:</span>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    {/* Approval Status */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3">
+                        <span className="text-sm font-medium text-gray-700">GA Approval</span>
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                           meeting.ga_check_status === 'approved' ? 'bg-green-100 text-green-800' :
                           meeting.ga_check_status === 'rejected' ? 'bg-red-100 text-red-800' :
                           'bg-yellow-100 text-yellow-800'
@@ -598,9 +606,9 @@ const AdminMeetings = () => {
                            meeting.ga_check_status === 'rejected' ? 'Rejected' : 'Pending'}
                         </span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">GA Manager:</span>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3">
+                        <span className="text-sm font-medium text-gray-700">GA Manager</span>
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
                           meeting.ga_manager_check_status === 'approved' ? 'bg-green-100 text-green-800' :
                           meeting.ga_manager_check_status === 'rejected' ? 'bg-red-100 text-red-800' :
                           'bg-yellow-100 text-yellow-800'
@@ -612,60 +620,63 @@ const AdminMeetings = () => {
                     </div>
                   </div>
 
-                  {/* Actions Row */}
-                  <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
-                    {/* Detail Button */}
-                    <button
-                      onClick={() => handleViewDetails(meeting)}
-                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Detail
-                    </button>
+                  {/* Actions Section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      {/* Primary Actions */}
+                      <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                        <button
+                          onClick={() => handleViewDetails(meeting)}
+                          className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Detail
+                        </button>
 
-                    {/* GA Check Button */}
-                    {meeting.ga_check_status === 'pending' && (
-                      <button
-                        onClick={() => handleCheckMeeting(meeting, 'ga')}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        GA Check
-                      </button>
-                    )}
+                        {meeting.ga_check_status === 'pending' && (
+                          <button
+                            onClick={() => handleCheckMeeting(meeting, 'ga')}
+                            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            GA Check
+                          </button>
+                        )}
 
-                    {/* GA Manager Check Button */}
-                    {meeting.ga_manager_check_status === 'pending' && (
-                      <button
-                        onClick={() => handleCheckMeeting(meeting, 'ga_manager')}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        GA Manager Check
-                      </button>
-                    )}
+                        {meeting.ga_manager_check_status === 'pending' && (
+                          <button
+                            onClick={() => handleCheckMeeting(meeting, 'ga_manager')}
+                            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            GA Manager Check
+                          </button>
+                        )}
+                      </div>
 
-                    {/* Cancel Button */}
-                    {meeting.status !== 'canceled' && meeting.status !== 'ended' && (
-                      <button
-                        onClick={() => handleCancelMeeting(meeting.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        Cancel
-                      </button>
-                    )}
+                      {/* Secondary Actions */}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        {meeting.status !== 'canceled' && meeting.status !== 'ended' && (
+                          <button
+                            onClick={() => handleCancelMeeting(meeting.id)}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                          >
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Cancel
+                          </button>
+                        )}
 
-                    {/* Force End Button */}
-                    {meeting.status === 'ongoing' && (
-                      <button
-                        onClick={() => handleForceEnd(meeting.id)}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        <Power className="h-3 w-3 mr-1" />
-                        Force End
-                      </button>
-                    )}
+                        {meeting.status === 'ongoing' && (
+                          <button
+                            onClick={() => handleForceEnd(meeting.id)}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                          >
+                            <Power className="h-4 w-4 mr-2" />
+                            Force End
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

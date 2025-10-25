@@ -1,1468 +1,926 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNotification } from "../../components/NotificationSystem";
+import { useErrorHandler } from "../../hooks/useErrorHandler";
 import { api } from "../../lib/api";
+import { getStorageUrl } from "../../config/api";
 import {
-  User,
+  Users,
+  UserCheck,
+  UserX,
   Clock,
-  CheckCircle,
+  AlertCircle,
   Search,
-  Plus,
+  Filter,
+  Download,
+  Eye,
   Edit,
-  Trash,
+  Trash2,
+  QrCode,
+  Calendar,
+  MapPin,
   Building,
-  X,
-  Upload,
+  Phone,
+  Mail,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  RefreshCw,
+  Plus,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { format } from "date-fns";
-import Dropdown from "../../components/Dropdown";
-import SimpleChart from "../../components/SimpleChart";
 import SkeletonLoader from "../../components/SkeletonLoader";
-import {
-  FormModal,
-  DetailModal,
-  FormField,
-  FormInput,
-  FormSelect,
-  FormTextarea,
-  DetailField,
-  DetailGrid,
-} from "../../components/Modal";
 
 const AdminVisitors = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { success, error: notifyError } = useNotification();
+  const { handleApiError } = useErrorHandler();
+  
+  // State management
   const [visitors, setVisitors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [showModal, setShowModal] = useState(false);
-  const [editingVisitor, setEditingVisitor] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-  const [statusFilter, setStatusFilter] = useState("all"); // "all", "check_in", "checkout"
-  const [chartDateRange, setChartDateRange] = useState({
-    start: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0], // 7 days ago
-    end: new Date().toISOString().split("T")[0], // today
+  const [stats, setStats] = useState({
+    totalToday: 0,
+    checkedIn: 0,
+    checkedOut: 0,
+    pending: 0,
+    urgent: 0
   });
+  
+  // Filter and search states
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("today");
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    purpose: "",
-    meet_with: "",
-    origin: "",
-    ktp_image: null,
-    is_representative: false,
-    group_size: "",
-    represented_names: "",
-    ktp_scan_source: "",
-    ktp_device_id: "",
-    ktp_number: "",
-    priority: "regular",
-    priority_detail: "",
-    represented_names_list: [],
-  });
-  const [pagination, setPagination] = useState({
-    page: 1,
-    per_page: 15,
-    total: 0,
-  });
-  const [chartData, setChartData] = useState(null);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const [cameraStream, setCameraStream] = useState(null);
-  const fileInputRef = useRef(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadError, setUploadError] = useState("");
+  const [showQRModal, setShowQRModal] = useState(false);
+  
+  // Loading states for actions
+  const [loadingStates, setLoadingStates] = useState({});
 
-  const formatStatusLabel = (status) => {
-    if (!status) return "Unknown";
-
-    switch (status) {
-      case "in_building":
-        return "Check In";
-      case "checked_out":
-        return "Checked Out";
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "in_building":
-        return <Clock className="h-4 w-4 text-blue-500" />;
-      case "checked_out":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      default:
-        return <User className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
+  // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case "in_building":
-        return "bg-blue-100 text-blue-800";
+      case "checked_in":
+        return "bg-green-100 text-green-800 border-green-200";
       case "checked_out":
-        return "bg-green-100 text-green-800";
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Get location color
+  const getLocationColor = (location) => {
+    switch (location) {
+      case "Cikunir":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "Naradata":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "Rumah Valortek":
+        return "bg-purple-100 text-purple-800 border-purple-200";
+      case "Sauciko":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "Tebet":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "TTM":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  // Get status icon
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "checked_in":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "checked_out":
+        return <XCircle className="h-4 w-4 text-gray-600" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return format(date, "dd MMM yyyy, HH:mm");
+  };
+
+  // Format status label
+  const formatStatusLabel = (status) => {
+    switch (status) {
+      case "checked_in":
+        return t("visitors.checkedIn", { defaultValue: "Sudah Check-in" });
+      case "checked_out":
+        return t("visitors.checkedOut", { defaultValue: "Sudah Check-out" });
+      case "pending":
+        return t("visitors.pending", { defaultValue: "Menunggu" });
+      default:
+        return status;
+    }
+  };
+
+  // Format location label
+  const formatLocationLabel = (location) => {
+    return location || t("visitors.noLocation", { defaultValue: "Tidak ada lokasi" });
+  };
+
+  // Load visitors data
+  const loadVisitors = async () => {
     try {
-      const fd = new FormData();
-      // Append only changed fields when editing
-      const should = (key) =>
-        !editingVisitor ||
-        (formData[key] !== undefined &&
-          formData[key] !== (editingVisitor[key] || ""));
-      if (should("name")) fd.append("name", formData.name);
-      if (should("meet_with")) fd.append("meet_with", formData.meet_with);
-      if (should("purpose")) fd.append("purpose", formData.purpose);
-      if (should("origin") && formData.origin)
-        fd.append("origin", formData.origin);
-      if (
-        formData.ktp_scan_source === "upload" &&
-        (!editingVisitor || formData.ktp_image)
-      ) {
-        fd.append("ktp_image", formData.ktp_image);
-      }
-
-      // Additional optional fields
-      if (formData.is_representative) fd.append("is_representative", "1");
-      if (formData.group_size)
-        fd.append("group_size", String(formData.group_size));
-      // Prefer list; fall back to string
-      if (
-        Array.isArray(formData.represented_names_list) &&
-        formData.represented_names_list.length > 0
-      ) {
-        formData.represented_names_list.forEach((name, idx) => {
-          if (name) fd.append(`represented_names[${idx}]`, name);
-        });
-      } else if (formData.represented_names) {
-        fd.append("represented_names", formData.represented_names);
-      }
-      if (formData.ktp_scan_source)
-        fd.append("ktp_scan_source", formData.ktp_scan_source);
-      if (formData.ktp_device_id)
-        fd.append("ktp_device_id", formData.ktp_device_id);
-      if (formData.ktp_number) fd.append("ktp_number", formData.ktp_number);
-      if (formData.priority) fd.append("priority", formData.priority);
-      if (formData.priority_detail)
-        fd.append("priority_detail", formData.priority_detail);
-
-      if (editingVisitor) {
-        // method spoofing for multipart
-        fd.append("_method", "PATCH");
-        await api.post(`/visitors/${editingVisitor.id}`, fd, { isForm: true });
-      } else {
-        await api.post("/visitors", fd, { isForm: true });
-      }
-      await loadVisitors(pagination.page);
-      setFormData({
-        name: "",
-        purpose: "",
-        meet_with: "",
-        origin: "",
-        ktp_image: null,
-        is_representative: false,
-        group_size: "",
-        represented_names: "",
-        ktp_scan_source: "",
-        ktp_device_id: "",
-        ktp_number: "",
-        priority: "regular",
-        priority_detail: "",
-        represented_names_list: [],
+      setLoading(true);
+      const response = await api.get("/admin/visitors", {
+        params: {
+          search: searchTerm,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          location: locationFilter !== "all" ? locationFilter : undefined,
+          date: dateFilter
+        }
       });
-      setShowModal(false);
-      setEditingVisitor(null);
-    } catch (e) {
-      alert(e?.response?.data?.message || "Failed to record visitor");
-    }
-  };
-
-  const handleEdit = (visitor) => {
-    setEditingVisitor(visitor);
-    setFormData({
-      name: visitor.name || "",
-      purpose: visitor.purpose || "",
-      meet_with: visitor.meet_with || visitor.person_to_meet || "",
-      origin: visitor.origin || "",
-      ktp_image: null,
-      priority: visitor.priority || "regular",
-      priority_detail: visitor.priority_detail || "",
-      represented_names_list: Array.isArray(visitor.represented_names)
-        ? visitor.represented_names
-        : (visitor.represented_names || "")
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-    });
-    setShowModal(true);
-  };
-
-  const handleViewDetails = (visitor) => {
-    setSelectedVisitor(visitor);
-    setShowDetailModal(true);
-  };
-
-  const handleCheckOut = async (id) => {
-    try {
-      await api.post(`/visitors/${id}/check-out`);
-      await loadVisitors(pagination.page);
-    } catch (e) {
-      alert(e?.response?.data?.message || "Failed to check out");
-    }
-  };
-
-  const filteredVisitors = visitors.filter((visitor) => {
-    const matchesSearch =
-      (visitor.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (visitor.origin || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (visitor.meet_with || visitor.person_to_meet || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-    const matchesDate =
-      !dateFilter ||
-      new Date(visitor.check_in).toISOString().split("T")[0] === dateFilter;
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "check_in" && !visitor.check_out) ||
-      (statusFilter === "checkout" && visitor.check_out);
-    return matchesSearch && matchesDate && matchesStatus;
-  });
-
-  const inBuildingCount = visitors.filter((v) => !v.check_out).length;
-  const checkoutCount = visitors.filter((v) => v.check_out).length;
-
-  const loadVisitors = async (page = 1) => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await api.get(
-        `/visitors?per_page=${pagination.per_page}&page=${page}`
-      );
-      // Laravel resource collection pagination shape
-      const collection = res.data;
-      const items = Array.isArray(collection?.data)
-        ? collection.data
-        : Array.isArray(collection)
-        ? collection
-        : [];
-      setVisitors(items);
-      if (collection?.meta) {
-        setPagination({
-          page: collection.meta.current_page,
-          per_page: collection.meta.per_page,
-          total: collection.meta.total,
-        });
-      } else if (collection?.current_page) {
-        setPagination({
-          page: collection.current_page,
-          per_page: collection.per_page,
-          total: collection.total,
-        });
-      }
-    } catch (e) {
-      setError(e?.response?.data?.message || t("errors.loadError"));
+      
+      setVisitors(response.data.data || response.data);
+    } catch (err) {
+      handleApiError(err, "load");
+      setError(t("visitors.loadError", { defaultValue: "Gagal memuat data pengunjung" }));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadVisitors(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  // Load statistics
+  const loadStats = async () => {
+    try {
+      const response = await api.get("/admin/dashboard");
+      setStats(response.data.stats || {
+        totalToday: 0,
+        checkedIn: 0,
+        checkedOut: 0,
+        pending: 0,
+        urgent: 0
+      });
+    } catch (err) {
+      console.error("Failed to load stats:", err);
+    }
+  };
 
-  // Listen for refresh events from Layout (soft refresh)
+  // Handle visitor actions
+  const handleCheckIn = async (visitorId) => {
+    const loadingKey = `checkin-${visitorId}`;
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+    
+    try {
+      await api.post(`/admin/visitors/${visitorId}/checkin`);
+      await loadVisitors();
+      await loadStats();
+      success(t("visitors.checkInSuccess", { defaultValue: "Check-in berhasil" }));
+    } catch (err) {
+      handleApiError(err, "checkin");
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const handleCheckOut = async (visitorId) => {
+    const loadingKey = `checkout-${visitorId}`;
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+    
+    try {
+      await api.post(`/admin/visitors/${visitorId}/checkout`);
+      await loadVisitors();
+      await loadStats();
+      success(t("visitors.checkOutSuccess", { defaultValue: "Check-out berhasil" }));
+    } catch (err) {
+      handleApiError(err, "checkout");
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const handleDelete = async (visitorId) => {
+    if (!window.confirm(t("visitors.deleteConfirmation", { defaultValue: "Hapus data pengunjung ini?" }))) {
+      return;
+    }
+    
+    const loadingKey = `delete-${visitorId}`;
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+    
+    try {
+      await api.delete(`/admin/visitors/${visitorId}`);
+      await loadVisitors();
+      await loadStats();
+      success(t("visitors.deleteSuccess", { defaultValue: "Data pengunjung berhasil dihapus" }));
+    } catch (err) {
+      handleApiError(err, "delete");
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  // View visitor details
+  const handleViewDetails = (visitor) => {
+    setSelectedVisitor(visitor);
+    setShowDetailModal(true);
+  };
+
+  // View QR code
+  const handleViewQR = (visitor) => {
+    setSelectedVisitor(visitor);
+    setShowQRModal(true);
+  };
+
+  // Filter visitors
+  const filteredVisitors = visitors.filter(visitor => {
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        visitor.name?.toLowerCase().includes(searchLower) ||
+        visitor.meet_with?.toLowerCase().includes(searchLower) ||
+        visitor.origin?.toLowerCase().includes(searchLower) ||
+        visitor.purpose?.toLowerCase().includes(searchLower);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (statusFilter !== "all" && visitor.status !== statusFilter) {
+      return false;
+    }
+
+    // Priority filter
+    if (locationFilter !== "all" && visitor.location !== locationFilter) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Load data on component mount
   useEffect(() => {
-    const handleRefreshData = () => {
-      setRefreshKey((prev) => prev + 1);
-    };
-    window.addEventListener("refreshData", handleRefreshData);
-    return () => {
-      window.removeEventListener("refreshData", handleRefreshData);
-    };
+    loadVisitors();
+    loadStats();
   }, []);
 
-  // Stop camera when modal closes or scan source changes away from manual
+  // Reload when filters change
   useEffect(() => {
-    if (!showModal || formData.ktp_scan_source !== "manual") {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((t) => t.stop());
-        setCameraStream(null);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showModal, formData.ktp_scan_source]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setCameraStream(stream);
-    } catch {
-      alert(t("notifications.cameraAccessDenied"));
-    }
-  };
-
-  const capturePhoto = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          const file = new File([blob], `ktp_capture_${Date.now()}.jpg`, {
-            type: "image/jpeg",
-          });
-          setFormData((prev) => ({ ...prev, ktp_image: file }));
-        }
-      },
-      "image/jpeg",
-      0.92
-    );
-  };
-
-  // Load trend chart - show visitor counts by date range
-  useEffect(() => {
-    if (visitors.length > 0) {
-      // Group visitors by date
-      const dateGroups = {};
-      visitors.forEach((visitor) => {
-        const date = new Date(visitor.check_in).toISOString().split("T")[0];
-        if (!dateGroups[date]) {
-          dateGroups[date] = 0;
-        }
-        dateGroups[date]++;
-      });
-
-      // Generate date range
-      const startDate = new Date(chartDateRange.start);
-      const endDate = new Date(chartDateRange.end);
-      const dateRange = [];
-
-      for (
-        let d = new Date(startDate);
-        d <= endDate;
-        d.setDate(d.getDate() + 1)
-      ) {
-        const dateStr = d.toISOString().split("T")[0];
-        dateRange.push({
-          date: dateStr,
-          count: dateGroups[dateStr] || 0,
-        });
-      }
-
-      setChartData({
-        labels: dateRange.map((d) => {
-          const date = new Date(d.date);
-          return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          });
-        }),
-        datasets: [
-          {
-            label: "Visitors",
-            data: dateRange.map((d) => d.count),
-            borderColor: "rgb(59, 130, 246)",
-            backgroundColor: "rgba(59, 130, 246, 0.1)",
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 2,
-            pointBackgroundColor: "rgb(59, 130, 246)",
-          },
-        ],
-      });
-    }
-  }, [visitors, chartDateRange]);
+    const timeoutId = setTimeout(() => {
+      loadVisitors();
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, statusFilter, locationFilter, dateFilter]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Visitor Management
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {t("visitors.title", { defaultValue: "Manajemen Pengunjung" })}
           </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Manage visitor check-ins and check-outs
+          <p className="text-gray-600 dark:text-gray-400">
+            {t("visitors.subtitle", { defaultValue: "Kelola dan pantau pengunjung PT. Solusi Intek" })}
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn-primary w-full sm:w-auto"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Check In Visitor
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              loadVisitors();
+              loadStats();
+            }}
+            className="btn-secondary flex items-center gap-2"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {t("common.refresh", { defaultValue: "Refresh" })}
+          </button>
+        </div>
       </div>
 
-      {/* Trend Chart */}
-      <div className="card">
-        <div className="p-5">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2 sm:mb-0">
-              Visitor Trends
-            </h3>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">
-                  {t("visitors.from")}:
-                </label>
-                <input
-                  type="date"
-                  value={chartDateRange.start}
-                  onChange={(e) =>
-                    setChartDateRange((prev) => ({
-                      ...prev,
-                      start: e.target.value,
-                    }))
-                  }
-                  className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">To:</label>
-                <input
-                  type="date"
-                  value={chartDateRange.end}
-                  onChange={(e) =>
-                    setChartDateRange((prev) => ({
-                      ...prev,
-                      end: e.target.value,
-                    }))
-                  }
-                  className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Today */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Users className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {t("visitors.totalToday", { defaultValue: "Total Hari Ini" })}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.totalToday}
+              </p>
             </div>
           </div>
-          <div className="h-40">
-            {loading ? (
-              <div className="h-40 bg-gray-200 rounded-lg animate-pulse"></div>
-            ) : chartData ? (
-              <SimpleChart
-                type="line"
-                data={chartData}
-                height={160}
-                options={{
-                  plugins: {
-                    tooltip: {
-                      enabled: true,
-                      mode: "index",
-                      intersect: false,
-                      backgroundColor: "rgba(0, 0, 0, 0.8)",
-                      titleColor: "white",
-                      bodyColor: "white",
-                      borderColor: "rgb(59, 130, 246)",
-                      borderWidth: 1,
-                      displayColors: false,
-                    },
-                  },
-                  hover: {
-                    mode: "index",
-                    intersect: false,
-                  },
-                  scales: {
-                    x: {
-                      grid: {
-                        display: false,
-                      },
-                    },
-                    y: {
-                      beginAtZero: true,
-                      grid: {
-                        color: "rgba(0, 0, 0, 0.1)",
-                      },
-                    },
-                  },
-                }}
-              />
-            ) : (
-              <div className="h-40 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500 text-xs">
-                {t("meetings.noData")}
-              </div>
-            )}
+        </div>
+
+        {/* Checked In */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <UserCheck className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {t("visitors.checkedIn", { defaultValue: "Sudah Check-in" })}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.checkedIn}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Checked Out */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <UserX className="h-8 w-8 text-gray-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {t("visitors.checkedOut", { defaultValue: "Sudah Check-out" })}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.checkedOut}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pending */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {t("visitors.pending", { defaultValue: "Menunggu" })}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.pending}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Urgent */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                {t("visitors.urgent", { defaultValue: "Mendesak" })}
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {stats.urgent}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="card p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Search */}
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder={t("visitors.searchPlaceholder", { defaultValue: "Cari pengunjung..." })}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-            <input
-              type="text"
-              placeholder={t("common.placeholders.searchVisitors")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            />
           </div>
-          <div className="relative">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            />
+
+          {/* Filter Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              {t("common.filters", { defaultValue: "Filter" })}
+            </button>
+            
+            <button
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+                setPriorityFilter("all");
+                setDateFilter("today");
+              }}
+              className="btn-secondary"
+            >
+              {t("common.clear", { defaultValue: "Bersihkan" })}
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {loading ? (
-          <>
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-          </>
-        ) : (
-          <>
-            <div className="card hover:shadow-md transition-shadow duration-200">
-              <div className="p-5">
-                <div className="flex flex-col items-center text-center">
-                  <div className="flex-shrink-0 mb-3">
-                    <User className="h-8 w-8 text-red-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Total Visitors
-                    </p>
-                    <p className="text-lg font-medium text-gray-900">
-                      {visitors.length}
-                    </p>
-                  </div>
-                </div>
+        {/* Advanced Filters */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t("visitors.status", { defaultValue: "Status" })}
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">{t("common.all", { defaultValue: "Semua" })}</option>
+                  <option value="pending">{t("visitors.pending", { defaultValue: "Menunggu" })}</option>
+                  <option value="checked_in">{t("visitors.checkedIn", { defaultValue: "Sudah Check-in" })}</option>
+                  <option value="checked_out">{t("visitors.checkedOut", { defaultValue: "Sudah Check-out" })}</option>
+                </select>
+              </div>
+
+              {/* Location Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t("visitors.location", { defaultValue: "Lokasi" })}
+                </label>
+                <select
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">{t("visitors.allLocations", { defaultValue: "Semua Lokasi" })}</option>
+                  <option value="Cikunir">Cikunir</option>
+                  <option value="Naradata">Naradata</option>
+                  <option value="Rumah Valortek">Rumah Valortek</option>
+                  <option value="Sauciko">Sauciko</option>
+                  <option value="Tebet">Tebet</option>
+                  <option value="TTM">TTM</option>
+                </select>
+              </div>
+
+              {/* Date Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {t("visitors.date", { defaultValue: "Tanggal" })}
+                </label>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="today">{t("common.today", { defaultValue: "Hari Ini" })}</option>
+                  <option value="yesterday">{t("common.yesterday", { defaultValue: "Kemarin" })}</option>
+                  <option value="this_week">{t("common.thisWeek", { defaultValue: "Minggu Ini" })}</option>
+                  <option value="this_month">{t("common.thisMonth", { defaultValue: "Bulan Ini" })}</option>
+                </select>
               </div>
             </div>
-
-            <button
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "check_in" ? "all" : "check_in"
-                )
-              }
-              className={`card cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all duration-200 ${
-                statusFilter === "check_in"
-                  ? "ring-2 ring-blue-500 bg-blue-50"
-                  : ""
-              }`}
-            >
-              <div className="p-5">
-                <div className="flex flex-col items-center text-center">
-                  <div className="flex-shrink-0 mb-3">
-                    <Clock
-                      className={`h-8 w-8 ${
-                        statusFilter === "check_in"
-                          ? "text-blue-500"
-                          : "text-blue-500"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Check In
-                    </p>
-                    <p className="text-lg font-medium text-gray-900">
-                      {inBuildingCount}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "checkout" ? "all" : "checkout"
-                )
-              }
-              className={`card cursor-pointer hover:bg-gray-50 hover:shadow-md transition-all duration-200 ${
-                statusFilter === "checkout"
-                  ? "ring-2 ring-green-500 bg-green-50"
-                  : ""
-              }`}
-            >
-              <div className="p-5">
-                <div className="flex flex-col items-center text-center">
-                  <div className="flex-shrink-0 mb-3">
-                    <CheckCircle
-                      className={`h-8 w-8 ${
-                        statusFilter === "checkout"
-                          ? "text-green-500"
-                          : "text-green-500"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Checkout
-                    </p>
-                    <p className="text-lg font-medium text-gray-900">
-                      {checkoutCount}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </button>
-          </>
+          </div>
         )}
       </div>
 
-      {/* Visitor List */}
-      <div className="card">
+      {/* Visitors Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         {loading ? (
-          <SkeletonLoader type="list" lines={5} />
+          <div className="p-6">
+            <SkeletonLoader type="table" rows={5} />
+          </div>
         ) : error ? (
-          <div className="px-6 py-4 text-sm text-red-600">{error}</div>
+          <div className="p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600">{error}</p>
+            <button
+              onClick={loadVisitors}
+              className="mt-4 btn-primary"
+            >
+              {t("common.retry", { defaultValue: "Coba Lagi" })}
+            </button>
+          </div>
+        ) : filteredVisitors.length === 0 ? (
+          <div className="p-6 text-center">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">{t("visitors.noVisitors", { defaultValue: "Tidak ada pengunjung" })}</p>
+          </div>
         ) : (
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {!loading &&
-              !error &&
-              filteredVisitors.map((visitor) => (
-                <li
-                  key={visitor.id}
-                  className="px-3 sm:px-6 py-4 hover:bg-gray-50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                    <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
-                      <div className="flex-shrink-0">
-                        {getStatusIcon(
-                          visitor.check_out ? "checked_out" : "in_building"
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("visitors.name", { defaultValue: "Nama" })}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("visitors.purpose", { defaultValue: "Tujuan" })}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("visitors.meetWith", { defaultValue: "Bertemu Dengan" })}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("visitors.status", { defaultValue: "Status" })}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("visitors.location", { defaultValue: "Lokasi" })}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("visitors.time", { defaultValue: "Waktu" })}
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    {t("common.actions", { defaultValue: "Aksi" })}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredVisitors.map((visitor) => (
+                  <tr key={visitor.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          {visitor.face_image ? (
+                            <img
+                              className="h-10 w-10 rounded-full object-cover"
+                              src={getStorageUrl(`storage/${visitor.face_image}`)}
+                              alt={visitor.name}
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                              <Users className="h-5 w-5 text-gray-500" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {visitor.name}
+                          </div>
+                          {visitor.origin && (
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {visitor.origin}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 dark:text-gray-100 max-w-xs truncate">
+                        {visitor.purpose}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 dark:text-gray-100">
+                        {visitor.meet_with}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(visitor.status)}`}>
+                        {getStatusIcon(visitor.status)}
+                        <span className="ml-1">{formatStatusLabel(visitor.status)}</span>
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLocationColor(visitor.location)}`}>
+                        {formatLocationLabel(visitor.location)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <div>
+                        <div>{formatDate(visitor.created_at)}</div>
+                        {visitor.check_in_time && (
+                          <div className="text-green-600">
+                            {t("visitors.checkInTime", { defaultValue: "Check-in" })}: {formatDate(visitor.check_in_time)}
+                          </div>
+                        )}
+                        {visitor.check_out_time && (
+                          <div className="text-gray-600">
+                            {t("visitors.checkOutTime", { defaultValue: "Check-out" })}: {formatDate(visitor.check_out_time)}
+                          </div>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                          <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
-                            {visitor.name}
-                          </h3>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              visitor.check_out ? "checked_out" : "in_building"
-                            )}`}
-                          >
-                            {formatStatusLabel(
-                              visitor.check_out ? "checked_out" : "in_building"
-                            )}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Building className="h-4 w-4 mr-1" />
-                            <span className="truncate">{visitor.origin}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <User className="h-4 w-4 mr-1" />
-                            <span className="truncate">
-                              Meet:{" "}
-                              {visitor.meet_with || visitor.person_to_meet}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {visitor.purpose}
-                        </p>
-                        <div className="mt-1 flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs text-gray-500">
-                          {visitor.check_in && (
-                            <span>
-                              Check-in:{" "}
-                              {format(
-                                new Date(visitor.check_in),
-                                "MMM dd, yyyy HH:mm"
-                              )}
-                            </span>
-                          )}
-                          {visitor.check_out && (
-                            <span>
-                              Check-out:{" "}
-                              {format(
-                                new Date(visitor.check_out),
-                                "MMM dd, yyyy HH:mm"
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                      {(visitor.status ||
-                        (visitor.check_out ? "checked_out" : "checked_in")) ===
-                        "checked_in" && (
-                        <button
-                          onClick={() => handleCheckOut(visitor.id)}
-                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                        >
-                          Check Out
-                        </button>
-                      )}
-
-                      <div className="flex items-center space-x-2">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* View Details */}
                         <button
                           onClick={() => handleViewDetails(visitor)}
-                          className="text-blue-600 hover:text-blue-800"
-                          title={t("common.viewDetails")}
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                          title={t("common.viewDetails", { defaultValue: "Lihat Detail" })}
                         >
-                          <User className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </button>
 
+                        {/* View QR Code */}
                         <button
-                          onClick={() => handleEdit(visitor)}
-                          className="text-accent-600 hover:text-accent-800"
+                          onClick={() => handleViewQR(visitor)}
+                          className="text-purple-600 hover:text-purple-900 p-1 rounded"
+                          title={t("visitors.viewQR", { defaultValue: "Lihat QR Code" })}
                         >
-                          <Edit className="h-4 w-4" />
+                          <QrCode className="h-4 w-4" />
                         </button>
 
+                        {/* Check-in/Check-out Actions */}
+                        {visitor.status === "pending" && (
+                          <button
+                            onClick={() => handleCheckIn(visitor.id)}
+                            disabled={loadingStates[`checkin-${visitor.id}`]}
+                            className="text-green-600 hover:text-green-900 p-1 rounded disabled:opacity-50"
+                            title={t("visitors.checkIn", { defaultValue: "Check-in" })}
+                          >
+                            {loadingStates[`checkin-${visitor.id}`] ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+
+                        {visitor.status === "checked_in" && (
+                          <button
+                            onClick={() => handleCheckOut(visitor.id)}
+                            disabled={loadingStates[`checkout-${visitor.id}`]}
+                            className="text-orange-600 hover:text-orange-900 p-1 rounded disabled:opacity-50"
+                            title={t("visitors.checkOut", { defaultValue: "Check-out" })}
+                          >
+                            {loadingStates[`checkout-${visitor.id}`] ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+
+                        {/* Delete */}
                         <button
-                          onClick={async () => {
-                            if (!confirm(t("common.deleteVisitor"))) return;
-                            try {
-                              await api.delete(`/visitors/${visitor.id}`);
-                              await loadVisitors(pagination.page);
-                            } catch (e) {
-                              alert(
-                                e?.response?.data?.message ||
-                                  t("errors.deleteError")
-                              );
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-800"
+                          onClick={() => handleDelete(visitor.id)}
+                          disabled={loadingStates[`delete-${visitor.id}`]}
+                          className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50"
+                          title={t("common.delete", { defaultValue: "Hapus" })}
                         >
-                          <Trash className="h-4 w-4" />
+                          {loadingStates[`delete-${visitor.id}`] ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-          </ul>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <div
-          className="fixed inset-0 bg-gray-600/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center"
-          style={{ margin: 0, padding: 0 }}
-        >
-          <div className="relative bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4 p-6">
-            <div className="mt-1">
-              <h3 className="text-xl font-semibold text-gray-900 mb-5 text-center">
-                {editingVisitor
-                  ? t("common.editVisitor")
-                  : t("common.checkInVisitor")}
-              </h3>
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Single / Multiple Toggle */}
-                <div className="flex items-center justify-center">
-                  <div className="w-full max-w-xs">
-                    <div className="text-xs mb-1 text-gray-700">
-                      {t("visitors.mode")}
-                    </div>
-                    <div className="grid grid-cols-2 bg-gray-200 rounded-full p-1 text-xs font-medium">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            is_representative: false,
-                            group_size: "",
-                            represented_names: "",
-                          }))
-                        }
-                        className={`py-1 rounded-full transition-all duration-300 ${
-                          !formData.is_representative
-                            ? "bg-accent-600 text-white shadow"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        Single
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            is_representative: true,
-                          }))
-                        }
-                        className={`py-1 rounded-full transition-all duration-300 ${
-                          formData.is_representative
-                            ? "bg-accent-600 text-white shadow"
-                            : "text-gray-700"
-                        }`}
-                      >
-                        Multiple
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* DETAILS VISITOR */}
-                <div className="pb-1">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Details Visitor
-                  </h4>
-                </div>
-                {/* Two-column layout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Visitor Name
-                    </label>
-                    <input
-                      type="text"
-                      required={!editingVisitor}
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                    />
-                  </div>
-
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Origin
-                    </label>
-                    <input
-                      type="text"
-                      required={false}
-                      value={formData.origin}
-                      onChange={(e) =>
-                        setFormData({ ...formData, origin: e.target.value })
-                      }
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Purpose
-                    </label>
-                    <textarea
-                      rows={2}
-                      required={!editingVisitor}
-                      value={formData.purpose}
-                      onChange={(e) => {
-                        setFormData({ ...formData, purpose: e.target.value });
-                        const el = e.target;
-                        el.style.height = "auto";
-                        el.style.height = `${el.scrollHeight}px`;
-                      }}
-                      onInput={(e) => {
-                        const el = e.target;
-                        el.style.height = "auto";
-                        el.style.height = `${el.scrollHeight}px`;
-                      }}
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md resize-none overflow-hidden"
-                      placeholder={t("common.placeholders.meetingPurpose")}
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Meet With
-                    </label>
-                    <input
-                      type="text"
-                      required={!editingVisitor}
-                      value={formData.meet_with}
-                      onChange={(e) =>
-                        setFormData({ ...formData, meet_with: e.target.value })
-                      }
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                      placeholder={t("common.placeholders.visitorName")}
-                    />
-                  </div>
-
-                  {/* Separate section: Priority */}
-                  <div className="md:col-span-2">
-                    <hr className="my-1" />
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Priority
-                    </h4>
-                  </div>
-
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Priority
-                    </label>
-                    <Dropdown
-                      value={formData.priority}
-                      onChange={(val) =>
-                        setFormData({ ...formData, priority: val })
-                      }
-                      options={[
-                        { value: "regular", label: "Regular" },
-                        { value: "vip", label: "VIP" },
-                        { value: "vvip", label: "VVIP" },
-                      ]}
-                      placeholder={t("common.placeholders.selectPriority")}
-                      searchable={false}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Priority Detail
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.priority_detail}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          priority_detail: e.target.value,
-                        })
-                      }
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                      placeholder={t("common.placeholders.originCompany")}
-                    />
-                  </div>
-
-                  {/* Separate section: Group Check-in (only for Multiple) */}
-                  {formData.is_representative && (
-                    <>
-                      <div className="md:col-span-2">
-                        <hr className="my-1" />
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                          Group Check-in
-                        </h4>
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Group Size
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={formData.group_size}
-                          onChange={(e) => {
-                            const newSize = Math.max(
-                              1,
-                              parseInt(e.target.value || "0", 10)
-                            );
-                            const list = Array.from(
-                              { length: newSize },
-                              (_, i) =>
-                                formData.represented_names_list?.[i] || ""
-                            );
-                            setFormData({
-                              ...formData,
-                              group_size: String(newSize),
-                              represented_names_list: list,
-                            });
-                          }}
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Group Members
-                        </label>
-                        <div className="mt-1 space-y-2">
-                          {Array.from({
-                            length: Math.max(
-                              1,
-                              parseInt(formData.group_size || "1", 10)
-                            ),
-                          }).map((_, idx) => (
-                            <input
-                              key={idx}
-                              type="text"
-                              value={
-                                formData.represented_names_list?.[idx] || ""
-                              }
-                              onChange={(e) => {
-                                const list = [
-                                  ...(formData.represented_names_list || []),
-                                ];
-                                list[idx] = e.target.value;
-                                setFormData({
-                                  ...formData,
-                                  represented_names_list: list,
-                                });
-                              }}
-                              className="block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                              placeholder={`Member ${idx + 1} name`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Evidence */}
-                  <div className="md:col-span-2">
-                    <hr className="my-1" />
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Evidence
-                    </h4>
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      KTP
-                    </label>
-                    <Dropdown
-                      value={formData.ktp_scan_source}
-                      onChange={(val) =>
-                        setFormData({
-                          ...formData,
-                          ktp_scan_source: val,
-                          ...(val !== "upload" ? { ktp_image: null } : {}),
-                        })
-                      }
-                      placeholder={t("common.placeholders.selectSource")}
-                      options={[
-                        { value: "manual", label: "Manual" },
-                        { value: "upload", label: "Upload" },
-                        { value: "hardware", label: "Hardware (optional)" },
-                      ]}
-                      searchable={false}
-                      className="mt-1"
-                    />
-                  </div>
-
-                  {formData.ktp_scan_source === "manual" && (
-                    <div className="md:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Manual Capture
-                      </label>
-                      <div className="mt-1 border border-dashed border-blue-300 bg-blue-50/30 rounded-md p-3">
-                        {!cameraStream ? (
-                          <button
-                            type="button"
-                            onClick={startCamera}
-                            className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
-                          >
-                            Open Camera
-                          </button>
-                        ) : (
-                          <div className="space-y-2">
-                            <video ref={videoRef} className="w-full rounded" />
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={capturePhoto}
-                                className="inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
-                              >
-                                Capture
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (cameraStream) {
-                                    cameraStream
-                                      .getTracks()
-                                      .forEach((t) => t.stop());
-                                    setCameraStream(null);
-                                  }
-                                }}
-                                className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 shadow-sm"
-                              >
-                                Close Camera
-                              </button>
-                            </div>
-                            <canvas ref={canvasRef} className="hidden" />
-                          </div>
-                        )}
-                        {formData.ktp_image && (
-                          <p className="mt-2 text-xs text-gray-600 truncate">
-                            Selected: {formData.ktp_image.name}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {formData.ktp_scan_source === "upload" && (
-                    <div className="md:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700">
-                        KTP Image
-                      </label>
-                      <div
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setIsDragging(true);
-                        }}
-                        onDragLeave={() => setIsDragging(false)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setIsDragging(false);
-                          const f = e.dataTransfer.files?.[0];
-                          if (!f) return;
-                          const isImage = f.type.startsWith("image/");
-                          const under5mb = f.size <= 5 * 1024 * 1024;
-                          if (!isImage) {
-                            setUploadError(t("errors.mustBeImageFile"));
-                            return;
-                          }
-                          if (!under5mb) {
-                            setUploadError(t("errors.maxFileSize5MB"));
-                            return;
-                          }
-                          setUploadError("");
-                          setFormData({ ...formData, ktp_image: f });
-                        }}
-                        className={`mt-1 border-2 border-dashed rounded-lg p-5 text-center transition-colors duration-200 ${
-                          isDragging
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-blue-300 bg-blue-50/40"
-                        }`}
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <Upload className="h-8 w-8 text-blue-500" />
-                          <p className="text-sm font-medium text-gray-700">
-                            Drop your image here
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Format: JPG/PNG, Maks 5MB. Drag & drop atau klik
-                            Browse
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="mt-2 inline-flex items-center px-3 py-1.5 rounded-md text-white bg-blue-600 hover:bg-blue-700 text-xs shadow-sm"
-                          >
-                            Choose Image
-                          </button>
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg"
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (!f) return;
-                              const isImage = f.type.startsWith("image/");
-                              const under5mb = f.size <= 5 * 1024 * 1024;
-                              if (!isImage) {
-                                setUploadError(t("errors.mustBeImageFile"));
-                                return;
-                              }
-                              if (!under5mb) {
-                                setUploadError(t("errors.maxFileSize5MB"));
-                                return;
-                              }
-                              setUploadError("");
-                              setFormData({ ...formData, ktp_image: f });
-                            }}
-                            className="hidden"
-                          />
-                          {formData.ktp_image && (
-                            <p className="mt-2 text-xs text-gray-600 truncate">
-                              Selected: {formData.ktp_image.name}
-                            </p>
-                          )}
-                          {uploadError && (
-                            <p className="mt-2 text-xs text-red-600">
-                              {uploadError}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {formData.ktp_scan_source === "hardware" && (
-                    <>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Device ID
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.ktp_device_id}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              ktp_device_id: e.target.value,
-                            })
-                          }
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">
-                          KTP Number (NIK)
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.ktp_number}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              ktp_number: e.target.value,
-                            })
-                          }
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-white transition-all duration-300 ease-in-out shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:shadow-md"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false);
-                      setEditingVisitor(null);
-                      setFormData({
-                        name: "",
-                        purpose: "",
-                        meet_with: "",
-                        origin: "",
-                        ktp_image: null,
-                        is_representative: false,
-                        group_size: "",
-                        represented_names: "",
-                        ktp_scan_source: "",
-                        ktp_device_id: "",
-                        ktp_number: "",
-                        priority: "regular",
-                        priority_detail: "",
-                        represented_names_list: [],
-                      });
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn-primary px-4 py-2">
-                    {editingVisitor ? "Update" : "Check In"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Visitor Detail Modal */}
       {showDetailModal && selectedVisitor && (
-        <div className="fixed inset-0 bg-gray-600/40 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border border-gray-200 w-96 shadow-sm rounded-xl bg-white">
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Visitor Details
+        <div className="fixed inset-0 bg-gray-900/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t("visitors.visitorDetails", { defaultValue: "Detail Pengunjung" })}
                 </h3>
                 <button
                   onClick={() => setShowDetailModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="h-6 w-6" />
+                  <XCircle className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Visitor Name
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.name || "N/A"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Origin
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.origin || "Not specified"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Purpose
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.purpose || "N/A"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Priority Detail
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.priority_detail || "-"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Priority
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {(selectedVisitor.priority || "regular")
-                      .toString()
-                      .toUpperCase()}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Meet With
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.meet_with ||
-                      selectedVisitor.person_to_meet ||
-                      "N/A"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Status
-                  </label>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                      selectedVisitor.check_out ? "checked_out" : "in_building"
-                    )}`}
-                  >
-                    {formatStatusLabel(
-                      selectedVisitor.check_out ? "checked_out" : "in_building"
-                    )}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Check-in Time
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.check_in
-                      ? format(
-                          new Date(selectedVisitor.check_in),
-                          "MMM dd, yyyy HH:mm"
-                        )
-                      : "Not available"}
-                  </p>
-                </div>
-
-                {selectedVisitor.check_out && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Check-out Time
-                    </label>
-                    <p className="mt-1 text-sm text-gray-900">
-                      {format(
-                        new Date(selectedVisitor.check_out),
-                        "MMM dd, yyyy HH:mm"
-                      )}
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Visit Duration
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.visit_time || "Not calculated"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Visitor ID
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    #{selectedVisitor.id || "N/A"}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Sequence
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.sequence || "N/A"}
-                  </p>
-                </div>
-
-                {selectedVisitor.ktp_ocr && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      KTP OCR Data
-                    </label>
-                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
-                      <pre className="whitespace-pre-wrap">
-                        {JSON.stringify(selectedVisitor.ktp_ocr, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                {selectedVisitor.ktp_image &&
-                  selectedVisitor.ktp_image.exists && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Information */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                    {t("visitors.personalInfo", { defaultValue: "Informasi Pribadi" })}
+                  </h4>
+                  
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        KTP Image
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {t("visitors.name", { defaultValue: "Nama" })}
                       </label>
-                      <div className="mt-1">
-                        <img
-                          src={selectedVisitor.ktp_image.url}
-                          alt="KTP"
-                          className="h-32 w-auto object-contain border border-gray-300 rounded"
-                          onError={(e) => {
-                            e.target.style.display = "none";
-                          }}
-                        />
-                      </div>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">{selectedVisitor.name}</p>
                     </div>
-                  )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Created
-                  </label>
-                  <p className="mt-1 text-sm text-gray-900">
-                    {selectedVisitor.created_at
-                      ? format(
-                          new Date(selectedVisitor.created_at),
-                          "MMM dd, yyyy HH:mm"
-                        )
-                      : "N/A"}
+                    {selectedVisitor.origin && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                          {t("visitors.origin", { defaultValue: "Asal" })}
+                        </label>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{selectedVisitor.origin}</p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {t("visitors.meetWith", { defaultValue: "Bertemu Dengan" })}
+                      </label>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">{selectedVisitor.meet_with}</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {t("visitors.purpose", { defaultValue: "Tujuan" })}
+                      </label>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">{selectedVisitor.purpose}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status & Priority */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                    {t("visitors.statusInfo", { defaultValue: "Status & Prioritas" })}
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {t("visitors.status", { defaultValue: "Status" })}
+                      </label>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(selectedVisitor.status)}`}>
+                        {getStatusIcon(selectedVisitor.status)}
+                        <span className="ml-1">{formatStatusLabel(selectedVisitor.status)}</span>
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {t("visitors.location", { defaultValue: "Lokasi" })}
+                      </label>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getLocationColor(selectedVisitor.location)}`}>
+                        {formatLocationLabel(selectedVisitor.location)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Group Information */}
+                {selectedVisitor.is_representative && (
+                  <div className="md:col-span-2 space-y-4">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                      {t("visitors.groupInfo", { defaultValue: "Informasi Grup" })}
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                          {t("visitors.groupSize", { defaultValue: "Jumlah Grup" })}
+                        </label>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{selectedVisitor.group_size}</p>
+                      </div>
+
+                      {selectedVisitor.represented_names && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                            {t("visitors.groupMembers", { defaultValue: "Anggota Grup" })}
+                          </label>
+                          <p className="text-sm text-gray-900 dark:text-gray-100">{selectedVisitor.represented_names}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Timestamps */}
+                <div className="md:col-span-2 space-y-4">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                    {t("visitors.timestamps", { defaultValue: "Waktu" })}
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {t("visitors.registered", { defaultValue: "Terdaftar" })}
+                      </label>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(selectedVisitor.created_at)}</p>
+                    </div>
+
+                    {selectedVisitor.check_in_time && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                          {t("visitors.checkInTime", { defaultValue: "Check-in" })}
+                        </label>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(selectedVisitor.check_in_time)}</p>
+                      </div>
+                    )}
+
+                    {selectedVisitor.check_out_time && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">
+                          {t("visitors.checkOutTime", { defaultValue: "Check-out" })}
+                        </label>
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{formatDate(selectedVisitor.check_out_time)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* KTP Image */}
+                {selectedVisitor.ktp_image && (
+                  <div className="md:col-span-2 space-y-4">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                      {t("visitors.ktpImage", { defaultValue: "Foto KTP" })}
+                    </h4>
+                    <div className="flex justify-center">
+                      <img
+                        src={getStorageUrl(`storage/${selectedVisitor.ktp_image}`)}
+                        alt="KTP"
+                        className="max-w-full h-auto max-h-96 rounded-lg border"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="btn-secondary"
+                >
+                  {t("common.close", { defaultValue: "Tutup" })}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRModal && selectedVisitor && (
+        <div className="fixed inset-0 bg-gray-900/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {t("visitors.qrCode", { defaultValue: "QR Code" })}
+                </h3>
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircle className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="text-center">
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {t("visitors.qrCodeFor", { defaultValue: "QR Code untuk" })}
                   </p>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">{selectedVisitor.name}</p>
+                </div>
+
+                <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 mb-4">
+                  <QrCode className="h-32 w-32 mx-auto text-gray-400" />
+                  <p className="text-xs text-gray-500 mt-2">{selectedVisitor.qr_code}</p>
+                </div>
+
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <p>{t("visitors.qrCodeInstructions", { defaultValue: "Gunakan QR Code ini untuk check-in/check-out" })}</p>
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-end gap-3">
                 <button
-                  onClick={() => setShowDetailModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowQRModal(false)}
+                  className="btn-secondary"
                 >
-                  Close
+                  {t("common.close", { defaultValue: "Tutup" })}
+                </button>
+                <button
+                  onClick={() => {
+                    // Print QR Code functionality
+                    window.print();
+                  }}
+                  className="btn-primary"
+                >
+                  {t("common.print", { defaultValue: "Cetak" })}
                 </button>
               </div>
             </div>

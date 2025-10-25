@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Check,
   History,
+  UserCheck,
 } from "lucide-react";
 
 const Layout = ({ children }) => {
@@ -141,8 +142,8 @@ const Layout = ({ children }) => {
           icon: Building,
         },
         { name: t("nav.meetingManagement"), href: "/admin/meetings", icon: Clock },
+        { name: t("nav.visitors"), href: "/admin/visitors", icon: UserCheck },
         { name: t("nav.history"), href: "/history", icon: History },
-        // { name: t("nav.visitors"), href: "/admin/visitors", icon: User }, // Hidden during development
       ];
     }
 
