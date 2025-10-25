@@ -2125,94 +2125,104 @@ const AdminTodos = () => {
               .map((todo) => (
                 <li
                   key={todo.id}
-                  className="px-3 sm:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group"
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mx-1 sm:mx-2 my-2 group"
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                    {/* Todo Content */}
-                    <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1">
-                      <div className="flex-shrink-0">
-                        {getStatusIcon(todo.status, todo.reworked)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                          <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
+                  <div className="p-4 sm:p-5">
+                    {/* Header Section */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start space-x-3 flex-1">
+                        <div className="flex-shrink-0 mt-1">
+                          {getStatusIcon(todo.status, todo.reworked)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors duration-200">
                             {todo.title}
                           </h3>
-                          <div className="flex flex-wrap gap-2">
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${getStatusColor(
-                                todo.status
-                              )}`}
-                            >
-                              {formatStatusLabel(todo.status)}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                              {(todo.todo_type || "rutin") === "rutin"
-                                ? "Rutin"
-                                : "Tambahan"}
-                            </span>
-                            {(todo.todo_type || "rutin") === "rutin" && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                {formatRoutinePattern(todo)}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
                             {todo.description && todo.description.length > 100
                               ? `${todo.description.substring(0, 100)}...`
                               : todo.description}
                           </p>
-                          <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2 text-xs text-gray-500">
-                            <div className="flex items-center">
-                              <User className="h-4 w-4 mr-1" />
-                              <span className="truncate">
-                                {getUserName(todo.user_id)}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              <span>
-                                {t("todos.scheduledDate", {
-                                  defaultValue: "Terjadwal",
-                                })}
-                                :{" "}
-                                {(() => {
-                                  const dateText = todo.scheduled_date
-                                    ? new Date(
-                                        todo.scheduled_date
-                                      ).toLocaleDateString("id-ID", {
-                                        weekday: "long",
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                      })
-                                    : todo.formatted_created_at ||
-                                      format(
-                                        new Date(todo.created_at),
-                                        "MMM dd, yyyy"
-                                      );
-                                  const hhmm = getTargetStartTime(todo);
-                                  return hhmm
-                                    ? `${dateText}, ${hhmm}`
-                                    : dateText;
-                                })()}
-                              </span>
-
-                              <span>Duration: {getDuration(todo)}</span>
-                            </div>
-                          </div>
-                          {todo.admin_notes && (
-                            <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded text-xs text-blue-800 dark:text-blue-300">
-                              <strong>Admin Note:</strong> {todo.admin_notes}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Actions */}
-                    <div className="flex items-center justify-end sm:justify-start space-x-2">
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1">
+                    {/* Status and Type Tags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span
+                        className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${getStatusColor(
+                          todo.status
+                        )}`}
+                      >
+                        {formatStatusLabel(todo.status)}
+                      </span>
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
+                        {(todo.todo_type || "rutin") === "rutin"
+                          ? "Rutin"
+                          : "Tambahan"}
+                      </span>
+                      {(todo.todo_type || "rutin") === "rutin" && (
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                          {formatRoutinePattern(todo)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Info Section */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mb-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                          <User className="h-4 w-4 mr-2 text-blue-500" />
+                          <span className="font-medium">Assigned to:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">
+                            {getUserName(todo.user_id)}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-gray-600 dark:text-gray-400">
+                          <Clock className="h-4 w-4 mr-2 text-green-500" />
+                          <span className="font-medium">Tanggal Terjadwal:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">
+                            {(() => {
+                              const dateText = todo.scheduled_date
+                                ? new Date(todo.scheduled_date).toLocaleDateString("id-ID", {
+                                    weekday: "long",
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  })
+                                : todo.formatted_created_at ||
+                                  format(new Date(todo.created_at), "MMM dd, yyyy");
+                              const hhmm = getTargetStartTime(todo);
+                              return hhmm ? `${dateText}, ${hhmm}` : dateText;
+                            })()}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-gray-600 dark:text-gray-400 sm:col-span-2 lg:col-span-1">
+                          <AlertCircle className="h-4 w-4 mr-2 text-purple-500" />
+                          <span className="font-medium">Durasi:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">
+                            {getDuration(todo)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Admin Notes */}
+                    {todo.admin_notes && (
+                      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <div className="flex items-start">
+                          <AlertCircle className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Admin Note:</span>
+                            <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">{todo.admin_notes}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons Section */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2">
                         {todo.status === "checking" && (
                           <button
                             onClick={() => handleEvaluate(todo)}
@@ -2225,7 +2235,7 @@ const AdminTodos = () => {
 
                         <button
                           onClick={() => handleViewDetails(todo)}
-                          className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
                           title={t("common.viewDetails")}
                         >
                           <Eye className="h-4 w-4" />
@@ -2234,7 +2244,7 @@ const AdminTodos = () => {
                         {/* Edit - Admin can edit all todos */}
                         <button
                           onClick={() => handleEdit(todo)}
-                          className="text-yellow-600 hover:text-yellow-800 p-2 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition-all duration-200"
+                          className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors duration-200"
                           title={t("common.editTodo")}
                         >
                           <Edit className="h-4 w-4" />
@@ -2243,7 +2253,7 @@ const AdminTodos = () => {
                         {/* Delete - Admin can delete all todos */}
                         <button
                           onClick={() => handleDelete(todo.id)}
-                          className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200"
                           title={t("common.deleteTodo")}
                         >
                           <Trash2 className="h-4 w-4" />

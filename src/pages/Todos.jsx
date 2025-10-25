@@ -18,6 +18,7 @@ import {
   Search,
   ChevronDown,
   Check,
+  User,
 } from "lucide-react";
 import { format } from "date-fns";
 import SkeletonLoader from "../components/SkeletonLoader";
@@ -1368,91 +1369,92 @@ const Todos = () => {
             {visibleTodos.map((todo) => (
               <li
                 key={todo.id}
-                className={`px-3 sm:px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group ${
-                  !isRunnableToday(todo) ? "opacity-60 bg-gray-50" : ""
+                className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mx-1 sm:mx-2 my-2 group ${
+                  !isRunnableToday(todo) ? "opacity-60" : ""
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                  {/* Todo Content */}
-                  <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1">
-                    <div className="flex-shrink-0">
-                      {getStatusIcon(todo.status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                        <h3 className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
+                <div className="p-4 sm:p-5">
+                  {/* Header Section */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start space-x-3 flex-1">
+                      <div className="flex-shrink-0 mt-1">
+                        {getStatusIcon(todo.status)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors duration-200">
                           {todo.title}
                         </h3>
-                        <div className="flex flex-wrap gap-2">
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200 ${getStatusColor(
-                              todo.status
-                            )}`}
-                          >
-                            {formatStatusLabel(todo.status)}
-                          </span>
-                          {/* Priority badge removed */}
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                            {(todo.todo_type || "rutin") === "rutin"
-                              ? t("todos.routine")
-                              : t("todos.additional")}
-                          </span>
-                          {!isRunnableToday(todo) && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
-                              {t("common.notToday")}
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                          {todo.description}
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                        {todo.description}
-                      </p>
-                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2 text-xs text-gray-500">
-                        <div className="flex items-center">
-                          <span className="truncate">
-                            {t("todos.scheduledDate", {
-                              defaultValue: "Tanggal Terjadwal",
-                            })}
-                            :{" "}
-                            {todo.scheduled_date
-                              ? new Date(
-                                  todo.scheduled_date
-                                ).toLocaleDateString("id-ID", {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })
-                              : todo.formatted_created_at || "N/A"}
-                          </span>
-                        </div>
-                        {(() => {
-                          const hhmm = getTargetStartTime(todo);
-                          return hhmm ? (
-                            <div className="flex items-center">
-                              <span className="truncate">
-                                {t("todos.startTime", {
-                                  defaultValue: "Jam Mulai",
-                                })}
-                                : {hhmm}
-                              </span>
-                            </div>
-                          ) : null;
-                        })()}
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          <span>
-                            {t("todos.duration", { defaultValue: "Durasi" })}:{" "}
-                            {getDuration(todo)}
-                          </span>
-                        </div>
+                    </div>
+                    
+                  </div>
+
+                  {/* Status and Type Tags */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span
+                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${getStatusColor(
+                        todo.status
+                      )}`}
+                    >
+                      {formatStatusLabel(todo.status)}
+                    </span>
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
+                      {(todo.todo_type || "rutin") === "rutin"
+                        ? t("todos.routine")
+                        : t("todos.additional")}
+                    </span>
+                    {!isRunnableToday(todo) && (
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300">
+                        {t("common.notToday")}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Info Section */}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                        <span className="font-medium">Tanggal Terjadwal:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {todo.scheduled_date
+                            ? new Date(todo.scheduled_date).toLocaleDateString("id-ID", {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : todo.formatted_created_at || "N/A"}
+                        </span>
+                      </div>
+                      {(() => {
+                        const hhmm = getTargetStartTime(todo);
+                        return hhmm ? (
+                          <div className="flex items-center text-gray-600 dark:text-gray-400">
+                            <AlertCircle className="h-4 w-4 mr-2 text-green-500" />
+                            <span className="font-medium">Jam Mulai:</span>
+                            <span className="ml-2 text-gray-900 dark:text-white">
+                              {hhmm}
+                            </span>
+                          </div>
+                        ) : null;
+                      })()}
+                      <div className="flex items-center text-gray-600 dark:text-gray-400 sm:col-span-2 lg:col-span-1">
+                        <AlertCircle className="h-4 w-4 mr-2 text-purple-500" />
+                        <span className="font-medium">Durasi:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {getDuration(todo)}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right Actions */}
-                  <div className="flex items-center justify-end sm:justify-start gap-2">
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-1">
+                  {/* Action Buttons Section */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
                       {(() => {
                         const canAct = isRunnableToday(todo);
                         const canStart = canStartTask(todo);
@@ -1586,7 +1588,7 @@ const Todos = () => {
                             {/* View Details - Always available */}
                             <button
                               onClick={() => handleViewDetails(todo)}
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors duration-200"
                               title={t("common.viewDetails")}
                             >
                               <Eye className="h-4 w-4" />
@@ -1596,7 +1598,7 @@ const Todos = () => {
                             {user?.role === "admin_ga" && (
                               <button
                                 onClick={() => handleEdit(todo)}
-                                className="p-1.5 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded-lg transition-colors"
+                                className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors duration-200"
                                 title={t("common.editTodo", {
                                   defaultValue: "Edit Tugas",
                                 })}
@@ -1609,7 +1611,7 @@ const Todos = () => {
                             {user?.role === "admin_ga" && (
                               <button
                                 onClick={() => handleDelete(todo.id)}
-                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200"
                                 title={t("common.deleteTodo", {
                                   defaultValue: "Hapus Tugas",
                                 })}
