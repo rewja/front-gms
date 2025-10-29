@@ -129,7 +129,7 @@ const resources = {
         id: "Indonesian",
       },
       login: {
-        subtitle: "General Affairs Management System",
+        subtitle: "General Management System",
         signIn: "Sign in",
         signingIn: "Signing in...",
         useCredentials: "Use your account credentials",
@@ -1275,7 +1275,7 @@ const resources = {
         id: "Indonesia",
       },
       login: {
-        subtitle: "Sistem Manajemen General Affairs",
+        subtitle: "Sistem Manajemen Umum",
         signIn: "Masuk",
         signingIn: "Sedang masuk...",
         useCredentials: "Gunakan kredensial akun Anda",
