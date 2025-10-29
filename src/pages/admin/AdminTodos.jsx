@@ -2173,6 +2173,12 @@ const AdminTodos = () => {
                 }
                 return true;
               })
+              .sort((a, b) => {
+                const dateA = getTaskDate(a) || new Date(0);
+                const dateB = getTaskDate(b) || new Date(0);
+                // Newest first
+                return dateB - dateA;
+              })
               .map((todo) => (
                 <li
                   key={todo.id}
