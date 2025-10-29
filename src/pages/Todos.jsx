@@ -2025,13 +2025,13 @@ const Todos = () => {
                         </h4>
                         <div className="flex items-center space-x-4">
                           <div className="text-2xl font-bold text-blue-600">
-                            {selectedTodo.rating}/100
+                            {selectedTodo.rating}/5
                           </div>
                           <div className="flex-1">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${selectedTodo.rating}%` }}
+                                style={{ width: `${(selectedTodo.rating / 5) * 100}%` }}
                               ></div>
                             </div>
                           </div>
@@ -2166,7 +2166,7 @@ const Todos = () => {
                       {selectedTodo.rating && (
                         <p>
                           {t("todos.rating", { defaultValue: "Rating" })}:{" "}
-                          {selectedTodo.rating}/100 (
+                          {selectedTodo.rating}/5 (
                           {t("todos.autoCalculated", {
                             defaultValue: "Otomatis",
                           })}

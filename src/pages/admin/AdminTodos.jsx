@@ -981,11 +981,23 @@ const AdminTodos = () => {
 
     if (actualMinutes === null || isNaN(actualMinutes)) return null;
 
-    // Calculate rating (100% for on-time or early, decreases for overtime)
-    if (actualMinutes <= targetMinutes) return 100;
+    // Calculate rating 1-5 scale
+    // Rating 5: Completed on time or before target time
+    if (actualMinutes <= targetMinutes) return 5;
+    
     const overtimeRatio = actualMinutes / targetMinutes;
-    const penalty = Math.min((overtimeRatio - 1) * 50, 50);
-    return Math.max(Math.round(100 - penalty), 0);
+    
+    // If overtime is less than 25% over target: Rating 4
+    if (overtimeRatio <= 1.25) return 4;
+    
+    // If overtime is 25-50% over target: Rating 3
+    if (overtimeRatio <= 1.5) return 3;
+    
+    // If overtime is 50-100% over target: Rating 2
+    if (overtimeRatio <= 2.0) return 2;
+    
+    // If overtime is more than 100%: Rating 1
+    return 1;
   };
 
   const distribution = React.useMemo(
@@ -2446,13 +2458,13 @@ const AdminTodos = () => {
                         </h4>
                         <div className="flex items-center space-x-4">
                           <div className="text-2xl font-bold text-blue-600">
-                            {selectedTodo.rating}/100
+                            {selectedTodo.rating}/5
                           </div>
                           <div className="flex-1">
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
                                 className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${selectedTodo.rating}%` }}
+                                style={{ width: `${(selectedTodo.rating / 5) * 100}%` }}
                               ></div>
                             </div>
                           </div>
@@ -2939,7 +2951,7 @@ const AdminTodos = () => {
                       </label>
                       <div className="flex items-center justify-between gap-4">
                         <div className="text-2xl font-bold text-blue-600">
-                          {evaluationData.rating ?? "-"}/100
+                          {evaluationData.rating ?? "-"}/5
                         </div>
                         <div className="text-sm text-gray-500">
                           Nilai dihitung otomatis dari perbandingan waktu
