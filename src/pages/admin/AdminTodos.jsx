@@ -77,6 +77,8 @@ const AdminTodos = () => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [statusSearchTerm, setStatusSearchTerm] = useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const statusDropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
   const [evaluationData, setEvaluationData] = useState({
@@ -799,7 +801,17 @@ const AdminTodos = () => {
     }
   };
 
-  const getDateRange = (filter) => {
+  const getDateRange = () => {
+    if (dateFrom || dateTo) {
+      const start = dateFrom ? new Date(dateFrom) : null;
+      const end = dateTo ? new Date(dateTo) : null;
+      if (start) start.setHours(0, 0, 0, 0);
+      if (end) end.setHours(23, 59, 59, 999);
+      if (!start && !end) return null;
+      return { start: start || new Date(0), end };
+    }
+
+    const filter = dateFilter;
     if (!filter || filter === "") return null;
     const now = new Date();
     switch (filter) {
@@ -825,14 +837,6 @@ const AdminTodos = () => {
         return { start, end: null };
       }
       default: {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(filter)) {
-          const d = new Date(filter);
-          const start = new Date(d);
-          start.setHours(0, 0, 0, 0);
-          const end = new Date(d);
-          end.setHours(23, 59, 59, 999);
-          return { start, end };
-        }
         return null;
       }
     }
@@ -854,7 +858,7 @@ const AdminTodos = () => {
     // Date filter - use getTaskDate for consistent date handling
     // date filter: supports ranges
     const matchesDate = (() => {
-      const range = getDateRange(dateFilter);
+      const range = getDateRange();
       if (!range) return true;
       const todoDate = getTaskDate(todo);
       if (!todoDate) return false;
@@ -1111,6 +1115,9 @@ const AdminTodos = () => {
         const tambahanCount = filteredTodos.filter(
           (t) => (t.todo_type || "rutin") !== "rutin"
         ).length;
+        const rutinCount = filteredTodos.filter(
+          (t) => (t.todo_type || "rutin") === "rutin"
+        ).length;
         return (
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
@@ -1132,7 +1139,7 @@ const AdminTodos = () => {
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                {t("todos.routine")} ({routineGroups.length})
+                {t("todos.routine")} ({rutinCount})
               </button>
               <button
                 onClick={() => setTodoTab("tambahan")}
@@ -1364,65 +1371,50 @@ const AdminTodos = () => {
         <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Time range filter */}
           <div className="relative" data-dropdown="date">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder=""
-                value=""
-                onChange={() => {}}
-                onFocus={() => {
-                  setShowDateDropdown(true);
-                }}
-                onBlur={() => {
-                  setTimeout(() => {
-                    setShowDateDropdown(false);
-                  }, 150);
-                }}
-                className="w-full pl-3 pr-10 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-              />
-              {!showDateDropdown && (
-                <div className="absolute inset-0 flex items-center pl-3 pr-10 pointer-events-none">
-                  <span className="text-gray-900 text-sm sm:text-base">
-                    {dateFilter === "all"
-                      ? t("todos.allTime", { defaultValue: "Semua Waktu" })
-                      : dateFilter === "today"
-                      ? t("todos.today", { defaultValue: "Hari Ini" })
-                      : dateFilter === "this_week"
-                      ? t("todos.thisWeek", { defaultValue: "Minggu Ini" })
-                      : dateFilter === "this_month"
-                      ? t("todos.thisMonth", { defaultValue: "Bulan Ini" })
-                      : dateFilter === "this_year"
-                      ? t("todos.thisYear", { defaultValue: "Tahun Ini" })
-                      : dateFilter}
-                  </span>
-                </div>
-              )}
+            <button
+              type="button"
+              onClick={() => setShowDateDropdown(!showDateDropdown)}
+              className="w-full pl-3 pr-10 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900 text-left"
+            >
+              <span className="text-gray-900 text-sm sm:text-base">
+                {dateFrom || dateTo
+                  ? `${dateFrom || '-'} → ${dateTo || '-'}`
+                  : dateFilter === "all"
+                  ? t("common.dateFilter.allDates")
+                  : dateFilter === "today"
+                  ? t("common.dateFilter.today")
+                  : dateFilter === "this_week"
+                  ? t("common.dateFilter.thisWeek")
+                  : dateFilter === "this_month"
+                  ? t("common.dateFilter.thisMonth")
+                  : t("common.dateFilter.thisYear")}
+              </span>
               <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <ChevronDown className={`h-4 w-4 text-gray-400`} />
               </span>
-            </div>
+            </button>
             {showDateDropdown && (
               <div className="absolute z-10 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none mt-1">
                 {[
                   {
                     value: "all",
-                    label: t("todos.allTime", { defaultValue: "Semua Waktu" }),
+                    label: t("common.dateFilter.allDates"),
                   },
                   {
                     value: "today",
-                    label: t("todos.today", { defaultValue: "Hari Ini" }),
+                    label: t("common.dateFilter.today"),
                   },
                   {
                     value: "this_week",
-                    label: t("todos.thisWeek", { defaultValue: "Minggu Ini" }),
+                    label: t("common.dateFilter.thisWeek"),
                   },
                   {
                     value: "this_month",
-                    label: t("todos.thisMonth", { defaultValue: "Bulan Ini" }),
+                    label: t("common.dateFilter.thisMonth"),
                   },
                   {
                     value: "this_year",
-                    label: t("todos.thisYear", { defaultValue: "Tahun Ini" }),
+                    label: t("common.dateFilter.thisYear"),
                   },
                 ].map((option) => (
                   <button
@@ -1449,14 +1441,26 @@ const AdminTodos = () => {
             )}
           </div>
 
-          {/* Custom date */}
-          <div className="relative">
-            <input
-              type="date"
-              value={/\d{4}-\d{2}-\d{2}/.test(dateFilter) ? dateFilter : ""}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            />
+          {/* Custom date range */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="relative">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                placeholder={t("meetings.from")}
+                className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+              />
+            </div>
+            <div className="relative">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                placeholder={t("meetings.to")}
+                className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
+              />
+            </div>
           </div>
 
           {/* Total count for current range */}
@@ -1464,7 +1468,7 @@ const AdminTodos = () => {
             <span>
               {t("common.total", { defaultValue: "Total" })}:{" "}
               {(() => {
-                const range = getDateRange(dateFilter);
+                const range = getDateRange();
                 if (!range) return todos.length;
                 return todos.filter((t) => {
                   const d = getTaskDate(t);
@@ -1498,11 +1502,11 @@ const AdminTodos = () => {
       {/* Routine Groups */}
       {/* Routine list cards */}
       {routineGroups.length > 0 &&
-        (todoTab === "all" || todoTab === "rutin") &&
+        todoTab === "rutin" &&
         statusFilter === "all" && (
           <div className="flex flex-col gap-3">
             {routineGroups.map((g) => (
-              <div key={g.key} className="border rounded-lg bg-white">
+              <div key={g.key} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mx-1 sm:mx-2 my-2 group">
                 {/* Header behaves like list item and is clickable (div to allow inner button) */}
                 <div
                   onClick={() => {
@@ -1683,7 +1687,7 @@ const AdminTodos = () => {
                       <Trash2 className="h-4 w-4" />
                     </button>
                     <span className="text-[10px] text-gray-400 hidden sm:inline">
-                      Klik untuk lihat
+                      {t("todos.expandToView")}
                     </span>
                   </div>
                 </div>
@@ -1700,9 +1704,9 @@ const AdminTodos = () => {
                         onChange={(e) => setEvalFilter(e.target.value)}
                         className="px-2 py-1 border border-gray-300 rounded-md text-xs"
                       >
-                        <option value="all">Semua</option>
-                        <option value="to_evaluate">Perlu evaluasi</option>
-                        <option value="evaluated">Sudah selesai</option>
+                        <option value="all">{t("todos.all")}</option>
+                        <option value="to_evaluate">{t("todos.toEvaluate")}</option>
+                        <option value="evaluated">{t("todos.evaluated")}</option>
                       </select>
                       {/* Show category filter only if target_category === 'all' and there are multiple categories */}
                       {g.sample?.target_category === "all" && (
@@ -1867,7 +1871,7 @@ const AdminTodos = () => {
                       : expandedUserId) && (
                       <div className="mt-3 border rounded-lg">
                         <div className="px-3 py-2 text-xs text-gray-600 bg-gray-50 rounded-t-lg">
-                          Daftar tugas rutin untuk user
+                          {t("todos.routineTasks")}
                         </div>
                         {(() => {
                           const uid =
@@ -1936,9 +1940,9 @@ const AdminTodos = () => {
                                   <li
                                     key={todoItem.id}
                                     onClick={() => handleViewDetails(todoItem)}
-                                    className="px-3 sm:px-6 py-3 hover:bg-gray-50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group cursor-pointer"
+                                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mx-1 sm:mx-2 my-2 group cursor-pointer"
                                   >
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                                    <div className="p-4 sm:p-5">
                                       {/* Left content */}
                                       <div className="flex items-start sm:items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
                                         <div className="flex-shrink-0">
@@ -1960,56 +1964,55 @@ const AdminTodos = () => {
                                                 )}
                                               </span>
                                               <span className="inline-flex items-center px-2 py-1 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                                                Rutin
+                                                {t("todos.routine")}
                                               </span>
                                             </div>
                                           </div>
-                                          <div className="mt-2 text-xs text-gray-500 flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0">
-                                            <div className="truncate">
-                                              {getUserName(todoItem.user_id)}
-                                            </div>
-                                            <div className="truncate">
-                                              {t("todos.scheduledDate", {
-                                                defaultValue: "Terjadwal",
-                                              })}
-                                              :{" "}
-                                              {(() => {
-                                                const dateText =
-                                                  todoItem.scheduled_date
-                                                    ? new Date(
-                                                        todoItem.scheduled_date
-                                                      ).toLocaleDateString(
-                                                        "id-ID",
-                                                        {
-                                                          weekday: "long",
-                                                          year: "numeric",
-                                                          month: "long",
-                                                          day: "numeric",
-                                                        }
-                                                      )
-                                                    : todoItem.formatted_created_at ||
-                                                      format(
-                                                        new Date(
-                                                          todoItem.created_at
-                                                        ),
-                                                        "MMM dd, yyyy"
-                                                      );
-                                                const hhmm =
-                                                  getTargetStartTime(todoItem);
-                                                return hhmm
-                                                  ? `${dateText}, ${hhmm}`
-                                                  : dateText;
-                                              })()}
-                                            </div>
-                                            <div className="truncate">
-                                              Duration: {getDuration(todoItem)}
+                                          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 mt-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                                              <div className="flex items-center">
+                                                <User className="h-4 w-4 mr-2 text-blue-500" />
+                                                <span className="font-medium">{getUserName(todoItem.user_id)}</span>
+                                              </div>
+                                              <div className="truncate">
+                                                {t("todos.scheduledDate")}:{" "}
+                                                {(() => {
+                                                  const dateText =
+                                                    todoItem.scheduled_date
+                                                      ? new Date(
+                                                          todoItem.scheduled_date
+                                                        ).toLocaleDateString(
+                                                          "id-ID",
+                                                          {
+                                                            weekday: "long",
+                                                            year: "numeric",
+                                                            month: "long",
+                                                            day: "numeric",
+                                                          }
+                                                        )
+                                                      : todoItem.formatted_created_at ||
+                                                        format(
+                                                          new Date(
+                                                            todoItem.created_at
+                                                          ),
+                                                          "MMM dd, yyyy"
+                                                        );
+                                                  const hhmm = getTargetStartTime(todoItem);
+                                                  return hhmm ? `${dateText}, ${hhmm}` : dateText;
+                                                })()}
+                                              </div>
+                                              <div className="flex items-center sm:col-span-2 lg:col-span-1">
+                                                <AlertCircle className="h-4 w-4 mr-2 text-purple-500" />
+                                                <span className="font-medium">{t("todos.duration")}:</span>
+                                                <span className="ml-2 text-gray-900 dark:text-white">{getDuration(todoItem)}</span>
+                                              </div>
                                             </div>
                                           </div>
                                         </div>
                                       </div>
 
                                       {/* Right actions */}
-                                      <div className="flex items-center justify-end sm:justify-start gap-1">
+                                      <div className="flex items-center justify-end sm:justify-start gap-1 mt-3">
                                         {todoItem.status === "checking" && (
                                           <button
                                             onClick={(e) => {
@@ -2115,12 +2118,17 @@ const AdminTodos = () => {
               .filter((t) => {
                 // Filter by tab selection
                 if (todoTab === "rutin") {
+                  // Show routine tasks as list (groups shown separately when statusFilter is "all")
                   return (t.todo_type || "rutin") === "rutin";
                 } else if (todoTab === "tambahan") {
                   return (t.todo_type || "rutin") !== "rutin";
                 }
-                // For "all" tab, show only tambahan (rutin already shown in groups above)
-                return (t.todo_type || "rutin") !== "rutin";
+                // For "all" tab: if routine groups are showing (when statusFilter is "all"), show only tambahan
+                // Otherwise, show all tasks
+                if (statusFilter === "all") {
+                  return (t.todo_type || "rutin") !== "rutin";
+                }
+                return true;
               })
               .map((todo) => (
                 <li
@@ -2158,8 +2166,8 @@ const AdminTodos = () => {
                       </span>
                       <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
                         {(todo.todo_type || "rutin") === "rutin"
-                          ? "Rutin"
-                          : "Tambahan"}
+                          ? t("todos.routine")
+                          : t("todos.additional")}
                       </span>
                       {(todo.todo_type || "rutin") === "rutin" && (
                         <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
@@ -2199,7 +2207,7 @@ const AdminTodos = () => {
                         </div>
                         <div className="flex items-center text-gray-600 dark:text-gray-400 sm:col-span-2 lg:col-span-1">
                           <AlertCircle className="h-4 w-4 mr-2 text-purple-500" />
-                          <span className="font-medium">Durasi:</span>
+                          <span className="font-medium">{t("todos.duration")}:</span>
                           <span className="ml-2 text-gray-900 dark:text-white">
                             {getDuration(todo)}
                           </span>
@@ -2213,7 +2221,7 @@ const AdminTodos = () => {
                         <div className="flex items-start">
                           <AlertCircle className="h-4 w-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
                           <div>
-                            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Admin Note:</span>
+                            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">{t("todos.adminNotes")}:</span>
                             <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">{todo.admin_notes}</p>
                           </div>
                         </div>
