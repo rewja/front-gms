@@ -1433,6 +1433,9 @@ const AdminTodos = () => {
                     key={option.value}
                     onClick={() => {
                       setDateFilter(option.value);
+                      // Clear custom range when choosing any preset (including "all")
+                      setDateFrom("");
+                      setDateTo("");
                       setShowDateDropdown(false);
                     }}
                     className={`relative w-full text-left py-2 pl-3 pr-9 cursor-pointer hover:bg-gray-50 ${
@@ -1514,7 +1517,7 @@ const AdminTodos = () => {
       {/* Routine Groups */}
       {/* Routine list cards */}
       {routineGroups.length > 0 &&
-        todoTab === "rutin" &&
+        (todoTab === "all" || todoTab === "rutin") &&
         statusFilter === "all" && (
           <div className="flex flex-col gap-3">
             {routineGroups.map((g) => (
@@ -2128,6 +2131,11 @@ const AdminTodos = () => {
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredTodos
               .filter((t) => {
+                // When in "rutin" tab and status is "all", we show routine groups above
+                // and suppress the individual routine list to avoid duplication
+                if (todoTab === "rutin" && statusFilter === "all") {
+                  return false;
+                }
                 // Filter by tab selection
                 if (todoTab === "rutin") {
                   // Show routine tasks as list (groups shown separately when statusFilter is "all")
