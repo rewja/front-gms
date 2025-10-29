@@ -1000,19 +1000,42 @@ const AdminTodos = () => {
     return 1;
   };
 
-  const distribution = React.useMemo(
-    () => ({
-      not_started: filteredTodos.filter((t) => t.status === "not_started")
-        .length,
-      in_progress: filteredTodos.filter((t) => t.status === "in_progress")
-        .length,
-      hold: filteredTodos.filter((t) => t.status === "hold").length,
-      checking: filteredTodos.filter((t) => t.status === "checking").length,
-      evaluating: filteredTodos.filter((t) => t.status === "evaluating").length,
-      completed: filteredTodos.filter((t) => t.status === "completed").length,
-    }),
-    [filteredTodos]
-  );
+  const distribution = React.useMemo(() => {
+    // Compute status counts ignoring the current statusFilter,
+    // but honoring search/date filters
+    const searchLc = (searchTerm || "").toLowerCase();
+    const range = getDateRange();
+
+    const base = todos.filter((todo) => {
+      const titleLc = (todo.title || "").toLowerCase();
+      const descLc = (todo.description || "").toLowerCase();
+      const userNameLc = getUserName(todo.user_id).toLowerCase();
+      const matchesSearch =
+        titleLc.includes(searchLc) ||
+        descLc.includes(searchLc) ||
+        userNameLc.includes(searchLc);
+
+      const matchesDate = (() => {
+        if (!range) return true;
+        const todoDate = getTaskDate(todo);
+        if (!todoDate) return false;
+        const after = todoDate >= range.start;
+        const before = !range.end || todoDate < range.end;
+        return after && before;
+      })();
+
+      return matchesSearch && matchesDate;
+    });
+
+    return {
+      not_started: base.filter((t) => t.status === "not_started").length,
+      in_progress: base.filter((t) => t.status === "in_progress").length,
+      hold: base.filter((t) => t.status === "hold").length,
+      checking: base.filter((t) => t.status === "checking").length,
+      evaluating: base.filter((t) => t.status === "evaluating").length,
+      completed: base.filter((t) => t.status === "completed").length,
+    };
+  }, [todos, searchTerm, dateFilter, dateFrom, dateTo]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
