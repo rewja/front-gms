@@ -9,11 +9,12 @@ import { id as idLocale } from "date-fns/locale";
 
 // Helper function to safely format dates
 const safeFormatDate = (dateString, formatString = "dd/MM/yyyy HH:mm") => {
-  if (!dateString || dateString === null || dateString === undefined) return "-";
-  
+  if (!dateString || dateString === null || dateString === undefined)
+    return "-";
+
   try {
     let date;
-    if (typeof dateString === 'string') {
+    if (typeof dateString === "string") {
       // Try parsing ISO string first
       date = parseISO(dateString);
       if (!isValid(date)) {
@@ -23,14 +24,14 @@ const safeFormatDate = (dateString, formatString = "dd/MM/yyyy HH:mm") => {
     } else {
       date = new Date(dateString);
     }
-    
+
     if (!isValid(date)) {
       return "-";
     }
-    
+
     return format(date, formatString, { locale: idLocale });
   } catch (error) {
-    console.warn('Date formatting error:', error, 'for date:', dateString);
+    console.warn("Date formatting error:", error, "for date:", dateString);
     return "-";
   }
 };
@@ -49,6 +50,10 @@ const TodoExportModal = ({
   const [exportScope, setExportScope] = useState("page");
   const [customRange, setCustomRange] = useState({ from: 1, to: 10 });
   const [isExporting, setIsExporting] = useState(false);
+  const [filterOptions, setFilterOptions] = useState({
+    status: "all",
+    type: "all",
+  });
 
   // Update custom range when todos change
   useEffect(() => {
@@ -57,30 +62,41 @@ const TodoExportModal = ({
     }
   }, [todos]);
 
+  const applyFilters = (todos) => {
+    return todos.filter((todo) => {
+      const statusMatch =
+        filterOptions.status === "all" || todo.status === filterOptions.status;
+      const typeMatch =
+        filterOptions.type === "all" || todo.todo_type === filterOptions.type;
+      return statusMatch && typeMatch;
+    });
+  };
+
   const getExportData = () => {
     let dataToExport = [];
+    const filteredTodos = applyFilters(todos);
 
     switch (exportScope) {
       case "page": {
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
-        dataToExport = todos.slice(startIndex, endIndex);
+        dataToExport = filteredTodos.slice(startIndex, endIndex);
         break;
       }
       case "selected": {
-        dataToExport = todos.filter((todo) =>
+        dataToExport = filteredTodos.filter((todo) =>
           selectedTodos.includes(todo.id)
         );
         break;
       }
       case "custom": {
         const fromIndex = Math.max(0, customRange.from - 1);
-        const toIndex = Math.min(todos.length, customRange.to);
-        dataToExport = todos.slice(fromIndex, toIndex);
+        const toIndex = Math.min(filteredTodos.length, customRange.to);
+        dataToExport = filteredTodos.slice(fromIndex, toIndex);
         break;
       }
       default: {
-        dataToExport = todos;
+        dataToExport = filteredTodos;
         break;
       }
     }
@@ -90,14 +106,14 @@ const TodoExportModal = ({
 
   const formatTodoData = (todo, index) => {
     const data = {
-      "No": index + 1,
-      "ID": todo.id,
-      "Title": todo.title,
-      "Description": todo.description || "-",
-      "Status": todo.status,
+      No: index + 1,
+      ID: todo.id,
+      Title: todo.title,
+      Description: todo.description || "-",
+      Status: todo.status,
       "Todo Type": todo.todo_type || "rutin",
       "Target Category": todo.target_category || "-",
-      "User": todo.user?.name || "Unknown User",
+      User: todo.user?.name || "Unknown User",
       "Scheduled Date": safeFormatDate(todo.scheduled_date, "dd/MM/yyyy"),
     };
 
@@ -106,14 +122,14 @@ const TodoExportModal = ({
       data["Target Duration"] = todo.target_duration_formatted;
     } else if (todo.target_duration_value && todo.target_duration_unit) {
       // Create formatted duration if not available
-      const unit = todo.target_duration_unit === 'hours' ? 'jam' : 'menit';
+      const unit = todo.target_duration_unit === "hours" ? "jam" : "menit";
       data["Target Duration"] = `${todo.target_duration_value} ${unit}`;
     }
-    
+
     if (todo.total_work_time_formatted) {
       data["Actual Duration"] = todo.total_work_time_formatted;
     }
-    
+
     if (todo.rating) {
       data["Rating"] = todo.rating;
     }
@@ -135,7 +151,9 @@ const TodoExportModal = ({
 
       // Header
       pdf.setFontSize(16);
-      pdf.text("Todo Management Report", pageWidth / 2, 20, { align: "center" });
+      pdf.text("Todo Management Report", pageWidth / 2, 20, {
+        align: "center",
+      });
 
       pdf.setFontSize(10);
       pdf.text(`Export Date: ${safeFormatDate(new Date())}`, 14, 30);
@@ -213,25 +231,40 @@ const TodoExportModal = ({
 
       // Dynamic column widths based on actual data
       const allKeys = new Set();
-      excelData.forEach(row => Object.keys(row).forEach(key => allKeys.add(key)));
+      excelData.forEach((row) =>
+        Object.keys(row).forEach((key) => allKeys.add(key))
+      );
       const headers = Array.from(allKeys);
-      
+
       // Set column widths dynamically
-      const colWidths = headers.map(header => {
-        switch(header) {
-          case "No": return { wch: 5 };
-          case "ID": return { wch: 8 };
-          case "Title": return { wch: 35 };
-          case "Description": return { wch: 50 };
-          case "Status": return { wch: 15 };
-          case "Todo Type": return { wch: 15 };
-          case "Target Category": return { wch: 20 };
-          case "User": return { wch: 25 };
-          case "Scheduled Date": return { wch: 18 };
-          case "Target Duration": return { wch: 20 };
-          case "Actual Duration": return { wch: 20 };
-          case "Rating": return { wch: 10 };
-          default: return { wch: 15 };
+      const colWidths = headers.map((header) => {
+        switch (header) {
+          case "No":
+            return { wch: 5 };
+          case "ID":
+            return { wch: 8 };
+          case "Title":
+            return { wch: 35 };
+          case "Description":
+            return { wch: 50 };
+          case "Status":
+            return { wch: 15 };
+          case "Todo Type":
+            return { wch: 15 };
+          case "Target Category":
+            return { wch: 20 };
+          case "User":
+            return { wch: 25 };
+          case "Scheduled Date":
+            return { wch: 18 };
+          case "Target Duration":
+            return { wch: 20 };
+          case "Actual Duration":
+            return { wch: 20 };
+          case "Rating":
+            return { wch: 10 };
+          default:
+            return { wch: 15 };
         }
       });
       ws["!cols"] = colWidths;
@@ -244,25 +277,25 @@ const TodoExportModal = ({
       });
 
       // Add styling to header row
-      if (!ws['!rows']) ws['!rows'] = [];
-      ws['!rows'][0] = { hpt: 35 }; // Header row height
+      if (!ws["!rows"]) ws["!rows"] = [];
+      ws["!rows"][0] = { hpt: 35 }; // Header row height
 
       // Add borders and styling to all cells
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+
       // Find status column index dynamically
       const statusColIndex = headers.indexOf("Status");
-      
+
       for (let R = range.s.r; R <= range.e.r; ++R) {
         for (let C = range.s.c; C <= range.e.c; ++C) {
           const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
           if (!ws[cellAddress]) ws[cellAddress] = { v: "" };
-          
+
           // Determine cell background color
           let cellBgColor = "FFFFFF";
           let borderColor = "D0D7DE";
           let textColor = "24292F";
-          
+
           if (R === 0) {
             // Header styling
             cellBgColor = "1F2937"; // Dark gray header
@@ -271,7 +304,7 @@ const TodoExportModal = ({
           } else if (R % 2 === 0) {
             cellBgColor = "F8FAFC"; // Very light gray for even rows
           }
-          
+
           // Status-based coloring
           if (R > 0 && C === statusColIndex) {
             const status = ws[cellAddress]?.v;
@@ -286,30 +319,30 @@ const TodoExportModal = ({
               textColor = "991B1B"; // Dark red
             }
           }
-          
+
           // Add cell styling
           ws[cellAddress].s = {
             border: {
               top: { style: "thin", color: { rgb: borderColor } },
               bottom: { style: "thin", color: { rgb: borderColor } },
               left: { style: "thin", color: { rgb: borderColor } },
-              right: { style: "thin", color: { rgb: borderColor } }
+              right: { style: "thin", color: { rgb: borderColor } },
             },
-            alignment: { 
+            alignment: {
               horizontal: R === 0 ? "center" : "left",
               vertical: "middle",
               wrapText: true,
-              indent: R === 0 ? 0 : 1
+              indent: R === 0 ? 0 : 1,
             },
             font: {
               bold: R === 0 || (R > 0 && C === statusColIndex),
               size: R === 0 ? 11 : 9,
               color: { rgb: textColor },
-              name: "Segoe UI"
+              name: "Segoe UI",
             },
             fill: {
-              fgColor: { rgb: cellBgColor }
-            }
+              fgColor: { rgb: cellBgColor },
+            },
           };
         }
       }
@@ -318,16 +351,19 @@ const TodoExportModal = ({
       for (let R = 1; R <= range.e.r; ++R) {
         const idColIndex = headers.indexOf("ID");
         const ratingColIndex = headers.indexOf("Rating");
-        
+
         if (idColIndex >= 0) {
           const idCell = XLSX.utils.encode_cell({ r: R, c: idColIndex });
           if (ws[idCell]) {
             ws[idCell].s.numFmt = "0";
           }
         }
-        
+
         if (ratingColIndex >= 0) {
-          const ratingCell = XLSX.utils.encode_cell({ r: R, c: ratingColIndex });
+          const ratingCell = XLSX.utils.encode_cell({
+            r: R,
+            c: ratingColIndex,
+          });
           if (ws[ratingCell] && ws[ratingCell].v !== "-") {
             ws[ratingCell].s.numFmt = "0.0";
           }
@@ -335,32 +371,47 @@ const TodoExportModal = ({
       }
 
       // Add freeze panes (freeze header row)
-      ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-      
+      ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
       // Add auto-filter to header row
-      ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_cell({ r: 0, c: headers.length - 1 })}` };
-      
+      ws["!autofilter"] = {
+        ref: `A1:${XLSX.utils.encode_cell({ r: 0, c: headers.length - 1 })}`,
+      };
+
       // Add summary statistics
       const summaryData = [
         { Field: "Total Todos", Value: dataToExport.length },
-        { Field: "Completed", Value: dataToExport.filter(t => t.status === "completed").length },
-        { Field: "In Progress", Value: dataToExport.filter(t => t.status === "in_progress").length },
-        { Field: "Not Started", Value: dataToExport.filter(t => t.status === "not_started").length },
-        { Field: "Completion Rate", Value: `${Math.round((dataToExport.filter(t => t.status === "completed").length / dataToExport.length) * 100)}%` }
+        {
+          Field: "Completed",
+          Value: dataToExport.filter((t) => t.status === "completed").length,
+        },
+        {
+          Field: "In Progress",
+          Value: dataToExport.filter((t) => t.status === "in_progress").length,
+        },
+        {
+          Field: "Not Started",
+          Value: dataToExport.filter((t) => t.status === "not_started").length,
+        },
+        {
+          Field: "Completion Rate",
+          Value: `${Math.round(
+            (dataToExport.filter((t) => t.status === "completed").length /
+              dataToExport.length) *
+              100
+          )}%`,
+        },
       ];
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Todos");
-      
+
       // Add summary sheet
       const summaryWs = XLSX.utils.json_to_sheet(summaryData);
-      summaryWs["!cols"] = [
-        { wch: 20 },
-        { wch: 15 }
-      ];
-      
+      summaryWs["!cols"] = [{ wch: 20 }, { wch: 15 }];
+
       // Style summary sheet
-      const summaryRange = XLSX.utils.decode_range(summaryWs['!ref']);
+      const summaryRange = XLSX.utils.decode_range(summaryWs["!ref"]);
       for (let R = summaryRange.s.r; R <= summaryRange.e.r; ++R) {
         for (let C = summaryRange.s.c; C <= summaryRange.e.c; ++C) {
           const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
@@ -370,27 +421,27 @@ const TodoExportModal = ({
                 top: { style: "thin", color: { rgb: "D0D7DE" } },
                 bottom: { style: "thin", color: { rgb: "D0D7DE" } },
                 left: { style: "thin", color: { rgb: "D0D7DE" } },
-                right: { style: "thin", color: { rgb: "D0D7DE" } }
+                right: { style: "thin", color: { rgb: "D0D7DE" } },
               },
-              alignment: { 
-                horizontal: "left", 
+              alignment: {
+                horizontal: "left",
                 vertical: "middle",
-                wrapText: true
+                wrapText: true,
               },
-              font: { 
-                bold: R === 0, 
+              font: {
+                bold: R === 0,
                 size: R === 0 ? 11 : 9,
                 name: "Segoe UI",
-                color: { rgb: R === 0 ? "FFFFFF" : "24292F" }
+                color: { rgb: R === 0 ? "FFFFFF" : "24292F" },
               },
-              fill: { 
-                fgColor: { rgb: R === 0 ? "1F2937" : "FFFFFF" }
-              }
+              fill: {
+                fgColor: { rgb: R === 0 ? "1F2937" : "FFFFFF" },
+              },
             };
           }
         }
       }
-      
+
       XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
 
       // Add metadata sheet
@@ -409,15 +460,15 @@ const TodoExportModal = ({
       }
 
       const metaWs = XLSX.utils.json_to_sheet(metaData);
-      
+
       // Set column widths for metadata sheet
       metaWs["!cols"] = [
         { wch: 25 }, // Field column
         { wch: 40 }, // Value column
       ];
-      
+
       // Style metadata sheet with modern design
-      const metaRange = XLSX.utils.decode_range(metaWs['!ref']);
+      const metaRange = XLSX.utils.decode_range(metaWs["!ref"]);
       for (let R = metaRange.s.r; R <= metaRange.e.r; ++R) {
         for (let C = metaRange.s.c; C <= metaRange.e.c; ++C) {
           const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
@@ -427,32 +478,32 @@ const TodoExportModal = ({
                 top: { style: "thin", color: { rgb: "D0D7DE" } },
                 bottom: { style: "thin", color: { rgb: "D0D7DE" } },
                 left: { style: "thin", color: { rgb: "D0D7DE" } },
-                right: { style: "thin", color: { rgb: "D0D7DE" } }
+                right: { style: "thin", color: { rgb: "D0D7DE" } },
               },
-              alignment: { 
-                horizontal: "left", 
+              alignment: {
+                horizontal: "left",
                 vertical: "middle",
                 wrapText: true,
-                indent: 1
+                indent: 1,
               },
-              font: { 
-                bold: R === 0, 
+              font: {
+                bold: R === 0,
                 size: R === 0 ? 11 : 9,
                 name: "Segoe UI",
-                color: { rgb: R === 0 ? "FFFFFF" : "24292F" }
+                color: { rgb: R === 0 ? "FFFFFF" : "24292F" },
               },
-              fill: { 
-                fgColor: { rgb: R === 0 ? "1F2937" : "FFFFFF" }
-              }
+              fill: {
+                fgColor: { rgb: R === 0 ? "1F2937" : "FFFFFF" },
+              },
             };
           }
         }
       }
-      
+
       // Set row height for metadata sheet
-      if (!metaWs['!rows']) metaWs['!rows'] = [];
+      if (!metaWs["!rows"]) metaWs["!rows"] = [];
       for (let R = metaRange.s.r; R <= metaRange.e.r; ++R) {
-        metaWs['!rows'][R] = { hpt: 30 };
+        metaWs["!rows"][R] = { hpt: 30 };
       }
 
       XLSX.utils.book_append_sheet(wb, metaWs, "Export Info");
@@ -566,7 +617,10 @@ const TodoExportModal = ({
                   className="mr-3"
                 />
                 <span className="text-sm">
-                  {t("common.selectedItems", { defaultValue: "Selected Items" })} ({selectedTodos.length})
+                  {t("common.selectedItems", {
+                    defaultValue: "Selected Items",
+                  })}{" "}
+                  ({selectedTodos.length})
                 </span>
               </label>
               <label className="flex items-center">
@@ -577,7 +631,9 @@ const TodoExportModal = ({
                   onChange={(e) => setExportScope(e.target.value)}
                   className="mr-3"
                 />
-                <span className="text-sm">{t("common.customRange", { defaultValue: "Custom Range" })}</span>
+                <span className="text-sm">
+                  {t("common.customRange", { defaultValue: "Custom Range" })}
+                </span>
               </label>
               <label className="flex items-center">
                 <input
@@ -587,7 +643,10 @@ const TodoExportModal = ({
                   onChange={(e) => setExportScope(e.target.value)}
                   className="mr-3"
                 />
-                <span className="text-sm">{t("common.allItems", { defaultValue: "All Items" })} ({totalTodos})</span>
+                <span className="text-sm">
+                  {t("common.allItems", { defaultValue: "All Items" })} (
+                  {totalTodos})
+                </span>
               </label>
             </div>
           </div>
@@ -625,7 +684,10 @@ const TodoExportModal = ({
                   onChange={(e) =>
                     setCustomRange({
                       ...customRange,
-                      to: Math.min(totalTodos, parseInt(e.target.value) || totalTodos),
+                      to: Math.min(
+                        totalTodos,
+                        parseInt(e.target.value) || totalTodos
+                      ),
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
@@ -634,10 +696,62 @@ const TodoExportModal = ({
             </div>
           )}
 
+          {/* Filters */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              {t("common.filters", { defaultValue: "Filters" })}
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={filterOptions.status}
+                onChange={(e) =>
+                  setFilterOptions({ ...filterOptions, status: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+              >
+                <option value="all">
+                  {t("common.allStatuses", { defaultValue: "All Statuses" })}
+                </option>
+                <option value="completed">
+                  {t("common.completed", { defaultValue: "Completed" })}
+                </option>
+                <option value="in_progress">
+                  {t("common.inProgress", { defaultValue: "In Progress" })}
+                </option>
+                <option value="not_started">
+                  {t("common.notStarted", { defaultValue: "Not Started" })}
+                </option>
+              </select>
+              <select
+                value={filterOptions.type}
+                onChange={(e) =>
+                  setFilterOptions({ ...filterOptions, type: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+              >
+                <option value="all">
+                  {t("common.allTypes", { defaultValue: "All Types" })}
+                </option>
+                <option value="rutin">
+                  {t("common.rutin", { defaultValue: "Rutin" })}
+                </option>
+                <option value="tambahan">
+                  {t("common.tambahan", { defaultValue: "Tambahan" })}
+                </option>
+              </select>
+            </div>
+          </div>
+
           {/* Preview Info */}
           <div className="bg-gray-50 p-3 rounded-lg">
             <p className="text-sm text-gray-600">
-              <strong>{t("common.willExport", { defaultValue: "Will export" })}:</strong> {getExportData().length} {t("common.items", { defaultValue: "items" })} {t("common.as", { defaultValue: "as" })} {exportType.toUpperCase()}
+              <strong>
+                {t("common.willExport", { defaultValue: "Will export" })}:
+              </strong>{" "}
+              {getExportData().length}{" "}
+              {t("common.items", { defaultValue: "items" })}{" "}
+              {t("common.as", { defaultValue: "as" })}{" "}
+              {exportType.toUpperCase()}
             </p>
           </div>
         </div>
