@@ -67,3 +67,13 @@ export const clearOldLogs = async (data) => {
   const response = await api.post('/activities/clear-old', data);
   return response.data;
 };
+
+// Log an export action with details: feature label, format, and optional menu path
+export const logExport = async ({ feature, format, menu_path }) => {
+  const response = await api.post('/activities/log-export', {
+    feature,
+    format,
+    menu_path,
+  });
+  return response.data;
+};

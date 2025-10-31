@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import HistoryFilters from "./HistoryFilters";
 import HistoryTable from "./HistoryTable";
 import HistoryStats from "./HistoryStats";
+import HistoryExportModal from "./HistoryExportModal";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   getAllActivities,
   getSystemStats,
@@ -30,6 +32,8 @@ const AdminHistoryView = () => {
   const [pagination, setPagination] = useState({});
   const [showClearModal, setShowClearModal] = useState(false);
   const [daysToKeep, setDaysToKeep] = useState(90);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     loadActivities();
@@ -71,28 +75,8 @@ const AdminHistoryView = () => {
     setFilters({ ...filters, page });
   };
 
-  const handleExport = async () => {
-    try {
-      const response = await exportAllActivities(filters);
-      const blob = new Blob([response.data], {
-        type: response.headers["content-type"] || "application/octet-stream",
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const suggest = response.headers["content-disposition"] || "";
-      const match = suggest.match(/filename="?([^";]+)"?/i);
-      const filename = match
-        ? match[1]
-        : `system-activities-${new Date().toISOString().split("T")[0]}.xlsx`;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error exporting activities:", error);
-    }
+  const handleExport = () => {
+    setShowExportModal(true);
   };
 
   const handleClearOldLogs = async () => {
@@ -189,6 +173,18 @@ const AdminHistoryView = () => {
         onPageChange={handlePageChange}
         isAdmin={true}
       />
+
+      {showExportModal && (
+        <HistoryExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          activities={activities}
+          currentPage={pagination.current_page || 1}
+          itemsPerPage={pagination.per_page || filters.per_page}
+          isAdmin={true}
+          user={user}
+        />
+      )}
 
       {/* Clear Old Logs Modal */}
       {showClearModal && (

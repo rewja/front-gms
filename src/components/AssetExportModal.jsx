@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { format, isValid, parseISO } from "date-fns";
+import { logExport } from "../services/activityService";
 import { id as idLocale } from "date-fns/locale";
 
 // Helper function to safely format dates
@@ -303,6 +304,17 @@ const AssetExportModal = ({
         "yyyyMMdd_HHmm"
       )}.pdf`;
       pdf.save(fileName);
+
+      // Log export activity
+      try {
+        await logExport({
+          feature: "Aset",
+          format: "pdf",
+          menu_path: "Admin > Manajemen Aset",
+        });
+      } catch (e) {
+        // Non-blocking: ignore logging errors
+      }
     } catch (error) {
       console.error("PDF Export Error:", error);
       console.error("Error details:", error.message, error.stack);
@@ -377,6 +389,15 @@ const AssetExportModal = ({
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       saveAs(data, fileName);
+
+      // Log export activity
+      try {
+        await logExport({
+          feature: "Aset",
+          format: "excel",
+          menu_path: "Admin > Manajemen Aset",
+        });
+      } catch (_) {}
     } catch (error) {
       console.error("Excel Export Error:", error);
       alert("Failed to export Excel. Please try again.");

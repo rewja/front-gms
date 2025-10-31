@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { format, isValid, parseISO } from "date-fns";
+import { logExport } from "../services/activityService";
 import { id as idLocale } from "date-fns/locale";
 
 // Helper function to safely format dates
@@ -177,6 +178,10 @@ const RequestExportModal = ({
         "yyyyMMdd_HHmm"
       )}.pdf`;
       pdf.save(fileName);
+
+      try {
+        await logExport({ feature: "Permintaan", format: "pdf", menu_path: "Admin > Manajemen Permintaan" });
+      } catch (_) {}
     } catch (error) {
       console.error("PDF Export Error:", error);
       alert("Failed to export PDF. Please try again.");
@@ -242,6 +247,10 @@ const RequestExportModal = ({
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       saveAs(data, fileName);
+
+      try {
+        await logExport({ feature: "Permintaan", format: "excel", menu_path: "Admin > Manajemen Permintaan" });
+      } catch (_) {}
     } catch (error) {
       console.error("Excel Export Error:", error);
       alert("Failed to export Excel. Please try again.");
