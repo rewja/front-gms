@@ -3058,7 +3058,7 @@ const AdminTodos = () => {
                       }}
                       className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      {t("todos.cancel")}
+                      {t("common.cancel", { defaultValue: "Cancel" })}
                     </button>
                     <button
                       onClick={handleSubmitEvaluation}
@@ -3682,13 +3682,13 @@ const AdminTodos = () => {
                       }}
                       className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      {t("todos.cancel")}
+                      {t("common.cancel", { defaultValue: "Cancel" })}
                     </button>
                     <button
                       type="submit"
                       className="btn-primary px-6 py-3 text-sm font-medium"
                     >
-                      {editingTodo ? t("common.update") : t("todos.create")}
+                      {editingTodo ? t("common.update") : t("common.create", { defaultValue: "Create" })}
                     </button>
                   </div>
                 </form>
@@ -4224,7 +4224,7 @@ const AdminTodos = () => {
                     className="btn-primary px-6 py-3 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                     disabled={isCreating}
                   >
-                    {t("todos.create")}
+                    {t("common.create", { defaultValue: "Create" })}
                   </button>
                 </div>
               </div>
