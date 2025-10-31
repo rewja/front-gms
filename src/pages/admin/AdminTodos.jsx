@@ -3730,21 +3730,25 @@ const AdminTodos = () => {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   try {
-                    // Confirmation summary
-                    const summary = `Title: ${routineForm.title}\nCategory: ${
+                    // Confirmation summary (localized labels)
+                    const summary = `${t("common.title", { defaultValue: "Title" })}: ${routineForm.title}\n${t("common.category", { defaultValue: "Category" })}: ${
                       routineForm.target_category
                     }${
                       routineForm.selected_user_ids?.length
                         ? ` (selected ${routineForm.selected_user_ids.length})`
                         : ""
-                    }\nRecurrence: Every ${routineForm.recurrence_interval} ${
+                    }\n${t("todos.recurrence", { defaultValue: i18n.language === "id" ? "Pengulangan" : "Recurrence" })}: ${t("todos.every", { defaultValue: "Every" })} ${routineForm.recurrence_interval} ${
                       routineForm.recurrence_unit
                     }${routineForm.recurrence_interval > 1 ? "s" : ""} × ${
                       (routineForm.recurrence_count ?? 0) || "∞"
-                    }\nStart: ${
+                    }\n${t("common.start", { defaultValue: "Start" })}: ${
                       routineForm.recurrence_start_date || "(today)"
-                    }\nWill create approximately ${routinePreviewCount} tasks this month.`;
-                    if (!window.confirm(`Apply routine changes?\n\n${summary}`))
+                    }\n${
+                      i18n.language === "id"
+                        ? `Akan membuat sekitar ${routinePreviewCount} tugas bulan ini.`
+                        : `Will create approximately ${routinePreviewCount} tasks this month.`
+                    }`;
+                    if (!window.confirm(`${t("common.applyChanges", { defaultValue: "Apply changes?" })}\n\n${summary}`))
                       return;
 
                     // If delete & recreate current month
@@ -4131,7 +4135,7 @@ const AdminTodos = () => {
                   ) : (
                     <>
                       <div>
-                        <span className="text-gray-500">Start:</span>{" "}
+                        <span className="text-gray-500">{t("common.start", { defaultValue: "Start" })}:</span>{" "}
                         {createSummary.start}
                       </div>
                       <div>
@@ -4282,10 +4286,10 @@ const AdminTodos = () => {
                     <span className="text-gray-500">{t("todos.start")}:</span>{" "}
                     {routineDetail.start}
                   </div>
-                  <div>
-                    <span className="text-gray-500">Pengulangan:</span>{" "}
-                    {routineDetail.pattern}
-                  </div>
+                    <div>
+                      <span className="text-gray-500">{t("todos.recurrence", { defaultValue: i18n.language === "id" ? "Pengulangan" : "Recurrence" })}:</span>{" "}
+                      {routineDetail.pattern}
+                    </div>
                   {routineDetail.days && (
                     <div>
                       <span className="text-gray-500">{t("todos.days")}:</span>{" "}
