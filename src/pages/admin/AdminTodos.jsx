@@ -32,7 +32,7 @@ import SkeletonLoader from "../../components/SkeletonLoader";
 import TodoExportModal from "../../components/TodoExportModal";
 
 const AdminTodos = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { success, error: notifyError } = useNotification();
   const [todos, setTodos] = useState([]);
@@ -159,7 +159,7 @@ const AdminTodos = () => {
         : null;
       if (!d || isNaN(d.getTime())) return "";
       try {
-        return d.toLocaleDateString("id-ID", {
+        return d.toLocaleDateString(i18n.language === "id" ? "id-ID" : "en-US", {
           day: "numeric",
           month: "long",
           year: "numeric",
@@ -227,7 +227,7 @@ const AdminTodos = () => {
         : null;
       if (!d || isNaN(d.getTime())) return "";
       try {
-        return d.toLocaleDateString("id-ID", {
+        return d.toLocaleDateString(i18n.language === "id" ? "id-ID" : "en-US", {
           day: "numeric",
           month: "short",
           year: "numeric",
@@ -2045,12 +2045,13 @@ const AdminTodos = () => {
                                               <div className="truncate">
                                                 {t("todos.scheduledDate")}:{" "}
                                                 {(() => {
+                                                  const localeTag = i18n.language === "id" ? "id-ID" : "en-US";
                                                   const dateText =
                                                     todoItem.scheduled_date
                                                       ? new Date(
                                                           todoItem.scheduled_date
                                                         ).toLocaleDateString(
-                                                          "id-ID",
+                                                          localeTag,
                                                           {
                                                             weekday: "long",
                                                             year: "numeric",
@@ -2059,12 +2060,11 @@ const AdminTodos = () => {
                                                           }
                                                         )
                                                       : todoItem.formatted_created_at ||
-                                                        format(
-                                                          new Date(
-                                                            todoItem.created_at
-                                                          ),
-                                                          "MMM dd, yyyy"
-                                                        );
+                                                        new Date(todoItem.created_at).toLocaleDateString(localeTag, {
+                                                          year: "numeric",
+                                                          month: "short",
+                                                          day: "numeric",
+                                                        });
                                                   const hhmm = getTargetStartTime(todoItem);
                                                   return hhmm ? `${dateText}, ${hhmm}` : dateText;
                                                 })()}
@@ -2233,25 +2233,37 @@ const AdminTodos = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                         <div className="flex items-center text-gray-600 dark:text-gray-400">
                           <User className="h-4 w-4 mr-2 text-blue-500" />
-                          <span className="font-medium">Assigned to:</span>
+                          <span className="font-medium">
+                            {t("todos.assignedTo", {
+                              defaultValue:
+                                i18n.language === "id"
+                                  ? "Ditugaskan kepada"
+                                  : "Assigned to",
+                            })}:
+                          </span>
                           <span className="ml-2 text-gray-900 dark:text-white">
                             {getUserName(todo.user_id)}
                           </span>
                         </div>
                         <div className="flex items-center text-gray-600 dark:text-gray-400">
                           <Clock className="h-4 w-4 mr-2 text-green-500" />
-                          <span className="font-medium">Tanggal Terjadwal:</span>
+                          <span className="font-medium">{t("todos.scheduledDate", { defaultValue: "Scheduled Date" })}:</span>
                           <span className="ml-2 text-gray-900 dark:text-white">
-                            {(() => {
-                              const dateText = todo.scheduled_date
-                                ? new Date(todo.scheduled_date).toLocaleDateString("id-ID", {
-                                    weekday: "long",
-                                    year: "numeric",
-                                    month: "long",
-                                    day: "numeric",
-                                  })
-                                : todo.formatted_created_at ||
-                                  format(new Date(todo.created_at), "MMM dd, yyyy");
+                          {(() => {
+                            const localeTag = i18n.language === "id" ? "id-ID" : "en-US";
+                            const dateText = todo.scheduled_date
+                              ? new Date(todo.scheduled_date).toLocaleDateString(localeTag, {
+                                  weekday: "long",
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                })
+                              : todo.formatted_created_at ||
+                                new Date(todo.created_at).toLocaleDateString(localeTag, {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                });
                               const hhmm = getTargetStartTime(todo);
                               return hhmm ? `${dateText}, ${hhmm}` : dateText;
                             })()}
@@ -2423,16 +2435,21 @@ const AdminTodos = () => {
                         <p className="text-gray-600">
                           <strong>{t("todos.scheduledDate")}:</strong>{" "}
                           {(() => {
+                            const localeTag = i18n.language === "id" ? "id-ID" : "en-US";
                             const dateText = selectedTodo.scheduled_date
                               ? new Date(
                                   selectedTodo.scheduled_date
-                                ).toLocaleDateString("id-ID", {
+                                ).toLocaleDateString(localeTag, {
                                   weekday: "long",
                                   year: "numeric",
                                   month: "long",
                                   day: "numeric",
                                 })
-                              : selectedTodo.formatted_created_at || "N/A";
+                              : selectedTodo.formatted_created_at || new Date(selectedTodo.created_at).toLocaleDateString(localeTag, {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                });
                             const hhmm = getTargetStartTime(selectedTodo);
                             return hhmm ? `${dateText}, ${hhmm}` : dateText;
                           })()}
