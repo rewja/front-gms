@@ -870,6 +870,36 @@ const AdminTodos = () => {
     return matchesSearch && matchesStatus && matchesDate;
   });
 
+  // Reset page when filters/search change to avoid empty pages
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, dateFilter, dateFrom, dateTo, todoTab]);
+
+  // Build the list actually shown in the list section (respect tab rules used below)
+  const listForDisplayBase = React.useMemo(() => {
+    const base = filteredTodos
+      .filter((t) => {
+        if (todoTab === "rutin" && statusFilter === "all") return false; // groups shown above
+        if (todoTab === "rutin") return (t.todo_type || "rutin") === "rutin";
+        if (todoTab === "tambahan") return (t.todo_type || "rutin") !== "rutin";
+        if (statusFilter === "all") return (t.todo_type || "rutin") !== "rutin"; // in "all" tab suppress routine list when groups shown
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = getTaskDate(a) || new Date(0);
+        const dateB = getTaskDate(b) || new Date(0);
+        return dateB - dateA; // newest first
+      });
+    return base;
+  }, [filteredTodos, todoTab, statusFilter]);
+
+  // Pagination math for list display
+  const totalItems = listForDisplayBase.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * itemsPerPage;
+  const listForDisplay = listForDisplayBase.slice(startIndex, startIndex + itemsPerPage);
+
   const getDuration = (todo) => {
     // Prefer formatted duration from backend
     if (todo.total_work_time_formatted) {
@@ -2144,7 +2174,7 @@ const AdminTodos = () => {
           </div>
         )}
 
-      {/* Todo List - show only tambahan when tab is tambahan, rutin when tab is rutin, all when tab is all */}
+      {/* Todo List - paginated; show only tambahan when tab is tambahan, rutin when tab is rutin, all when tab is all */}
       <div className="card">
         {loading ? (
           <SkeletonLoader type="list" lines={5} />
@@ -2152,34 +2182,7 @@ const AdminTodos = () => {
           <div className="px-6 py-4 text-sm text-red-600">{error}</div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredTodos
-              .filter((t) => {
-                // When in "rutin" tab and status is "all", we show routine groups above
-                // and suppress the individual routine list to avoid duplication
-                if (todoTab === "rutin" && statusFilter === "all") {
-                  return false;
-                }
-                // Filter by tab selection
-                if (todoTab === "rutin") {
-                  // Show routine tasks as list (groups shown separately when statusFilter is "all")
-                  return (t.todo_type || "rutin") === "rutin";
-                } else if (todoTab === "tambahan") {
-                  return (t.todo_type || "rutin") !== "rutin";
-                }
-                // For "all" tab: if routine groups are showing (when statusFilter is "all"), show only tambahan
-                // Otherwise, show all tasks
-                if (statusFilter === "all") {
-                  return (t.todo_type || "rutin") !== "rutin";
-                }
-                return true;
-              })
-              .sort((a, b) => {
-                const dateA = getTaskDate(a) || new Date(0);
-                const dateB = getTaskDate(b) || new Date(0);
-                // Newest first
-                return dateB - dateA;
-              })
-              .map((todo) => (
+            {listForDisplay.map((todo) => (
                 <li
                   key={todo.id}
                   className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mx-1 sm:mx-2 my-2 group"
@@ -2322,6 +2325,47 @@ const AdminTodos = () => {
               ))}
           </ul>
         )}
+      </div>
+
+      {/* Pagination controls */}
+      <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <span>Items per page:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(parseInt(e.target.value, 10));
+              setCurrentPage(1);
+            }}
+            className="border border-gray-300 rounded px-2 py-1"
+          >
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          <span>
+            {startIndex + 1}-{Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={safePage <= 1}
+          >
+            Prev
+          </button>
+          <span className="text-sm text-gray-600">Page {safePage} / {totalPages}</span>
+          <button
+            className="px-3 py-1 border rounded disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={safePage >= totalPages}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Detail Modal */}

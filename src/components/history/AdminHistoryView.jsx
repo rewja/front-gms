@@ -82,9 +82,10 @@ const AdminHistoryView = () => {
   const handleClearOldLogs = async () => {
     try {
       const response = await clearOldLogs({ days: daysToKeep });
+      const deletedCount = response?.deleted_count ?? response?.data?.deleted_count ?? 0;
       alert(
         t("activities.admin.logs_cleared", {
-          count: response.data.deleted_count,
+          count: deletedCount,
         })
       );
       setShowClearModal(false);
@@ -193,8 +194,11 @@ const AdminHistoryView = () => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               {t("activities.admin.clear_old_logs")}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
               {t("activities.admin.clear_old_logs_description")}
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              {`Akan menghapus log yang lebih lama dari ${daysToKeep} hari (sebelum ${new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toLocaleString()}).`}
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
