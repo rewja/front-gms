@@ -819,7 +819,11 @@ const AssetManagementTabs = () => {
                 setStatusFilter("all");
                 setCurrentPage(1);
               }}
-              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                statusFilter === "all"
+                  ? "ring-2 ring-gray-300 border-gray-300"
+                  : ""
+              }`}
             >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
@@ -843,7 +847,11 @@ const AssetManagementTabs = () => {
                     setStatusFilter("received");
                     setCurrentPage(1);
                   }}
-                  className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+                  className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                    statusFilter === "received"
+                      ? "ring-2 ring-green-400 border-green-300"
+                      : ""
+                  }`}
                 >
                   <div className="flex flex-col items-center text-center">
                     <div className="flex-shrink-0 mb-1 sm:mb-3">
@@ -865,7 +873,11 @@ const AssetManagementTabs = () => {
                     setStatusFilter("not_received");
                     setCurrentPage(1);
                   }}
-                  className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+                  className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                    statusFilter === "not_received"
+                      ? "ring-2 ring-yellow-400 border-yellow-300"
+                      : ""
+                  }`}
                 >
                   <div className="flex flex-col items-center text-center">
                     <div className="flex-shrink-0 mb-1 sm:mb-3">
@@ -889,7 +901,11 @@ const AssetManagementTabs = () => {
                 setStatusFilter("needs_repair");
                 setCurrentPage(1);
               }}
-              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                statusFilter === "needs_repair"
+                  ? "ring-2 ring-orange-400 border-orange-300"
+                  : ""
+              }`}
             >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
@@ -911,7 +927,11 @@ const AssetManagementTabs = () => {
                 setStatusFilter("needs_replacement");
                 setCurrentPage(1);
               }}
-              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                statusFilter === "needs_replacement"
+                  ? "ring-2 ring-red-400 border-red-300"
+                  : ""
+              }`}
             >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
@@ -933,7 +953,11 @@ const AssetManagementTabs = () => {
                 setStatusFilter("repairing");
                 setCurrentPage(1);
               }}
-              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                statusFilter === "repairing"
+                  ? "ring-2 ring-orange-400 border-orange-300"
+                  : ""
+              }`}
             >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
@@ -955,7 +979,11 @@ const AssetManagementTabs = () => {
                 setStatusFilter("replacing");
                 setCurrentPage(1);
               }}
-              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
+                statusFilter === "replacing"
+                  ? "ring-2 ring-blue-400 border-blue-300"
+                  : ""
+              }`}
             >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
