@@ -671,6 +671,21 @@ const AssetManagementTabs = () => {
   const filteredAssets = getFilteredAssets();
   const stats = getTabStats();
 
+  // Reset page when filters or active tab/search change to avoid empty pages
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, statusFilter, categoryFilter]);
+
+  // Derive paginated slice for display
+  const totalFiltered = filteredAssets.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * itemsPerPage;
+  const displayAssets = filteredAssets.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
@@ -798,7 +813,14 @@ const AssetManagementTabs = () => {
           </>
         ) : (
           <>
-            <div className="card p-2 sm:p-4">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("all");
+                setCurrentPage(1);
+              }}
+              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+            >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <Package className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
@@ -812,10 +834,17 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
             {!(activeTab === "all" || activeTab === "addition") && (
               <>
-                <div className="card p-2 sm:p-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("received");
+                    setCurrentPage(1);
+                  }}
+                  className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+                >
                   <div className="flex flex-col items-center text-center">
                     <div className="flex-shrink-0 mb-1 sm:mb-3">
                       <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
@@ -829,8 +858,15 @@ const AssetManagementTabs = () => {
                       </p>
                     </div>
                   </div>
-                </div>
-                <div className="card p-2 sm:p-4">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("not_received");
+                    setCurrentPage(1);
+                  }}
+                  className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+                >
                   <div className="flex flex-col items-center text-center">
                     <div className="flex-shrink-0 mb-1 sm:mb-3">
                       <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400" />
@@ -844,10 +880,17 @@ const AssetManagementTabs = () => {
                       </p>
                     </div>
                   </div>
-                </div>
+                </button>
               </>
             )}
-            <div className="card p-2 sm:p-4">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("needs_repair");
+                setCurrentPage(1);
+              }}
+              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+            >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400" />
@@ -861,8 +904,15 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="card p-2 sm:p-4">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("needs_replacement");
+                setCurrentPage(1);
+              }}
+              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+            >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
@@ -876,8 +926,15 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="card p-2 sm:p-4">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("repairing");
+                setCurrentPage(1);
+              }}
+              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+            >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <Wrench className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400" />
@@ -891,8 +948,15 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="card p-2 sm:p-4">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("replacing");
+                setCurrentPage(1);
+              }}
+              className="card p-2 sm:p-4 text-left hover:shadow-md transition-shadow"
+            >
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <RotateCcw className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
@@ -906,7 +970,7 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
           </>
         )}
       </div>
@@ -1147,7 +1211,7 @@ const AssetManagementTabs = () => {
             )}
             {!loading &&
               !error &&
-              filteredAssets.map((asset) => (
+              displayAssets.map((asset) => (
                 <li
                   key={asset.id}
                   className="px-3 sm:px-6 py-4 hover:bg-gray-50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group"
@@ -2468,11 +2532,11 @@ const AssetManagementTabs = () => {
           document.body
         )}
 
-        {/* Pagination (merged) */}
+        {/* Pagination (functional) */}
         <div className="mt-4">
           <Pagination
             currentPage={currentPage}
-            totalItems={assets.length}
+            totalItems={totalFiltered}
             itemsPerPage={itemsPerPage}
             onPageChange={(p) => setCurrentPage(p)}
             onItemsPerPageChange={(n) => {
@@ -2486,7 +2550,7 @@ const AssetManagementTabs = () => {
         <AssetExportModal
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
-          assets={assets}
+          assets={filteredAssets}
           currentPage={currentPage}
           itemsPerPage={itemsPerPage}
           selectedAssets={selectedAssets}
