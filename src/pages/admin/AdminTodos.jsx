@@ -3730,25 +3730,21 @@ const AdminTodos = () => {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   try {
-                    // Confirmation summary (localized labels)
-                    const summary = `${t("common.title", { defaultValue: "Title" })}: ${routineForm.title}\n${t("common.category", { defaultValue: "Category" })}: ${
+                    // Confirmation summary
+                    const summary = `Title: ${routineForm.title}\nCategory: ${
                       routineForm.target_category
                     }${
                       routineForm.selected_user_ids?.length
                         ? ` (selected ${routineForm.selected_user_ids.length})`
                         : ""
-                    }\n${t("todos.recurrence", { defaultValue: i18n.language === "id" ? "Pengulangan" : "Recurrence" })}: ${t("todos.every", { defaultValue: "Every" })} ${routineForm.recurrence_interval} ${
+                    }\nRecurrence: Every ${routineForm.recurrence_interval} ${
                       routineForm.recurrence_unit
                     }${routineForm.recurrence_interval > 1 ? "s" : ""} × ${
                       (routineForm.recurrence_count ?? 0) || "∞"
-                    }\n${t("common.start", { defaultValue: "Start" })}: ${
+                    }\nStart: ${
                       routineForm.recurrence_start_date || "(today)"
-                    }\n${
-                      i18n.language === "id"
-                        ? `Akan membuat sekitar ${routinePreviewCount} tugas bulan ini.`
-                        : `Will create approximately ${routinePreviewCount} tasks this month.`
-                    }`;
-                    if (!window.confirm(`${t("common.applyChanges", { defaultValue: "Apply changes?" })}\n\n${summary}`))
+                    }\nWill create approximately ${routinePreviewCount} tasks this month.`;
+                    if (!window.confirm(`Apply routine changes?\n\n${summary}`))
                       return;
 
                     // If delete & recreate current month
@@ -4135,16 +4131,16 @@ const AdminTodos = () => {
                   ) : (
                     <>
                       <div>
-                        <span className="text-gray-500">{t("common.start", { defaultValue: "Start" })}:</span>{" "}
+                        <span className="text-gray-500">{t("todos.start")}:</span>{" "}
                         {createSummary.start}
                       </div>
                       <div>
-                        <span className="text-gray-500">Pattern:</span>{" "}
+                        <span className="text-gray-500">{t("todos.pattern")}:</span>{" "}
                         {createSummary.pattern}
                       </div>
                       {createSummary.days && (
                         <div>
-                          <span className="text-gray-500">Days:</span>{" "}
+                          <span className="text-gray-500">{t("todos.days")}:</span>{" "}
                           {createSummary.days}
                         </div>
                       )}
@@ -4272,7 +4268,7 @@ const AdminTodos = () => {
                   </div>
                   {routineDetail.description && (
                     <div>
-                      <span className="text-gray-500">Description:</span>{" "}
+                      <span className="text-gray-500">{t("todos.description")}:</span>{" "}
                       {routineDetail.description}
                     </div>
                   )}
@@ -4286,10 +4282,10 @@ const AdminTodos = () => {
                     <span className="text-gray-500">{t("todos.start")}:</span>{" "}
                     {routineDetail.start}
                   </div>
-                    <div>
-                      <span className="text-gray-500">{t("todos.recurrence", { defaultValue: i18n.language === "id" ? "Pengulangan" : "Recurrence" })}:</span>{" "}
-                      {routineDetail.pattern}
-                    </div>
+                  <div>
+                    <span className="text-gray-500">{t("todos.pattern")}:</span>{" "}
+                    {routineDetail.pattern}
+                  </div>
                   {routineDetail.days && (
                     <div>
                       <span className="text-gray-500">{t("todos.days")}:</span>{" "}
