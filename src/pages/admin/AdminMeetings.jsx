@@ -289,10 +289,10 @@ const AdminMeetings = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-          Manajemen Meeting Room
+          {t('meetings.title', { defaultValue: 'Meeting Management' })}
         </h1>
         <p className="text-sm sm:text-base text-gray-600">
-          Kelola dan pantau semua booking ruang meeting - internal dan publik
+          {t('meetings.subtitle', { defaultValue: 'Monitor and manage all meetings' })}
         </p>
       </div>
 

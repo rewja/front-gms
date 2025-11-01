@@ -613,7 +613,7 @@ const resources = {
       },
       meetings: {
         title: "Meeting Management",
-        subtitle: "Monitor and manage all meetings",
+        subtitle: "Manage and monitor all meeting room bookings - internal and public",
         summaryMeetings: "Summary Meetings",
         overall: "Overall",
         totalMeetings: "Total Meetings",
@@ -1684,8 +1684,8 @@ const resources = {
         selectDate: "Pilih Tanggal",
       },
       meetings: {
-        title: "Manajemen Rapat",
-        subtitle: "Pantau dan kelola semua rapat",
+        title: "Manajemen Ruang Rapat",
+        subtitle: "Kelola dan pantau semua booking ruang rapat - internal dan publik",
         summaryMeetings: "Ringkasan Rapat",
         overall: "Keseluruhan",
         totalMeetings: "Total Rapat",
