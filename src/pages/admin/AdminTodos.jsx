@@ -2566,7 +2566,7 @@ const AdminTodos = () => {
                     </h4>
                     <div className="text-sm text-gray-600">
                       <p>
-                        <strong>Work Duration:</strong>{" "}
+                        <strong>{t("todos.workDuration")}:</strong>{" "}
                         {getDuration(selectedTodo)}
                       </p>
                     </div>
@@ -2743,7 +2743,7 @@ const AdminTodos = () => {
                       onClick={() => setShowDetailModal(false)}
                       className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      Close
+                      {t("common.close")}
                     </button>
                   </div>
                 </div>
@@ -2901,7 +2901,7 @@ const AdminTodos = () => {
                       }}
                       className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      Close
+                      {t("common.close")}
                     </button>
                     <button
                       onClick={() => {
