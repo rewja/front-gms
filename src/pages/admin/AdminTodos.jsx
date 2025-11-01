@@ -617,9 +617,17 @@ const AdminTodos = () => {
     }
   };
 
+  // Memoize user names map untuk performa lebih baik
+  const userNamesMap = React.useMemo(() => {
+    const map = new Map();
+    users.forEach((u) => {
+      map.set(u.id, u.name || `User ${u.id}`);
+    });
+    return map;
+  }, [users]);
+
   const getUserName = (userId) => {
-    const user = users.find((u) => u.id === userId);
-    return user ? user.name : `User ${userId}`;
+    return userNamesMap.get(userId) || `User ${userId}`;
   };
 
   // Logical task date helper (prefer scheduled_date when present)
@@ -842,33 +850,45 @@ const AdminTodos = () => {
     }
   };
 
-  const filteredTodos = todos.filter((todo) => {
-    const titleLc = (todo.title || "").toLowerCase();
-    const descLc = (todo.description || "").toLowerCase();
-    const userNameLc = getUserName(todo.user_id).toLowerCase();
-    const searchLc = (searchTerm || "").toLowerCase();
-    const matchesSearch =
-      titleLc.includes(searchLc) ||
-      descLc.includes(searchLc) ||
-      userNameLc.includes(searchLc);
-    const matchesStatus =
-      statusFilter === "all" || (todo.status || "").toString() === statusFilter;
-    // user filter removed
+  // Optimized search: pre-compute user names untuk performa lebih baik
+  const filteredTodos = React.useMemo(() => {
+    if (!searchTerm && statusFilter === "all" && !dateFilter && !dateFrom && !dateTo) {
+      return todos;
+    }
 
-    // Date filter - use getTaskDate for consistent date handling
-    // date filter: supports ranges
-    const matchesDate = (() => {
-      const range = getDateRange();
-      if (!range) return true;
-      const todoDate = getTaskDate(todo);
-      if (!todoDate) return false;
-      const after = todoDate >= range.start;
-      const before = !range.end || todoDate < range.end;
-      return after && before;
-    })();
+    const searchLc = (searchTerm || "").toLowerCase().trim();
+    const range = getDateRange();
 
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+    return todos.filter((todo) => {
+      // Search matching: cek title, description, dan user name
+      let matchesSearch = true;
+      if (searchLc) {
+        const titleLc = (todo.title || "").toLowerCase();
+        const descLc = (todo.description || "").toLowerCase();
+        const userNameLc = getUserName(todo.user_id).toLowerCase();
+        matchesSearch =
+          titleLc.includes(searchLc) ||
+          descLc.includes(searchLc) ||
+          userNameLc.includes(searchLc);
+      }
+
+      // Status filter
+      const matchesStatus =
+        statusFilter === "all" || (todo.status || "").toString() === statusFilter;
+
+      // Date filter
+      const matchesDate = (() => {
+        if (!range) return true;
+        const todoDate = getTaskDate(todo);
+        if (!todoDate) return false;
+        const after = todoDate >= range.start;
+        const before = !range.end || todoDate < range.end;
+        return after && before;
+      })();
+
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [todos, searchTerm, statusFilter, dateFilter, dateFrom, dateTo, userNamesMap]);
 
   // Reset page when filters/search change to avoid empty pages
   useEffect(() => {
@@ -1033,17 +1053,20 @@ const AdminTodos = () => {
   const distribution = React.useMemo(() => {
     // Compute status counts ignoring the current statusFilter,
     // but honoring search/date filters
-    const searchLc = (searchTerm || "").toLowerCase();
+    const searchLc = (searchTerm || "").toLowerCase().trim();
     const range = getDateRange();
 
     const base = todos.filter((todo) => {
-      const titleLc = (todo.title || "").toLowerCase();
-      const descLc = (todo.description || "").toLowerCase();
-      const userNameLc = getUserName(todo.user_id).toLowerCase();
-      const matchesSearch =
-        titleLc.includes(searchLc) ||
-        descLc.includes(searchLc) ||
-        userNameLc.includes(searchLc);
+      let matchesSearch = true;
+      if (searchLc) {
+        const titleLc = (todo.title || "").toLowerCase();
+        const descLc = (todo.description || "").toLowerCase();
+        const userNameLc = getUserName(todo.user_id).toLowerCase();
+        matchesSearch =
+          titleLc.includes(searchLc) ||
+          descLc.includes(searchLc) ||
+          userNameLc.includes(searchLc);
+      }
 
       const matchesDate = (() => {
         if (!range) return true;
@@ -1065,7 +1088,7 @@ const AdminTodos = () => {
       evaluating: base.filter((t) => t.status === "evaluating").length,
       completed: base.filter((t) => t.status === "completed").length,
     };
-  }, [todos, searchTerm, dateFilter, dateFrom, dateTo]);
+  }, [todos, searchTerm, dateFilter, dateFrom, dateTo, userNamesMap]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -1563,6 +1586,7 @@ const AdminTodos = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="block w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200"
+            title={t("todos.searchTodosHint")}
           />
         </div>
       </div>
