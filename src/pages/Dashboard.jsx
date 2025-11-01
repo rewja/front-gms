@@ -247,6 +247,9 @@ const Dashboard = () => {
       case "manage-todos":
         navigate("/admin/todos");
         break;
+      case "manage-meetings":
+        navigate("/admin/meetings");
+        break;
       // case "manage-visitors": // Hidden during development
       //   navigate("/admin/visitors");
       //   break;
@@ -263,6 +266,7 @@ const Dashboard = () => {
 
   const [chartData, setChartData] = useState(null);
   const [todayNotStarted, setTodayNotStarted] = useState(0);
+  const [pendingMeetingCount, setPendingMeetingCount] = useState(0);
 
   // Load today's not started count for badge on quick action
   useEffect(() => {
@@ -297,6 +301,40 @@ const Dashboard = () => {
     return () => {
       cancelled = true;
       clearInterval(interval);
+    };
+  }, [user]);
+
+  // Load pending meeting count for GA and GA Manager badge
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPendingMeetingCount() {
+      try {
+        if (!user) return;
+        if (user.role !== 'admin_ga' && user.role !== 'admin_ga_manager') {
+          setPendingMeetingCount(0);
+          return;
+        }
+        const res = await api.get("/meetings/pending-count");
+        if (!cancelled && res?.data?.count !== undefined) {
+          setPendingMeetingCount(res.data.count);
+        }
+      } catch (e) {
+        if (!cancelled) setPendingMeetingCount(0);
+      }
+    }
+    loadPendingMeetingCount();
+    const interval = setInterval(loadPendingMeetingCount, 60000);
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      loadPendingMeetingCount();
+    };
+    window.addEventListener('refreshData', handleRefresh);
+    
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('refreshData', handleRefresh);
     };
   }, [user]);
 
@@ -510,37 +548,19 @@ const Dashboard = () => {
                         </p>
                       </div>
                     </button>
-                    {/* Hidden during development */}
-                    {/* <button
-                      onClick={() => handleQuickAction("manage-visitors")}
-                      className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
-                    >
-                      <div>
-                        <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
-                          <Users className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <div className="mt-4">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                          <span
-                            className="absolute inset-0"
-                            aria-hidden="true"
-                          />
-                          {t("nav.visitors")}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          {t("visitors.subtitle")}
-                        </p>
-                      </div>
-                    </button>
                     <button
                       onClick={() => handleQuickAction("manage-meetings")}
                       className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
                     >
-                      <div>
+                      <div className="relative">
                         <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
                           <Calendar className="h-5 w-5" />
                         </span>
+                        {pendingMeetingCount > 0 && (
+                          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                            {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
+                          </span>
+                        )}
                       </div>
                       <div className="mt-4">
                         <h3 className="text-base font-medium text-gray-900 dark:text-white">
@@ -548,13 +568,13 @@ const Dashboard = () => {
                             className="absolute inset-0"
                             aria-hidden="true"
                           />
-                          {t("nav.adminMeetings")}
+                          {t("nav.meetingManagement")}
                         </h3>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                           {t("meetings.subtitle")}
                         </p>
                       </div>
-                    </button> */}
+                    </button>
                   </>
                 )}
                 {user?.role === "admin_ga" && (

@@ -21,6 +21,7 @@ import {
   Check,
   History,
   UserCheck,
+  Bell,
 } from "lucide-react";
 import Logo from "./Logo";
 
@@ -34,6 +35,7 @@ const Layout = ({ children }) => {
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const langWrapRef = useRef(null);
   const [todayNotStarted, setTodayNotStarted] = useState(0);
+  const [pendingMeetingCount, setPendingMeetingCount] = useState(0);
 
   const handleLogout = () => {
     logout();
@@ -95,6 +97,42 @@ const Layout = ({ children }) => {
     return () => {
       cancelled = true;
       clearInterval(interval);
+    };
+  }, [user, location.pathname]);
+
+  // Load pending meeting count for GA and GA Manager
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPendingMeetingCount() {
+      try {
+        if (!user) return;
+        if (user.role !== 'admin_ga' && user.role !== 'admin_ga_manager') {
+          setPendingMeetingCount(0);
+          return;
+        }
+        const res = await api.get("/meetings/pending-count");
+        if (!cancelled && res?.data?.count !== undefined) {
+          setPendingMeetingCount(res.data.count);
+        }
+      } catch (e) {
+        // silent fail for badge
+        if (!cancelled) setPendingMeetingCount(0);
+      }
+    }
+    loadPendingMeetingCount();
+    // Refresh every minute
+    const interval = setInterval(loadPendingMeetingCount, 60000);
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      loadPendingMeetingCount();
+    };
+    window.addEventListener('refreshData', handleRefresh);
+    
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('refreshData', handleRefresh);
     };
   }, [user, location.pathname]);
 
@@ -306,6 +344,7 @@ const Layout = ({ children }) => {
           <nav className="flex-1 px-4 py-4">
             {navigationItems.map((item) => {
               const isTodos = (item.href || "").includes("/todos");
+              const isMeetings = (item.href || "").includes("/admin/meetings");
               return (
                 <Link
                   key={item.name}
@@ -319,6 +358,11 @@ const Layout = ({ children }) => {
                     {isTodos && todayNotStarted > 0 && (
                       <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
                         {todayNotStarted}
+                      </span>
+                    )}
+                    {isMeetings && pendingMeetingCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
+                        {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
                       </span>
                     )}
                   </span>
@@ -354,6 +398,7 @@ const Layout = ({ children }) => {
           <nav className="flex-1 px-4 py-4">
             {navigationItems.map((item) => {
               const isTodos = (item.href || "").includes("/todos");
+              const isMeetings = (item.href || "").includes("/admin/meetings");
               return (
                 <Link
                   key={item.name}
@@ -366,6 +411,11 @@ const Layout = ({ children }) => {
                     {isTodos && todayNotStarted > 0 && (
                       <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
                         {todayNotStarted}
+                      </span>
+                    )}
+                    {isMeetings && pendingMeetingCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
+                        {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
                       </span>
                     )}
                   </span>
@@ -405,8 +455,23 @@ const Layout = ({ children }) => {
               </div>
             </div>
 
-            {/* Right side - Reload and Logout buttons */}
-            <div className="flex items-center space-x-4 sm:space-x-2">
+            {/* Right side - Notifications, Reload and Logout buttons */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Meeting Notification Bell for GA and GA Manager */}
+              {(user?.role === 'admin_ga' || user?.role === 'admin_ga_manager') && (
+                <Link
+                  to="/admin/meetings"
+                  className="relative flex items-center rounded-lg px-2 py-2 sm:px-3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
+                  title={pendingMeetingCount > 0 ? `${pendingMeetingCount} meeting requests pending` : 'No pending requests'}
+                >
+                  <Bell className="h-5 w-5" />
+                  {pendingMeetingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                      {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
+                    </span>
+                  )}
+                </Link>
+              )}
               <button
                 onClick={handleReload}
                 className="flex items-center rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
