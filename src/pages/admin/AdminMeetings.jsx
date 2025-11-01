@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Search,
   Power,
+  Play,
   Eye,
   Building,
   Filter,
@@ -111,14 +112,25 @@ const AdminMeetings = () => {
     return foundUser ? foundUser.name : `User ${userId}`;
   };
 
+  const handleForceStart = async (id) => {
+    if (!window.confirm(t('meetings.forceStartConfirm', { defaultValue: 'Are you sure you want to force start this meeting?' })))
+      return;
+    try {
+      await api.patch(`/meetings/${id}/force-start`);
+      await loadData();
+    } catch (e) {
+      alert(e?.response?.data?.message || t('meetings.forceStartFailed', { defaultValue: 'Failed to force start meeting' }));
+    }
+  };
+
   const handleForceEnd = async (id) => {
-    if (!window.confirm('Are you sure you want to force end this meeting?'))
+    if (!window.confirm(t('meetings.forceEndConfirm', { defaultValue: 'Are you sure you want to force end this meeting?' })))
       return;
     try {
       await api.patch(`/meetings/${id}/force-end`);
       await loadData();
     } catch (e) {
-      alert(e?.response?.data?.message || t('common.failedToForceEnd'));
+      alert(e?.response?.data?.message || t('meetings.forceEndFailed', { defaultValue: 'Failed to force end meeting' }));
     }
   };
 
@@ -662,7 +674,17 @@ const AdminMeetings = () => {
                             className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                           >
                             <AlertCircle className="h-4 w-4 mr-2" />
-                            Cancel
+                            {t('meetings.cancel', { defaultValue: 'Cancel' })}
+                          </button>
+                        )}
+
+                        {meeting.status === 'scheduled' && (
+                          <button
+                            onClick={() => handleForceStart(meeting.id)}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            {t('meetings.forceStart', { defaultValue: 'Force Start' })}
                           </button>
                         )}
 
@@ -672,7 +694,7 @@ const AdminMeetings = () => {
                             className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                           >
                             <Power className="h-4 w-4 mr-2" />
-                            Force End
+                            {t('meetings.forceEnd', { defaultValue: 'Force End' })}
                           </button>
                         )}
                       </div>
