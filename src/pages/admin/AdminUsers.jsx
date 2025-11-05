@@ -15,9 +15,11 @@ import {
   EyeOff,
   ChevronDown,
   Download,
+  Upload,
 } from "lucide-react";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import UserExportModal from "../../components/UserExportModal";
+import UserImportModal from "../../components/UserImportModal";
 
 const AdminUsers = () => {
   const { t } = useTranslation();
@@ -42,6 +44,7 @@ const AdminUsers = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -304,6 +307,14 @@ const AdminUsers = () => {
           >
             <Download className="h-4 w-4 mr-2" />
             {t("users.exportUsers", { defaultValue: "Export Users" })}
+          </button>
+          {/* Import Button */}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="btn-secondary w-full sm:w-auto flex items-center justify-center"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            {t("users.importUsers", { defaultValue: "Import Users" })}
           </button>
           {/* Add New User Button */}
           <button
@@ -906,6 +917,23 @@ const AdminUsers = () => {
           itemsPerPage={itemsPerPage}
           selectedUsers={[]}
           user={null}
+        />
+
+        {/* User Import Modal */}
+        <UserImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImportSuccess={async () => {
+            // Reload users after successful import
+            try {
+              const res = await api.get("/users");
+              setUsers(res.data || []);
+              setRefreshKey((prev) => prev + 1);
+              setShowImportModal(false);
+            } catch (e) {
+              console.error("Failed to reload users:", e);
+            }
+          }}
         />
     </div>
   );
