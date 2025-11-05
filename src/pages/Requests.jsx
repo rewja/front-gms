@@ -48,6 +48,7 @@ const Requests = () => {
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const [showModal, setShowModal] = useState(false);
@@ -59,7 +60,10 @@ const Requests = () => {
     description: "",
     category: "",
     quantity: 1,
+    unit_price: "",
     estimated_cost: "",
+    color: "",
+    location: "",
   });
 
   // Filter states
@@ -398,6 +402,45 @@ const Requests = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent double submission
+    if (submitLoading) return;
+
+    // Validation for required fields
+    if (!formData.title || formData.title.trim() === "") {
+      alert(t("requests.validation.titleRequired", { defaultValue: "Judul permintaan wajib diisi" }));
+      return;
+    }
+
+    if (!formData.category || formData.category === "") {
+      alert(t("requests.validation.categoryRequired", { defaultValue: "Kategori wajib diisi" }));
+      return;
+    }
+
+    if (
+      !formData.quantity ||
+      formData.quantity === "" ||
+      parseInt(formData.quantity) < 1
+    ) {
+      alert(t("requests.validation.quantityRequired", { defaultValue: "Kuantitas wajib diisi (minimal 1)" }));
+      return;
+    }
+
+    if (
+      !formData.unit_price ||
+      formData.unit_price === "" ||
+      parseFloat(formData.unit_price.replace(/\./g, "")) <= 0
+    ) {
+      alert(t("requests.validation.unitPriceRequired", { defaultValue: "Harga satuan wajib diisi" }));
+      return;
+    }
+
+    if (!formData.location || formData.location === "") {
+      alert(t("requests.validation.locationRequired", { defaultValue: "Lokasi wajib diisi" }));
+      return;
+    }
+
+    setSubmitLoading(true);
     try {
       const payload = {
         item_name: capitalizeFirst(formData.title),
@@ -407,6 +450,8 @@ const Requests = () => {
           ? parseFloat(String(formData.estimated_cost).replace(/\./g, ""))
           : null,
         category: formData.category,
+        color: formData.color || null,
+        location: formData.location,
       };
       if (editingRequest) {
         await api.patch(`/requests/${editingRequest.id}`, payload);
@@ -420,25 +465,39 @@ const Requests = () => {
         description: "",
         category: "",
         quantity: 1,
+        unit_price: "",
         estimated_cost: "",
+        color: "",
+        location: "",
       });
       setShowModal(false);
       setEditingRequest(null);
     } catch (e) {
       alert(e?.response?.data?.message || t("requests.saveFailed"));
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
   const handleEdit = (request) => {
     setEditingRequest(request);
+    
+    // Calculate unit_price from estimated_cost and quantity if available
+    const qty = request.quantity || 1;
+    const totalCost = request.estimated_cost ? parseFloat(request.estimated_cost) : 0;
+    const unitPrice = qty > 0 ? totalCost / qty : 0;
+    
     setFormData({
       title: request.item_name || "",
       description: request.reason || "",
       category: request.category || "",
-      quantity: request.quantity || 1,
+      quantity: qty,
+      unit_price: unitPrice > 0 ? String(unitPrice) : "",
       estimated_cost: request.estimated_cost
         ? String(request.estimated_cost)
         : "",
+      color: request.color || "",
+      location: request.location || "",
     });
     setShowModal(true);
   };
@@ -1456,7 +1515,10 @@ const Requests = () => {
             description: "",
             category: "",
             quantity: 1,
+            unit_price: "",
             estimated_cost: "",
+            color: "",
+            location: "",
           });
         }}
         title={
@@ -1466,6 +1528,7 @@ const Requests = () => {
         }
         onSubmit={handleSubmit}
         submitText={editingRequest ? t("common.update") : t("common.submit")}
+        isLoading={submitLoading}
         size="md"
       >
         <FormField label={t("requests.requestTitle")} required>
@@ -1490,7 +1553,7 @@ const Requests = () => {
           />
         </FormField>
 
-        <FormField label={t("common.category")}>
+        <FormField label={t("common.category")} required>
           <FormSelect
             value={formData.category}
             onChange={(e) =>
@@ -1516,32 +1579,165 @@ const Requests = () => {
         </FormField>
 
         <DetailGrid cols={2}>
-          <FormField label={t("common.quantity")}>
-            <FormInput
-              type="number"
-              min="1"
-              value={formData.quantity}
+          <FormField label={t("common.color")}>
+            <FormSelect
+              value={formData.color}
               onChange={(e) =>
-                setFormData({ ...formData, quantity: parseInt(e.target.value) })
+                setFormData({ ...formData, color: e.target.value })
               }
+              options={[
+                { value: "", label: t("assets.selectColor", { defaultValue: "Pilih Warna" }) },
+                { value: "merah", label: t("assets.colors.merah", { defaultValue: "Merah" }) },
+                { value: "biru", label: t("assets.colors.biru", { defaultValue: "Biru" }) },
+                { value: "hijau", label: t("assets.colors.hijau", { defaultValue: "Hijau" }) },
+                { value: "kuning", label: t("assets.colors.kuning", { defaultValue: "Kuning" }) },
+                { value: "hitam", label: t("assets.colors.hitam", { defaultValue: "Hitam" }) },
+                { value: "putih", label: t("assets.colors.putih", { defaultValue: "Putih" }) },
+                { value: "abu-abu", label: t("assets.colors.abu_abu", { defaultValue: "Abu-abu" }) },
+                { value: "coklat", label: t("assets.colors.coklat", { defaultValue: "Coklat" }) },
+                { value: "orange", label: t("assets.colors.orange", { defaultValue: "Orange" }) },
+                { value: "ungu", label: t("assets.colors.ungu", { defaultValue: "Ungu" }) },
+                { value: "pink", label: t("assets.colors.pink", { defaultValue: "Pink" }) },
+                { value: "emas", label: t("assets.colors.emas", { defaultValue: "Emas" }) },
+                { value: "perak", label: t("assets.colors.perak", { defaultValue: "Perak" }) },
+                { value: "bronze", label: t("assets.colors.bronze", { defaultValue: "Bronze" }) },
+                { value: "navy", label: t("assets.colors.navy", { defaultValue: "Navy" }) },
+                { value: "tosca", label: t("assets.colors.tosca", { defaultValue: "Tosca" }) },
+                { value: "lavender", label: t("assets.colors.lavender", { defaultValue: "Lavender" }) },
+                { value: "maroon", label: t("assets.colors.maroon", { defaultValue: "Maroon" }) },
+                { value: "krem", label: t("assets.colors.krem", { defaultValue: "Krem" }) },
+                { value: "lainnya", label: t("assets.colors.other", { defaultValue: "Lainnya" }) },
+              ]}
+              placeholder={t("assets.selectColor", { defaultValue: "Pilih Warna" })}
             />
           </FormField>
 
-          <FormField label={`${t("requests.totalAmount")} (Rp)`}>
-            <FormInput
-              type="text"
-              inputMode="numeric"
-              value={formatCurrencyId(formData.estimated_cost)}
+          <FormField label={t("common.location")} required>
+            <FormSelect
+              value={formData.location}
               onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  estimated_cost: String(e.target.value).replace(/\./g, ""),
-                })
+                setFormData({ ...formData, location: e.target.value })
               }
-              placeholder="0"
+              options={[
+                { value: "", label: t("assets.selectAllocation", { defaultValue: "Pilih Lokasi" }) },
+                { value: "Cikunir 08", label: "Cikunir 08" },
+                { value: "Cikunir 689", label: "Cikunir 689" },
+                { value: "Cikunir 04", label: "Cikunir 04" },
+                { value: "Cikunir 71", label: "Cikunir 71" },
+                { value: "Cikunir 10A", label: "Cikunir 10A" },
+                { value: "TTM", label: "TTM" },
+                { value: "Sauciko", label: "Sauciko" },
+                { value: "Tebet 31", label: "Tebet 31" },
+                { value: "Tebet 08", label: "Tebet 08" },
+                { value: "Rumah Valortek", label: "Rumah Valortek" },
+              ]}
+              placeholder={t("assets.selectAllocation", { defaultValue: "Pilih Lokasi" })}
             />
           </FormField>
         </DetailGrid>
+
+        <DetailGrid cols={2}>
+          <FormField label={t("common.quantity")} required>
+            <FormInput
+              type="text"
+              inputMode="numeric"
+              value={formData.quantity}
+              onChange={(e) => {
+                const inputValue = e.target.value;
+                // Allow empty input for clearing
+                if (inputValue === "") {
+                  setFormData({
+                    ...formData,
+                    quantity: "",
+                    estimated_cost: "0",
+                  });
+                  return;
+                }
+                // Only allow numbers
+                const numericValue = inputValue.replace(/[^0-9]/g, "");
+                if (numericValue === "") {
+                  setFormData({
+                    ...formData,
+                    quantity: "",
+                    estimated_cost: "0",
+                  });
+                  return;
+                }
+                const newQuantity = parseInt(numericValue) || 1;
+                const unitPrice =
+                  parseFloat(formData.unit_price.replace(/\./g, "")) || 0;
+                const newTotal = newQuantity * unitPrice;
+                setFormData({
+                  ...formData,
+                  quantity: newQuantity.toString(),
+                  estimated_cost: newTotal.toString(),
+                });
+              }}
+              onBlur={() => {
+                // Ensure minimum value of 1 when field loses focus
+                if (
+                  !formData.quantity ||
+                  formData.quantity === "" ||
+                  parseInt(formData.quantity) < 1
+                ) {
+                  const unitPrice =
+                    parseFloat(formData.unit_price.replace(/\./g, "")) || 0;
+                  const newTotal = 1 * unitPrice;
+                  setFormData({
+                    ...formData,
+                    quantity: "1",
+                    estimated_cost: newTotal.toString(),
+                  });
+                }
+              }}
+              placeholder="1"
+            />
+          </FormField>
+
+          <FormField
+            label={t("requests.estimatedUnitPrice", {
+              defaultValue: "Perkiraan Harga Satuan",
+            })}
+            required
+          >
+            <FormInput
+              type="text"
+              inputMode="numeric"
+              value={`Rp ${formatCurrencyId(formData.unit_price)}`}
+              onChange={(e) => {
+                const newUnitPrice = String(e.target.value).replace(
+                  /Rp\s*|\./g,
+                  ""
+                );
+                const quantity = formData.quantity || 1;
+                const newTotal = parseFloat(newUnitPrice) * quantity;
+                setFormData({
+                  ...formData,
+                  unit_price: newUnitPrice,
+                  estimated_cost: newTotal.toString(),
+                });
+              }}
+              placeholder="Rp 0"
+            />
+          </FormField>
+        </DetailGrid>
+
+        <FormField
+          label={t("requests.estimatedTotalPrice", {
+            defaultValue: "Perkiraan Total Harga",
+          })}
+        >
+          <FormInput
+            type="text"
+            value={`Rp ${formatCurrencyId(formData.estimated_cost)}`}
+            placeholder="Rp 0"
+            readOnly
+            className="bg-gray-50 select-text"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            {t("requests.autoCalculated", { defaultValue: "Dihitung otomatis dari Kuantitas × Harga Satuan" })}
+          </p>
+        </FormField>
       </FormModal>
 
       {/* Detail Modal with timeline */}
