@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { api } from "../../lib/api";
 import {
   Package,
@@ -38,6 +39,7 @@ import {
 
 const AdminRequests = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,8 +142,12 @@ const AdminRequests = () => {
       case "pending":
         return <Clock className="h-5 w-5 text-yellow-500" />;
       case "approved":
-        // Show as procurement icon for approved items
-        return <ShoppingCart className="h-5 w-5 text-blue-500" />;
+        // Show clock icon to indicate waiting for approval
+        return <Clock className="h-5 w-5 text-orange-500" />;
+      case "final_approved":
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case "final_rejected":
+        return <XCircle className="h-5 w-5 text-red-500" />;
       case "rejected":
         return <XCircle className="h-5 w-5 text-red-500" />;
       case "procurement":
@@ -164,8 +170,12 @@ const AdminRequests = () => {
       case "pending":
         return "bg-yellow-100 text-yellow-800";
       case "approved":
-        // Style approved as procurement
-        return "bg-blue-100 text-blue-800";
+        // Style approved as orange to indicate waiting
+        return "bg-orange-100 text-orange-800";
+      case "final_approved":
+        return "bg-green-100 text-green-800";
+      case "final_rejected":
+        return "bg-red-100 text-red-800";
       case "rejected":
         return "bg-red-100 text-red-800";
       case "procurement":
@@ -216,22 +226,30 @@ const AdminRequests = () => {
   const formatStatusLabel = (status) => {
     switch (status) {
       case "pending":
-        return "Pending";
+        return t("common.status.pending", { defaultValue: "Pending" });
       case "approved":
-        // Display approved as In Procurement per flow
-        return "In Procurement";
+        // For GA users, show that it's waiting for GA Manager approval
+        if (user?.role === "admin_ga") {
+          return t("requests.waitingGaManager", { defaultValue: "Menunggu Approval GA Manager" });
+        }
+        // For GA Manager, show that it's approved and waiting for final approval
+        return t("requests.approvedByGa", { defaultValue: "Disetujui GA - Menunggu Final Approval" });
+      case "final_approved":
+        return t("requests.finalApproved", { defaultValue: "Final Approved" });
+      case "final_rejected":
+        return t("requests.finalRejected", { defaultValue: "Final Rejected" });
       case "rejected":
-        return "Rejected";
+        return t("common.status.rejected", { defaultValue: "Rejected" });
       case "procurement":
-        return "In Procurement";
+        return t("common.status.inProcurement", { defaultValue: "In Procurement" });
       case "not_received":
-        return "Not Received";
+        return t("common.status.notReceived", { defaultValue: "Not Received" });
       case "purchased":
-        return "Purchased";
+        return t("requests.purchased", { defaultValue: "Purchased" });
       case "completed":
-        return "Completed";
+        return t("common.status.completed", { defaultValue: "Completed" });
       case "received":
-        return "Received";
+        return t("common.status.received", { defaultValue: "Received" });
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
@@ -307,9 +325,52 @@ const AdminRequests = () => {
             : req
         )
       );
-      alert("Request approved and asset created successfully!");
+      alert("Request approved. Waiting for GA Manager final approval.");
     } catch (e) {
       alert(e?.response?.data?.message || "Failed to approve");
+    }
+  };
+
+  const handleFinalApprove = async (id) => {
+    try {
+      await api.patch(`/requests/${id}/final-approve`, {
+        final_note: note || undefined,
+      });
+      // Update the local state instead of refetching
+      setRequests((prev) =>
+        prev.map((req) =>
+          req.id === id
+            ? { ...req, status: "final_approved", final_note: note || undefined }
+            : req
+        )
+      );
+      alert("Request finally approved and asset created successfully!");
+    } catch (e) {
+      alert(e?.response?.data?.message || "Failed to final approve");
+    }
+  };
+
+  const handleFinalReject = async (id) => {
+    const rejectionReason = prompt("Masukkan alasan penolakan:");
+    if (!rejectionReason || rejectionReason.trim() === "") {
+      alert("Alasan penolakan wajib diisi");
+      return;
+    }
+    try {
+      await api.patch(`/requests/${id}/final-reject`, {
+        final_rejection_reason: rejectionReason,
+      });
+      // Update the local state instead of refetching
+      setRequests((prev) =>
+        prev.map((req) =>
+          req.id === id
+            ? { ...req, status: "final_rejected", final_rejection_reason: rejectionReason }
+            : req
+        )
+      );
+      alert("Request finally rejected");
+    } catch (e) {
+      alert(e?.response?.data?.message || "Failed to final reject");
     }
   };
 
@@ -320,7 +381,12 @@ const AdminRequests = () => {
 
   const handleSubmitApprove = async () => {
     if (selectedRequest) {
-      await handleApprove(selectedRequest.id);
+      // Check if this is final approve (status is "approved") or regular approve (status is "pending")
+      if (selectedRequest.status === "approved") {
+        await handleFinalApprove(selectedRequest.id);
+      } else {
+        await handleApprove(selectedRequest.id);
+      }
       setShowApproveModal(false);
       setSelectedRequest(null);
       setNote("");
@@ -1601,9 +1667,9 @@ const AdminRequests = () => {
 
                   {/* Right Actions */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                    {/* Approve/Reject (only for pending) */}
+                    {/* Approve/Reject (only for pending) - GA can approve */}
                     <div className="flex items-center gap-1 ml-auto justify-end w-full">
-                      {request.status === "pending" && (
+                      {request.status === "pending" && (user?.role === "admin_ga" || user?.role === "admin_ga_manager" || user?.role === "super_admin") && (
                         <>
                           <button
                             onClick={() => handleApproveWithModal(request)}
@@ -1616,6 +1682,24 @@ const AdminRequests = () => {
                             className="text-red-600 hover:text-red-900 text-xs px-2 py-1 border border-red-300 rounded"
                           >
                             {t('requests.reject')}
+                          </button>
+                        </>
+                      )}
+
+                      {/* Final Approve/Reject (only for approved) - Only GA Manager can final approve */}
+                      {request.status === "approved" && (user?.role === "admin_ga_manager" || user?.role === "super_admin") && (
+                        <>
+                          <button
+                            onClick={() => handleApproveWithModal(request)}
+                            className="text-green-600 hover:text-green-900 text-xs px-2 py-1 border border-green-300 rounded font-semibold"
+                          >
+                            {t('requests.finalApprove', { defaultValue: "Final Approve" })}
+                          </button>
+                          <button
+                            onClick={() => handleFinalReject(request.id)}
+                            className="text-red-600 hover:text-red-900 text-xs px-2 py-1 border border-red-300 rounded font-semibold"
+                          >
+                            {t('requests.finalReject', { defaultValue: "Final Reject" })}
                           </button>
                         </>
                       )}
@@ -1952,12 +2036,12 @@ const AdminRequests = () => {
                   >
                     {t('requests.addNote')}
                   </button>
-                  {selectedRequest.status === "pending" && (
+                  {selectedRequest.status === "pending" && (user?.role === "admin_ga" || user?.role === "admin_ga_manager" || user?.role === "super_admin") && (
                     <>
                       <button
                         onClick={() => {
                           setShowDetailModal(false);
-                          handleApprove(selectedRequest.id);
+                          handleApproveWithModal(selectedRequest);
                         }}
                         className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm"
                       >
@@ -1971,6 +2055,29 @@ const AdminRequests = () => {
                         className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 text-sm"
                       >
                         {t('requests.reject')}
+                      </button>
+                    </>
+                  )}
+
+                  {selectedRequest.status === "approved" && (user?.role === "admin_ga_manager" || user?.role === "super_admin") && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowDetailModal(false);
+                          handleApproveWithModal(selectedRequest);
+                        }}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm font-semibold"
+                      >
+                        {t('requests.finalApprove', { defaultValue: "Final Approve" })}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDetailModal(false);
+                          handleFinalReject(selectedRequest.id);
+                        }}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 text-sm font-semibold"
+                      >
+                        {t('requests.finalReject', { defaultValue: "Final Reject" })}
                       </button>
                     </>
                   )}
@@ -1995,7 +2102,9 @@ const AdminRequests = () => {
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-medium text-gray-900">
-                      {t('requests.approveRequest')}
+                      {selectedRequest.status === "approved" 
+                        ? t('requests.finalApproveRequest', { defaultValue: "Final Approve Request" })
+                        : t('requests.approveRequest')}
                     </h3>
                     {/* Close icon removed; use Cancel button below */}
                   </div>
@@ -2038,7 +2147,9 @@ const AdminRequests = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        {t('requests.adminNotes')}
+                        {selectedRequest.status === "approved" 
+                          ? t('requests.finalNote', { defaultValue: "Catatan Final Approval" })
+                          : t('requests.adminNotes')}
                       </label>
                       <textarea
                         value={note}
@@ -2049,16 +2160,19 @@ const AdminRequests = () => {
                       />
                     </div>
 
-                    <div className="bg-blue-50 p-3 rounded-md">
-                      <p className="text-sm text-blue-800">
-                        <strong>{t('common.notes')}:</strong> {t('requests.approveConfirm', { defaultValue: 'Approving this request will' })}
-                        create an asset with code{" "}
-                        <span className="font-semibold">
-                          {nextAssetCode || "..."}
-                        </span>{" "}
-                        {t('requests.approved', { defaultValue: 'and make it available for procurement. The asset category will follow the request\'s category automatically.' })}
-                      </p>
-                    </div>
+                    {selectedRequest.status === "approved" ? (
+                      <div className="bg-blue-50 p-3 rounded-md">
+                        <p className="text-sm text-blue-800">
+                          <strong>{t('common.notes')}:</strong> {t('requests.finalApproveConfirm', { defaultValue: 'Final approving this request will create an asset and make it available for procurement.' })}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-blue-50 p-3 rounded-md">
+                        <p className="text-sm text-blue-800">
+                          <strong>{t('common.notes')}:</strong> {t('requests.approveConfirm', { defaultValue: 'Approving this request will mark it as approved and wait for GA Manager final approval.' })}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="flex justify-end space-x-3">
                       <button
@@ -2071,7 +2185,9 @@ const AdminRequests = () => {
                         onClick={handleSubmitApprove}
                         className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all"
                       >
-                        {t('requests.approve')}
+                        {selectedRequest.status === "approved" 
+                          ? t('requests.finalApprove', { defaultValue: "Final Approve" })
+                          : t('requests.approve')}
                       </button>
                     </div>
                   </div>
