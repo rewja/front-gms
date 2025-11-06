@@ -138,6 +138,8 @@ const Layout = ({ children }) => {
   }, [user, location.pathname]);
 
   // Load today's meeting count for GA and GA Manager
+  // Badge hanya muncul jika ada meeting hari ini yang sudah approved kedua-duanya
+  // dan user belum buka tab meeting hari ini
   useEffect(() => {
     let cancelled = false;
     async function loadTodayMeetingCount() {
@@ -147,18 +149,38 @@ const Layout = ({ children }) => {
           setTodayMeetingCount(0);
           return;
         }
+        
+        // Check if user already visited meetings page today
+        const todayKey = `meetings_visited_${new Date().toDateString()}`;
+        const hasVisitedToday = localStorage.getItem(todayKey) === 'true';
+        
+        // If user already visited meetings page today, don't show badge
+        if (hasVisitedToday || location.pathname === '/admin/meetings') {
+          setTodayMeetingCount(0);
+          return;
+        }
+        
         const res = await api.get("/meeting-room/bookings");
         if (!cancelled && res?.data) {
           const meetings = Array.isArray(res.data) ? res.data : [];
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           
+          // Only count meetings that:
+          // 1. Are scheduled for today
+          // 2. Have both GA and GA Manager approvals (approved)
+          // 3. Are scheduled or ongoing (not ended/canceled)
           const todayMeetings = meetings.filter((meeting) => {
             if (!meeting.start_time) return false;
             const meetingDate = new Date(meeting.start_time);
             const meetingDay = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
-            return meetingDay.getTime() === today.getTime() && 
-                   (meeting.status === 'scheduled' || meeting.status === 'ongoing');
+            
+            const isToday = meetingDay.getTime() === today.getTime();
+            const isApproved = meeting.ga_check_status === 'approved' && 
+                               meeting.ga_manager_check_status === 'approved';
+            const isActive = meeting.status === 'scheduled' || meeting.status === 'ongoing';
+            
+            return isToday && isApproved && isActive;
           });
           
           setTodayMeetingCount(todayMeetings.length);
@@ -184,6 +206,15 @@ const Layout = ({ children }) => {
       window.removeEventListener('refreshData', handleRefresh);
     };
   }, [user, location.pathname]);
+
+  // Mark meetings page as visited when user opens it
+  useEffect(() => {
+    if (location.pathname === '/admin/meetings' && (user?.role === 'admin_ga' || user?.role === 'admin_ga_manager')) {
+      const todayKey = `meetings_visited_${new Date().toDateString()}`;
+      localStorage.setItem(todayKey, 'true');
+      setTodayMeetingCount(0); // Clear badge immediately
+    }
+  }, [location.pathname, user]);
 
   // Format time for Asia/Jakarta timezone
   const formatJakartaTime = () => {

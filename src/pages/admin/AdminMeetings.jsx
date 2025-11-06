@@ -291,20 +291,38 @@ const AdminMeetings = () => {
   }, []);
 
   // Check for today's meetings and send notifications
+  // Only show notifications for meetings that are fully approved (both GA and GA Manager)
   useEffect(() => {
     if (loading || meetings.length === 0) return;
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // Check meetings that are scheduled or ongoing for today
+    // Check if user already visited this page today (notifications should only show once per day)
+    const todayKey = `meetings_notified_${new Date().toDateString()}`;
+    const hasNotifiedToday = localStorage.getItem(todayKey) === 'true';
+    
+    // Check meetings that are scheduled or ongoing for today AND fully approved
     const todayMeetings = meetings.filter((meeting) => {
       if (!meeting.start_time) return false;
       const meetingDate = new Date(meeting.start_time);
       const meetingDay = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
-      return meetingDay.getTime() === today.getTime() && 
-             (meeting.status === 'scheduled' || meeting.status === 'ongoing');
+      
+      const isToday = meetingDay.getTime() === today.getTime();
+      const isApproved = meeting.ga_check_status === 'approved' && 
+                         meeting.ga_manager_check_status === 'approved';
+      const isActive = meeting.status === 'scheduled' || meeting.status === 'ongoing';
+      
+      return isToday && isApproved && isActive;
     });
+    
+    // Mark as notified when user opens this page
+    if (!hasNotifiedToday && todayMeetings.length > 0) {
+      localStorage.setItem(todayKey, 'true');
+    }
+    
+    // Don't show notifications if user already visited today
+    if (hasNotifiedToday) return;
 
     // Check for meetings that just started (status changed to ongoing within last 5 minutes)
     todayMeetings.forEach((meeting) => {
