@@ -651,6 +651,17 @@ const AssetManagementTabs = () => {
 
   const openProcAction = (asset) => {
     setProcAsset(asset);
+    
+    // Auto-fill amount from request estimated_cost if available
+    // estimated_cost is typically the total cost (unit_price * quantity)
+    let initialAmount = "";
+    if (asset?.request?.estimated_cost) {
+      const estimatedCost = parseFloat(asset.request.estimated_cost) || 0;
+      if (estimatedCost > 0) {
+        initialAmount = String(Math.round(estimatedCost));
+      }
+    }
+    
     setProcForm({
       name: asset?.name || "",
       purchase_type: "",
@@ -661,7 +672,7 @@ const AssetManagementTabs = () => {
       store_location: "",
       supplier_number: "",
       purchase_date: "",
-      amount: "",
+      amount: initialAmount,
       notes: "",
     });
     setProcSubmitError("");
@@ -2112,7 +2123,7 @@ const AssetManagementTabs = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">
-                          {t("common.amount")} *
+                          Jumlah Harga *
                         </label>
                         <div className="relative mt-1">
                           <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
