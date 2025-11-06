@@ -28,6 +28,9 @@ import {
   Wrench,
   RotateCcw,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
   Save,
   ShoppingCart,
   PlusCircle,
@@ -68,6 +71,8 @@ const AssetManagementTabs = () => {
   const [showExportModal, setShowExportModal] = useState(false); // TODO: review this merge decision — added from friend's project
   const [selectedAssets, setSelectedAssets] = useState([]); // TODO: review this merge decision — added from friend's project
   const [selectionMode, setSelectionMode] = useState(false); // TODO: review this merge decision — added from friend's project
+  const [showSelectionDropdown, setShowSelectionDropdown] = useState(false);
+  const selectionWrapperRef = useRef(null);
   const [procAsset, setProcAsset] = useState(null);
   const [openActionForId, setOpenActionForId] = useState(null);
   const [actionMenuDirection, setActionMenuDirection] = useState("down");
@@ -862,6 +867,43 @@ const AssetManagementTabs = () => {
   const filteredAssets = getFilteredAssets();
   const stats = getTabStats();
 
+  // Export handlers
+  const handleSelectAsset = (assetId) => {
+    setSelectedAssets((prev) =>
+      prev.includes(assetId)
+        ? prev.filter((id) => id !== assetId)
+        : [...prev, assetId]
+    );
+  };
+
+  const handleSelectAllAssets = () => {
+    const currentPageAssetIds = displayAssets.map((asset) => asset.id);
+    const allSelected = currentPageAssetIds.every((id) =>
+      selectedAssets.includes(id)
+    );
+
+    if (allSelected) {
+      setSelectedAssets((prev) =>
+        prev.filter((id) => !currentPageAssetIds.includes(id))
+      );
+    } else {
+      setSelectedAssets((prev) => [
+        ...new Set([...prev, ...currentPageAssetIds]),
+      ]);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedAssets([]);
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    if (!selectionMode) {
+      setSelectedAssets([]); // Clear selection when entering selection mode
+    }
+  };
+
   // Reset page when filters or active tab/search change to avoid empty pages
   useEffect(() => {
     setCurrentPage(1);
@@ -889,16 +931,6 @@ const AssetManagementTabs = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {/* Export Button */}
-          {(user?.role === "admin_ga" || user?.role === "admin_ga_manager" || user?.role === "super_admin" || user?.role === "procurement") && (
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="btn-secondary w-full sm:w-auto flex items-center justify-center"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {t("assets.exportAssets", { defaultValue: "Export Assets" })}
-            </button>
-          )}
           {/* Add New Asset Button */}
           {user?.role === "admin_ga" && (
             <button
@@ -1001,18 +1033,7 @@ const AssetManagementTabs = () => {
           </>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusFilter("all");
-                setCurrentPage(1);
-              }}
-              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                statusFilter === "all"
-                  ? "ring-2 ring-gray-300 border-gray-300"
-                  : ""
-              }`}
-            >
+            <div className="card p-2 sm:p-4">
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <Package className="h-6 w-6 sm:h-8 sm:w-8 text-gray-400" />
@@ -1026,21 +1047,10 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </button>
+            </div>
             {!(activeTab === "all" || activeTab === "addition") && (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter("received");
-                    setCurrentPage(1);
-                  }}
-                  className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                    statusFilter === "received"
-                      ? "ring-2 ring-green-400 border-green-300"
-                      : ""
-                  }`}
-                >
+                <div className="card p-2 sm:p-4">
                   <div className="flex flex-col items-center text-center">
                     <div className="flex-shrink-0 mb-1 sm:mb-3">
                       <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-400" />
@@ -1054,19 +1064,8 @@ const AssetManagementTabs = () => {
                       </p>
                     </div>
                   </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStatusFilter("not_received");
-                    setCurrentPage(1);
-                  }}
-                  className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                    statusFilter === "not_received"
-                      ? "ring-2 ring-yellow-400 border-yellow-300"
-                      : ""
-                  }`}
-                >
+                </div>
+                <div className="card p-2 sm:p-4">
                   <div className="flex flex-col items-center text-center">
                     <div className="flex-shrink-0 mb-1 sm:mb-3">
                       <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-400" />
@@ -1080,21 +1079,10 @@ const AssetManagementTabs = () => {
                       </p>
                     </div>
                   </div>
-                </button>
+                </div>
               </>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                setStatusFilter("needs_repair");
-                setCurrentPage(1);
-              }}
-              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                statusFilter === "needs_repair"
-                  ? "ring-2 ring-orange-400 border-orange-300"
-                  : ""
-              }`}
-            >
+            <div className="card p-2 sm:p-4">
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400" />
@@ -1108,19 +1096,8 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusFilter("needs_replacement");
-                setCurrentPage(1);
-              }}
-              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                statusFilter === "needs_replacement"
-                  ? "ring-2 ring-red-400 border-red-300"
-                  : ""
-              }`}
-            >
+            </div>
+            <div className="card p-2 sm:p-4">
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <RefreshCw className="h-6 w-6 sm:h-8 sm:w-8 text-red-400" />
@@ -1134,19 +1111,8 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusFilter("repairing");
-                setCurrentPage(1);
-              }}
-              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                statusFilter === "repairing"
-                  ? "ring-2 ring-orange-400 border-orange-300"
-                  : ""
-              }`}
-            >
+            </div>
+            <div className="card p-2 sm:p-4">
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <Wrench className="h-6 w-6 sm:h-8 sm:w-8 text-orange-400" />
@@ -1160,19 +1126,8 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setStatusFilter("replacing");
-                setCurrentPage(1);
-              }}
-              className={`card p-2 sm:p-4 text-left hover:shadow-md transition-shadow ${
-                statusFilter === "replacing"
-                  ? "ring-2 ring-blue-400 border-blue-300"
-                  : ""
-              }`}
-            >
+            </div>
+            <div className="card p-2 sm:p-4">
               <div className="flex flex-col items-center text-center">
                 <div className="flex-shrink-0 mb-1 sm:mb-3">
                   <RotateCcw className="h-6 w-6 sm:h-8 sm:w-8 text-blue-400" />
@@ -1186,10 +1141,205 @@ const AssetManagementTabs = () => {
                   </p>
                 </div>
               </div>
-            </button>
+            </div>
           </>
         )}
       </div>
+
+      {/* Toolbar - Export and Selection Controls */}
+      {(user?.role === "admin_ga" || user?.role === "admin_ga_manager" || user?.role === "super_admin" || user?.role === "procurement") && (
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+          {/* Selection Mini Navbar - Mobile (dropdown) */}
+          <div className="relative flex sm:hidden mr-3 overflow-visible">
+            <button
+              onClick={() => setShowSelectionDropdown(!showSelectionDropdown)}
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <span className="mr-2">
+                {selectionMode
+                  ? `${selectedAssets.length} ${t("assets.selected", { defaultValue: "selected" })}`
+                  : t("assets.selectItems", { defaultValue: "Select Items" })}
+              </span>
+              {showSelectionDropdown ? (
+                <ChevronUp className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+
+            {showSelectionDropdown && (
+              <div
+                className={`absolute z-50 top-full left-0 right-auto w-max min-w-[14rem] max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-md shadow-lg overflow-hidden origin-top transition-[opacity,transform,max-height] duration-300 ease-in-out will-change-[opacity,transform,max-height] ${
+                  showSelectionDropdown
+                    ? "opacity-100 translate-y-0 max-h-[50vh] pointer-events-auto"
+                    : "opacity-0 -translate-y-1 max-h-0 pointer-events-none"
+                }`}
+                style={{ marginTop: showSelectionDropdown ? "0.5rem" : 0 }}
+              >
+                <div className="flex flex-col">
+                  <button
+                    onClick={toggleSelectionMode}
+                    className={`flex items-center w-full px-3 py-2 text-sm font-medium text-left whitespace-nowrap transition-colors ${
+                      selectionMode
+                        ? "text-red-600 hover:bg-red-50"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {selectionMode ? (
+                      <X className="h-4 w-4 mr-1" />
+                    ) : (
+                      <Check className="h-4 w-4 mr-1" />
+                    )}
+                    {selectionMode
+                      ? t("assets.exitSelection", { defaultValue: "Exit Selection" })
+                      : t("assets.selectionMode", { defaultValue: "Selection Mode" })}
+                  </button>
+
+                  {selectionMode && (
+                    <button
+                      onClick={handleSelectAllAssets}
+                      className="flex items-center w-full px-3 py-2 text-sm font-medium text-left text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                    >
+                      {t("assets.selectAll", { defaultValue: "Select All" })} ({displayAssets.length})
+                    </button>
+                  )}
+
+                  {selectionMode && selectedAssets.length > 0 && (
+                    <button
+                      onClick={clearSelection}
+                      className="flex items-center w-full px-3 py-2 text-sm font-medium text-left text-red-600 hover:bg-red-50 whitespace-nowrap"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      {t("assets.clear", { defaultValue: "Clear" })}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Selection Mini Navbar - Tablet/Desktop (inline expand) */}
+          <div
+            ref={selectionWrapperRef}
+            className="hidden sm:flex items-center bg-white border border-gray-300 rounded-md overflow-hidden"
+          >
+            {/* Main Button */}
+            <button
+              onClick={() => setShowSelectionDropdown(!showSelectionDropdown)}
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              {selectionMode
+                ? `${selectedAssets.length} ${t("assets.selected", { defaultValue: "selected" })}`
+                : t("assets.selectItems", { defaultValue: "Select Items" })}
+            </button>
+
+            {/* Expandable Controls */}
+            <div
+              className={`items-center flex transition-all duration-300 ease-in-out ${
+                showSelectionDropdown
+                  ? "max-w-4xl opacity-100"
+                  : "max-w-0 opacity-0 overflow-hidden"
+              }`}
+            >
+              {/* Separator */}
+              <div className="w-px h-6 bg-gray-300"></div>
+
+              {/* Selection Mode Toggle */}
+              <button
+                onClick={toggleSelectionMode}
+                className={`flex items-center px-3 py-2 text-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                  selectionMode
+                    ? "text-red-600 hover:bg-red-50"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                {selectionMode ? (
+                  <X className="h-4 w-4 mr-1" />
+                ) : (
+                  <Check className="h-4 w-4 mr-1" />
+                )}
+                {selectionMode
+                  ? t("assets.exitSelection", { defaultValue: "Exit Selection" })
+                  : t("assets.selectionMode", { defaultValue: "Selection Mode" })}
+              </button>
+
+              {/* Select All - Smooth transition */}
+              <div
+                className={`flex items-center transition-all duration-300 ease-in-out ${
+                  selectionMode
+                    ? "max-w-xs opacity-100"
+                    : "max-w-0 opacity-0 overflow-hidden"
+                }`}
+              >
+                <div className="w-px h-6 bg-gray-300"></div>
+                <button
+                  onClick={handleSelectAllAssets}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 whitespace-nowrap transition-colors"
+                >
+                  {t("assets.selectAll", { defaultValue: "Select All" })} ({displayAssets.length})
+                </button>
+              </div>
+
+              {/* Clear Selection - Smooth transition */}
+              <div
+                className={`flex items-center transition-all duration-300 ease-in-out ${
+                  selectionMode && selectedAssets.length > 0
+                    ? "max-w-xs opacity-100"
+                    : "max-w-0 opacity-0 overflow-hidden"
+                }`}
+              >
+                <div className="w-px h-6 bg-gray-300"></div>
+                <button
+                  onClick={clearSelection}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 whitespace-nowrap transition-colors"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  {t("assets.clear", { defaultValue: "Clear" })}
+                </button>
+              </div>
+            </div>
+
+            {/* Toggle Arrow */}
+            <div className="border-l border-gray-300">
+              <button
+                onClick={() => setShowSelectionDropdown(!showSelectionDropdown)}
+                className="flex items-center justify-center w-8 h-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                {showSelectionDropdown ? (
+                  <ChevronLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Export Button */}
+          <button
+            onClick={() => setShowExportModal(true)}
+            disabled={filteredAssets.length === 0}
+            className="flex items-center px-4 py-2 text-sm font-medium text-white bg-accent-600 border border-transparent rounded-md hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {t("assets.export", { defaultValue: "Export" })}
+          </button>
+        </div>
+      )}
+
+      {/* Selection Mode Indicator */}
+      {selectionMode && (
+        <div className="bg-accent-50 border border-accent-200 rounded-lg p-3 text-sm text-accent-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Check className="h-4 w-4 mr-2" />
+              {t("assets.selectionModeActive", { defaultValue: "Selection Mode Active - Click items to select" })}
+            </div>
+            <div className="text-accent-600">
+              {selectedAssets.length} of {filteredAssets.length} {t("assets.selected", { defaultValue: "selected" })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card p-3 sm:p-4">
@@ -1427,13 +1577,50 @@ const AssetManagementTabs = () => {
             )}
             {!loading &&
               !error &&
-              displayAssets.map((asset) => (
+              displayAssets.map((asset, index) => {
+                const itemNumber = (currentPage - 1) * itemsPerPage + index + 1;
+                return (
                 <li
                   key={asset.id}
-                  className="px-3 sm:px-6 py-4 hover:bg-gray-50 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 hover:shadow-sm group"
+                  onClick={(e) => {
+                    // Only handle item click if not clicking on buttons or interactive elements
+                    if (
+                      !e.target.closest("button") &&
+                      !e.target.closest('[role="button"]')
+                    ) {
+                      if (selectionMode) {
+                        handleSelectAsset(asset.id);
+                      }
+                    }
+                  }}
+                  className={`px-3 sm:px-6 py-4 transition-all duration-200 rounded-lg mx-1 sm:mx-2 my-1 group ${
+                    selectionMode
+                      ? index === 0
+                        ? "relative ml-1"
+                        : "ml-1"
+                      : ""
+                  } ${
+                    selectionMode && selectedAssets.includes(asset.id)
+                      ? "bg-accent-50 border-2 border-accent-200 shadow-sm cursor-pointer"
+                      : selectionMode
+                      ? "hover:bg-gray-100 border-2 border-transparent cursor-pointer"
+                      : "hover:bg-gray-50 hover:shadow-sm"
+                  }`}
                 >
+                  {selectionMode && index === 0 && (
+                    <span className="absolute left-[2px] top-1 bottom-1 w-px bg-gray-200 rounded-l-lg" />
+                  )}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                     <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
+                      {selectionMode && (
+                        <div className="flex-shrink-0">
+                          {selectedAssets.includes(asset.id) ? (
+                            <CheckCircle className="h-5 w-5 text-accent-600" />
+                          ) : (
+                            <div className="h-5 w-5 border-2 border-gray-300 rounded" />
+                          )}
+                        </div>
+                      )}
                       <div className="flex-shrink-0">
                         {asset.maintenance_status === "completed" ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
@@ -1687,7 +1874,8 @@ const AssetManagementTabs = () => {
                     </div>
                   </div>
                 </li>
-              ))}
+                );
+              })}
           </ul>
         )}
       </div>
@@ -1910,7 +2098,7 @@ const AssetManagementTabs = () => {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700">
-                                Metode Pembelian
+                                {t("assets.purchaseMethod")}
                               </label>
                               <input
                                 type="text"
@@ -2146,7 +2334,7 @@ const AssetManagementTabs = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        Metode Pembelian *
+                        {t("assets.purchaseMethod")} *
                       </label>
                       <FormSelect
                         required
@@ -2329,12 +2517,6 @@ const AssetManagementTabs = () => {
                       />
                     </div>
 
-                    {procSubmitError && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {procSubmitError}
-                      </p>
-                    )}
-
                     <div className="flex justify-end gap-2 pt-2">
                       <button
                         type="button"
@@ -2353,6 +2535,11 @@ const AssetManagementTabs = () => {
                           : t("common.save")}
                       </button>
                     </div>
+                    {procSubmitError && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {procSubmitError}
+                      </p>
+                    )}
                   </form>
                 </div>
               </div>
