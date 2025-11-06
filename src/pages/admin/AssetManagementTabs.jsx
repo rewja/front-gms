@@ -2604,7 +2604,7 @@ const AssetManagementTabs = () => {
                       {/* Request Section */}
                       <div className="rounded border border-gray-100 p-3">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Request
+                          {t("assets.sections.request")}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                           <div className="text-gray-500">
@@ -2618,9 +2618,9 @@ const AssetManagementTabs = () => {
                           </div>
                           <div className="text-gray-900">
                             {selectedAsset.status === "procurement"
-                              ? "Waiting purchase"
+                              ? t("assets.labels.waitingPurchase")
                               : selectedAsset.status === "shipping"
-                              ? "Purchased & shipping"
+                              ? t("assets.labels.purchasedShipping")
                               : formatStatusLabel(selectedAsset.status)}
                           </div>
                         </div>
@@ -2629,7 +2629,7 @@ const AssetManagementTabs = () => {
                       {/* Procurement Section */}
                       <div className="rounded border border-gray-100 p-3">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Procurement
+                          {t("assets.sections.procurement")}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                           <div className="text-gray-500">
@@ -2649,7 +2649,7 @@ const AssetManagementTabs = () => {
                                   "MMM dd, yyyy"
                                 )
                               : selectedAsset.status === "procurement"
-                              ? "— pending"
+                              ? `— ${t("assets.labels.pending")}`
                               : "—"}
                           </div>
                           <div className="text-gray-500">
@@ -2677,7 +2677,7 @@ const AssetManagementTabs = () => {
                         return (
                           <div className="rounded border border-gray-100 p-3">
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                              Purchase Details
+                              {t("assets.sections.purchaseDetails")}
                             </p>
                             <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                               <div className="text-gray-500">
@@ -2689,13 +2689,13 @@ const AssetManagementTabs = () => {
                               {type === "online" ? (
                                 <>
                                   <div className="text-gray-500">
-                                    Purchase App
+                                    {t("assets.labels.purchaseApp")}
                                   </div>
                                   <div className="text-gray-900">
                                     {p.purchase_app || "-"}
                                   </div>
                                   <div className="text-gray-500">
-                                    Purchase Link
+                                    {t("assets.labels.purchaseLink")}
                                   </div>
                                   <div className="text-gray-900 break-all">
                                     {p.purchase_link || "-"}
@@ -2704,13 +2704,13 @@ const AssetManagementTabs = () => {
                               ) : (
                                 <>
                                   <div className="text-gray-500">
-                                    Store Name
+                                    {t("assets.labels.storeName")}
                                   </div>
                                   <div className="text-gray-900">
                                     {p.store_name || "-"}
                                   </div>
                                   <div className="text-gray-500">
-                                    Store Location
+                                    {t("assets.labels.storeLocation")}
                                   </div>
                                   <div className="text-gray-900">
                                     {p.store_location || "-"}
@@ -2725,7 +2725,7 @@ const AssetManagementTabs = () => {
                       {/* Inventory Section */}
                       <div className="rounded border border-gray-100 p-3">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Inventory
+                          {t("assets.sections.inventory")}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                           {selectedAsset.color && (
@@ -2760,7 +2760,7 @@ const AssetManagementTabs = () => {
                           )}
                           {selectedAsset.quantity && (
                             <>
-                              <div className="text-gray-500">Quantity</div>
+                              <div className="text-gray-500">{t("assets.labels.quantity")}</div>
                               <div className="text-gray-900">
                                 {selectedAsset.quantity}
                               </div>
@@ -2772,7 +2772,7 @@ const AssetManagementTabs = () => {
                       {selectedAsset.notes && (
                         <div className="rounded border border-gray-100 p-3">
                           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                            Notes
+                            {t("assets.labels.notes")}
                           </p>
                           <p className="mt-2 whitespace-pre-wrap text-sm text-gray-900">
                             {stripPurchaseMeta(selectedAsset.notes)}
@@ -2784,7 +2784,7 @@ const AssetManagementTabs = () => {
                     <div className="mt-4 space-y-3 text-sm">
                       {selectedAsset.color && (
                         <div>
-                          <span className="text-gray-500">Color: </span>
+                          <span className="text-gray-500">{t("assets.labels.color")}: </span>
                           <span className="text-gray-900">
                             {selectedAsset.color}
                           </span>
@@ -2792,7 +2792,7 @@ const AssetManagementTabs = () => {
                       )}
                       {selectedAsset.location && (
                         <div>
-                          <span className="text-gray-500">Location: </span>
+                          <span className="text-gray-500">{t("assets.labels.location")}: </span>
                           <span className="text-gray-900">
                             {selectedAsset.location}
                           </span>
@@ -2800,7 +2800,7 @@ const AssetManagementTabs = () => {
                       )}
                       {selectedAsset.supplier && (
                         <div>
-                          <span className="text-gray-500">Supplier: </span>
+                          <span className="text-gray-500">{t("assets.labels.supplier")}: </span>
                           <span className="text-gray-900">
                             {selectedAsset.supplier}
                           </span>
@@ -2816,7 +2816,7 @@ const AssetManagementTabs = () => {
                       </div>
                       {selectedAsset.purchase_cost != null && (
                         <div>
-                          <span className="text-gray-500">Purchase Cost: </span>
+                          <span className="text-gray-500">{t("assets.labels.purchaseCost")}: </span>
                           <span className="text-gray-900">
                             Rp{" "}
                             {Number(
@@ -2827,7 +2827,7 @@ const AssetManagementTabs = () => {
                       )}
                       {selectedAsset.purchase_date && (
                         <div>
-                          <span className="text-gray-500">Purchase Date: </span>
+                          <span className="text-gray-500">{t("assets.labels.purchaseDate")}: </span>
                           <span className="text-gray-900">
                             {format(
                               new Date(selectedAsset.purchase_date),
@@ -2838,7 +2838,7 @@ const AssetManagementTabs = () => {
                       )}
                       {selectedAsset.notes && (
                         <div className="pt-2">
-                          <span className="text-gray-500">Notes: </span>
+                          <span className="text-gray-500">{t("assets.labels.notes")}: </span>
                           <span className="text-gray-900 whitespace-pre-wrap">
                             {selectedAsset.notes}
                           </span>
@@ -2854,10 +2854,10 @@ const AssetManagementTabs = () => {
                     selectedAsset.maintenance_status !== "not_requested" && (
                       <div className="rounded border border-gray-100 p-3">
                         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          Maintenance
+                          {t("assets.sections.maintenance")}
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                          <div className="text-gray-500">Status</div>
+                          <div className="text-gray-500">{t("assets.labels.status")}</div>
                           <div className="text-gray-900">
                             {selectedAsset.maintenance_status ===
                             "maintenance_pending"
@@ -2880,17 +2880,17 @@ const AssetManagementTabs = () => {
                           </div>
                           {selectedAsset.maintenance_type && (
                             <>
-                              <div className="text-gray-500">Type</div>
+                              <div className="text-gray-500">{t("assets.labels.type")}</div>
                               <div className="text-gray-900">
                                 {selectedAsset.maintenance_type === "repair"
-                                  ? "Repair"
-                                  : "Replacement"}
+                                  ? t("assets.labels.repair")
+                                  : t("assets.labels.replacement")}
                               </div>
                             </>
                           )}
                           {selectedAsset.maintenance_reason && (
                             <>
-                              <div className="text-gray-500">Reason</div>
+                              <div className="text-gray-500">{t("assets.labels.reason")}</div>
                               <div className="text-gray-900">
                                 {selectedAsset.maintenance_reason}
                               </div>
@@ -2899,7 +2899,7 @@ const AssetManagementTabs = () => {
                           {selectedAsset.maintenance_completion_notes && (
                             <>
                               <div className="text-gray-500">
-                                Completion Notes
+                                {t("assets.labels.completionNotes")}
                               </div>
                               <div className="text-gray-900">
                                 {selectedAsset.maintenance_completion_notes}
@@ -2919,7 +2919,7 @@ const AssetManagementTabs = () => {
                       }}
                       className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                     >
-                      Close
+                      {t("common.close")}
                     </button>
                   </div>
                 </div>
