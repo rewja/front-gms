@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../lib/api';
 import { useTranslatedLabels } from '../../hooks/useTranslatedLabels';
+import { useNotification } from '../../components/NotificationSystem';
 import {
   Calendar,
   Clock,
@@ -24,6 +25,7 @@ import {
 const AdminMeetings = () => {
   const { t } = useTranslation();
   const { formatStatusLabel } = useTranslatedLabels();
+  const { addNotification } = useNotification();
   const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -43,6 +45,9 @@ const AdminMeetings = () => {
   const [checkingMeeting, setCheckingMeeting] = useState(null);
   const [checkType, setCheckType] = useState(''); // 'ga' or 'ga_manager'
   const [checkNotes, setCheckNotes] = useState('');
+  
+  // Track notified meetings to avoid duplicate notifications
+  const notifiedMeetingsRef = useRef(new Set());
 
   const formatDateTime = (value) => {
     try {
@@ -284,6 +289,69 @@ const AdminMeetings = () => {
       window.removeEventListener('refreshData', handleRefreshData);
     };
   }, []);
+
+  // Check for today's meetings and send notifications
+  useEffect(() => {
+    if (loading || meetings.length === 0) return;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Check meetings that are scheduled or ongoing for today
+    const todayMeetings = meetings.filter((meeting) => {
+      if (!meeting.start_time) return false;
+      const meetingDate = new Date(meeting.start_time);
+      const meetingDay = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
+      return meetingDay.getTime() === today.getTime() && 
+             (meeting.status === 'scheduled' || meeting.status === 'ongoing');
+    });
+
+    // Check for meetings that just started (status changed to ongoing within last 5 minutes)
+    todayMeetings.forEach((meeting) => {
+      if (meeting.status === 'ongoing') {
+        const notificationKey = `started_${meeting.id}`;
+        if (notifiedMeetingsRef.current.has(notificationKey)) return;
+        
+        const startTime = new Date(meeting.start_time);
+        const timeDiff = now.getTime() - startTime.getTime();
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        // Notify if meeting started within last 5 minutes
+        if (minutesDiff >= 0 && minutesDiff <= 5) {
+          notifiedMeetingsRef.current.add(notificationKey);
+          addNotification({
+            type: 'info',
+            title: `Meeting "${meeting.agenda || 'Meeting'}" sudah dimulai`,
+            message: `Meeting di ${meeting.room_name} mulai pada ${new Date(meeting.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`,
+            duration: 10000,
+          });
+        }
+      }
+    });
+
+    // Check for scheduled meetings that will start soon (within next 15 minutes)
+    todayMeetings.forEach((meeting) => {
+      if (meeting.status === 'scheduled') {
+        const notificationKey = `upcoming_${meeting.id}`;
+        if (notifiedMeetingsRef.current.has(notificationKey)) return;
+        
+        const startTime = new Date(meeting.start_time);
+        const timeDiff = startTime.getTime() - now.getTime();
+        const minutesDiff = timeDiff / (1000 * 60);
+        
+        // Notify if meeting will start in 15 minutes or less
+        if (minutesDiff > 0 && minutesDiff <= 15) {
+          notifiedMeetingsRef.current.add(notificationKey);
+          addNotification({
+            type: 'warning',
+            title: `Meeting "${meeting.agenda || 'Meeting'}" akan dimulai segera`,
+            message: `Meeting di ${meeting.room_name} akan mulai pada ${new Date(meeting.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`,
+            duration: 10000,
+          });
+        }
+      }
+    });
+  }, [meetings, loading, addNotification]);
 
   return (
     <div className="space-y-6">

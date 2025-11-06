@@ -36,6 +36,7 @@ const Layout = ({ children }) => {
   const langWrapRef = useRef(null);
   const [todayNotStarted, setTodayNotStarted] = useState(0);
   const [pendingMeetingCount, setPendingMeetingCount] = useState(0);
+  const [todayMeetingCount, setTodayMeetingCount] = useState(0);
 
   const handleLogout = () => {
     logout();
@@ -126,6 +127,54 @@ const Layout = ({ children }) => {
     // Listen for refresh events
     const handleRefresh = () => {
       loadPendingMeetingCount();
+    };
+    window.addEventListener('refreshData', handleRefresh);
+    
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('refreshData', handleRefresh);
+    };
+  }, [user, location.pathname]);
+
+  // Load today's meeting count for GA and GA Manager
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTodayMeetingCount() {
+      try {
+        if (!user) return;
+        if (user.role !== 'admin_ga' && user.role !== 'admin_ga_manager') {
+          setTodayMeetingCount(0);
+          return;
+        }
+        const res = await api.get("/meeting-room/bookings");
+        if (!cancelled && res?.data) {
+          const meetings = Array.isArray(res.data) ? res.data : [];
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          const todayMeetings = meetings.filter((meeting) => {
+            if (!meeting.start_time) return false;
+            const meetingDate = new Date(meeting.start_time);
+            const meetingDay = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
+            return meetingDay.getTime() === today.getTime() && 
+                   (meeting.status === 'scheduled' || meeting.status === 'ongoing');
+          });
+          
+          setTodayMeetingCount(todayMeetings.length);
+        }
+      } catch (e) {
+        // silent fail for badge
+        if (!cancelled) setTodayMeetingCount(0);
+      }
+    }
+    loadTodayMeetingCount();
+    // Refresh every minute
+    const interval = setInterval(loadTodayMeetingCount, 60000);
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      loadTodayMeetingCount();
     };
     window.addEventListener('refreshData', handleRefresh);
     
@@ -355,9 +404,9 @@ const Layout = ({ children }) => {
                         {todayNotStarted}
                       </span>
                     )}
-                    {isMeetings && pendingMeetingCount > 0 && (
+                    {isMeetings && (pendingMeetingCount > 0 || todayMeetingCount > 0) && (
                       <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
-                        {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
+                        {pendingMeetingCount + todayMeetingCount > 99 ? '99+' : pendingMeetingCount + todayMeetingCount}
                       </span>
                     )}
                   </span>
@@ -408,9 +457,9 @@ const Layout = ({ children }) => {
                         {todayNotStarted}
                       </span>
                     )}
-                    {isMeetings && pendingMeetingCount > 0 && (
+                    {isMeetings && (pendingMeetingCount > 0 || todayMeetingCount > 0) && (
                       <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
-                        {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
+                        {pendingMeetingCount + todayMeetingCount > 99 ? '99+' : pendingMeetingCount + todayMeetingCount}
                       </span>
                     )}
                   </span>
@@ -457,12 +506,16 @@ const Layout = ({ children }) => {
                 <Link
                   to="/admin/meetings"
                   className="relative flex items-center rounded-lg px-2 py-2 sm:px-3 text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors duration-200"
-                  title={pendingMeetingCount > 0 ? `${pendingMeetingCount} meeting requests pending` : 'No pending requests'}
+                  title={
+                    pendingMeetingCount > 0 || todayMeetingCount > 0
+                      ? `${pendingMeetingCount} pending, ${todayMeetingCount} meeting hari ini`
+                      : 'No pending requests'
+                  }
                 >
                   <Bell className="h-5 w-5" />
-                  {pendingMeetingCount > 0 && (
+                  {(pendingMeetingCount > 0 || todayMeetingCount > 0) && (
                     <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold rounded-full bg-red-500 text-white">
-                      {pendingMeetingCount > 99 ? '99+' : pendingMeetingCount}
+                      {pendingMeetingCount + todayMeetingCount > 99 ? '99+' : pendingMeetingCount + todayMeetingCount}
                     </span>
                   )}
                 </Link>
