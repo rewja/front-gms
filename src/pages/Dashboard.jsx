@@ -32,9 +32,9 @@ const Dashboard = () => {
     async function load() {
       if (!user) return;
       
-      // Simple cache: don't refetch if data was loaded within last 30 seconds
+      // Simple cache: don't refetch if data was loaded within last 60 seconds
       const now = Date.now();
-      if (lastFetchTime && (now - lastFetchTime) < 30000 && stats.length > 0) {
+      if (lastFetchTime && (now - lastFetchTime) < 60000 && stats.length > 0) {
         setLoading(false);
         return;
       }
@@ -90,27 +90,20 @@ const Dashboard = () => {
         } else if (user.role === "admin_ga" || user.role === "admin_ga_manager" || user.role === "super_admin") {
           console.log("Loading admin dashboard data...");
           
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout')), 30000)
-          );
-          
-          const [userStats, todoStats, assetStats] = await Promise.race([
-            Promise.all([
-              api.get("/users/stats/global").catch(err => {
-                console.error("Users stats error:", err);
-                return { data: { monthly: [], yearly: [] } };
-              }),
-              api.get("/todos/stats/global").catch(err => {
-                console.error("Todos stats error:", err);
-                return { data: { daily: [], monthly: [], yearly: [], status: [] } };
-              }),
-              api.get("/assets/stats").catch(err => {
-                console.error("Assets stats error:", err);
-                return { data: { by_status: [] } };
-              }),
-            ]),
-            timeoutPromise
+          // Load all stats in parallel with individual error handling
+          const [userStats, todoStats, assetStats] = await Promise.all([
+            api.get("/users/stats/global").catch(err => {
+              console.error("Users stats error:", err);
+              return { data: { monthly: [], yearly: [] } };
+            }),
+            api.get("/todos/stats/global").catch(err => {
+              console.error("Todos stats error:", err);
+              return { data: { daily: [], monthly: [], yearly: [], status: [] } };
+            }),
+            api.get("/assets/stats").catch(err => {
+              console.error("Assets stats error:", err);
+              return { data: { by_status: [] } };
+            }),
           ]);
           const cards = [
             {
@@ -151,10 +144,17 @@ const Dashboard = () => {
             setLastFetchTime(Date.now());
             setLoading(false);
           }
-        } else if (user.role === "admin_ga" || user.role === "admin_ga_manager" || user.role === "super_admin") {
+        } else if (user.role === "procurement") {
+          console.log("Loading procurement dashboard data...");
           const [procStats, assetStats] = await Promise.all([
-            api.get("/procurements/stats"),
-            api.get("/assets/stats").catch(() => ({ data: { by_status: [] } })),
+            api.get("/procurements/stats").catch(err => {
+              console.error("Procurements stats error:", err);
+              return { data: { monthly: { count: [], amount: [] } } };
+            }),
+            api.get("/assets/stats").catch(err => {
+              console.error("Assets stats error:", err);
+              return { data: { by_status: [] } };
+            }),
           ]);
           const cards = [
             {
@@ -192,6 +192,12 @@ const Dashboard = () => {
           if (!cancelled) {
             setStats(cards);
             setLastFetchTime(Date.now());
+            setLoading(false);
+          }
+        } else {
+          // Unknown role - set empty stats and stop loading
+          if (!cancelled) {
+            setStats([]);
             setLoading(false);
           }
         }
@@ -274,6 +280,8 @@ const Dashboard = () => {
     async function loadBadge() {
       try {
         if (!user) return;
+        // Only load todos badge for users with 'user' role (todos endpoint requires 'user' role)
+        if (user.role !== "user") return;
         const res = await api.get("/todos");
         const list = res?.data?.data || res?.data || [];
         const today = new Date();
@@ -294,7 +302,9 @@ const Dashboard = () => {
           (t) => (t.status || "").toString() === "not_started" && isRunnableToday(t)
         ).length;
         if (!cancelled) setTodayNotStarted(count);
-      } catch (e) {}
+      } catch (e) {
+        // Silent fail for badge - 403 is expected for non-user roles
+      }
     }
     loadBadge();
     const interval = setInterval(loadBadge, 60000);
@@ -572,6 +582,54 @@ const Dashboard = () => {
                         </h3>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                           {t("meetings.subtitle")}
+                        </p>
+                      </div>
+                    </button>
+                  </>
+                )}
+                {user?.role === "procurement" && (
+                  <>
+                    <button
+                      onClick={() => handleQuickAction("procurement-requests")}
+                      className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
+                    >
+                      <div>
+                        <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                          <Building className="h-5 w-5" />
+                        </span>
+                      </div>
+                      <div className="mt-4">
+                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                          <span
+                            className="absolute inset-0"
+                            aria-hidden="true"
+                          />
+                          {t("nav.assetManagement")}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          {t("assets.subtitle")}
+                        </p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => handleQuickAction("procurement-assets")}
+                      className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
+                    >
+                      <div>
+                        <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                          <Package className="h-5 w-5" />
+                        </span>
+                      </div>
+                      <div className="mt-4">
+                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                          <span
+                            className="absolute inset-0"
+                            aria-hidden="true"
+                          />
+                          {t("procurement.title")}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          {t("procurement.subtitle")}
                         </p>
                       </div>
                     </button>

@@ -67,6 +67,8 @@ const Layout = ({ children }) => {
     async function loadTodosCount() {
       try {
         if (!user) return;
+        // Only load todos badge for users with 'user' role (todos endpoint requires 'user' role)
+        if (user.role !== "user") return;
         const res = await api.get("/todos");
         const list = res?.data?.data || res?.data || [];
         const today = new Date();
@@ -88,7 +90,7 @@ const Layout = ({ children }) => {
         ).length;
         if (!cancelled) setTodayNotStarted(count);
       } catch (e) {
-        // silent fail for badge
+        // Silent fail for badge - 403 is expected for non-user roles
       }
     }
     loadTodosCount();
