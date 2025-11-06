@@ -76,12 +76,16 @@ const AssetManagementTabs = () => {
     purchase_type: "",
     purchase_link: "",
     purchase_app: "",
+    custom_app_name: "",
     store_name: "",
     store_location: "",
+    supplier_number: "",
     purchase_date: "",
     amount: "",
     notes: "",
   });
+  const [procSubmitLoading, setProcSubmitLoading] = useState(false);
+  const [procSubmitError, setProcSubmitError] = useState("");
   // Maintenance completion modal (admin/procurement)
   const [maintCompleteTarget, setMaintCompleteTarget] = useState(null);
   const [showMaintCompleteModal, setShowMaintCompleteModal] = useState(false);
@@ -220,18 +224,24 @@ const AssetManagementTabs = () => {
 
   const isProcurementRelevant = (asset) => {
     if (!asset) return false;
-    // Exclude completed maintenance items from procurement
-    if (asset.maintenance_status === "completed") return false;
-    return (
+
+    const isExcluded =
+      asset.maintenance_status === "completed" ||
+      asset.maintenance_status === "rejected";
+    const isIncluded =
       asset.status === "shipping" ||
       asset.status === "procurement" ||
       asset.status === "repairing" ||
       asset.status === "replacing" ||
-      asset.status === "needs_repair" ||
-      asset.status === "needs_replacement" ||
-      asset.maintenance_status === "pending" ||
-      asset.maintenance_status === "in_progress"
-    );
+      (asset.status === "needs_repair" &&
+        asset.maintenance_status === "approved") ||
+      (asset.status === "needs_replacement" &&
+        asset.maintenance_status === "approved") ||
+      asset.maintenance_status === "in_progress";
+
+    // Exclude completed and rejected maintenance items from procurement
+    if (isExcluded) return false;
+    return isIncluded;
   };
 
   // Filter assets based on active tab
@@ -370,6 +380,116 @@ const AssetManagementTabs = () => {
     const digits = String(value).replace(/[^0-9]/g, "");
     if (!digits) return "";
     return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const ecommercePlatforms = [
+    { value: "tokopedia", label: "Tokopedia", domains: ["tokopedia.com"] },
+    {
+      value: "shopee",
+      label: "Shopee",
+      domains: ["shopee.co.id", "shopee.com"],
+    },
+    { value: "blibli", label: "Blibli", domains: ["blibli.com"] },
+    { value: "bukalapak", label: "Bukalapak", domains: ["bukalapak.com"] },
+    {
+      value: "lazada",
+      label: "Lazada",
+      domains: ["lazada.co.id", "lazada.com"],
+    },
+    { value: "jdid", label: "JD.ID", domains: ["jd.id"] },
+    {
+      value: "zalora",
+      label: "Zalora",
+      domains: ["zalora.co.id", "zalora.com"],
+    },
+    { value: "bhinneka", label: "Bhinneka", domains: ["bhinneka.com"] },
+    { value: "orami", label: "Orami", domains: ["orami.co.id"] },
+    { value: "sociolla", label: "Sociolla", domains: ["sociolla.com"] },
+    {
+      value: "amazon",
+      label: "Amazon",
+      domains: ["amazon.com", "amazon.co.id"],
+    },
+    { value: "alibaba", label: "Alibaba", domains: ["alibaba.com"] },
+    { value: "other", label: "Other", domains: [] },
+  ];
+
+  // Auto-detect e-commerce platform from URL
+  const detectEcommerceFromUrl = (url) => {
+    if (!url) return "";
+
+    try {
+      const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
+      const domain = urlObj.hostname.toLowerCase().replace("www.", "");
+
+      for (const platform of ecommercePlatforms) {
+        if (
+          platform.domains.some((d) => domain.includes(d) || d.includes(domain))
+        ) {
+          return platform.value;
+        }
+      }
+
+      // If not found in predefined list, extract domain name for "other"
+      const domainParts = domain.split(".");
+      if (domainParts.length >= 2) {
+        return domainParts[domainParts.length - 2]; // Get main domain name
+      }
+
+      return "other";
+    } catch {
+      return "";
+    }
+  };
+
+  // Handle purchase link change with auto-detection
+  const handlePurchaseLinkChange = (url) => {
+    // Auto-detect and update purchase_app if URL is valid
+    if (url.trim()) {
+      const detectedApp = detectEcommerceFromUrl(url);
+
+      // Check if it's a known platform first
+      const platform = ecommercePlatforms.find(
+        (p) => p.value === detectedApp && p.value !== "other"
+      );
+
+      if (platform) {
+        // Known platform detected
+        setProcForm((prev) => ({
+          ...prev,
+          purchase_link: url,
+          purchase_app: platform.value,
+          custom_app_name: "", // Clear custom name when auto-detected
+          purchase_type: prev.purchase_type || "online",
+        }));
+      } else if (detectedApp && detectedApp !== "other" && detectedApp !== "") {
+        // Custom domain detected (not in our predefined list)
+        setProcForm((prev) => ({
+          ...prev,
+          purchase_link: url,
+          purchase_app: "other",
+          custom_app_name: capitalizeFirst(detectedApp),
+          purchase_type: prev.purchase_type || "online",
+        }));
+      } else {
+        // Unknown or invalid URL, set to other with empty custom name
+        setProcForm((prev) => ({
+          ...prev,
+          purchase_link: url,
+          purchase_app: "other",
+          custom_app_name: "",
+          purchase_type: prev.purchase_type || "online",
+        }));
+      }
+    } else {
+      // URL is empty, reset to default state
+      setProcForm((prev) => ({
+        ...prev,
+        purchase_link: url,
+        purchase_app: "",
+        custom_app_name: "",
+      }));
+    }
   };
 
   // Parse procurement notes saved during purchase to structured fields
@@ -536,12 +656,15 @@ const AssetManagementTabs = () => {
       purchase_type: "",
       purchase_link: "",
       purchase_app: "",
+      custom_app_name: "",
       store_name: "",
       store_location: "",
+      supplier_number: "",
       purchase_date: "",
       amount: "",
       notes: "",
     });
+    setProcSubmitError("");
     setShowProcActionModal(true);
   };
 
@@ -557,26 +680,67 @@ const AssetManagementTabs = () => {
 
   const handleProcActionSubmit = async (e) => {
     e.preventDefault();
+    if (procSubmitLoading) return;
+    setProcSubmitError("");
     if (!procAsset?.request_items_id) {
-      alert(t("notifications.assetNotLinkedToRequest"));
+      setProcSubmitError(t("notifications.assetNotLinkedToRequest"));
       return;
     }
     if (!procForm.purchase_type) {
-      alert(t("notifications.choosePurchaseType"));
+      setProcSubmitError(t("notifications.choosePurchaseType"));
       return;
     }
     if (!procForm.purchase_date) {
-      alert(t("notifications.enterPurchaseDate"));
+      setProcSubmitError(t("notifications.enterPurchaseDate"));
       return;
     }
+    if (!procForm.amount || parseFloat(String(procForm.amount).replace(/\./g, "")) <= 0) {
+      setProcSubmitError(t("notifications.enterAmount"));
+      return;
+    }
+    if (procForm.purchase_type === "online") {
+      if (!procForm.purchase_app) {
+        setProcSubmitError(t("notifications.chooseEcommerceApp"));
+        return;
+      }
+      if (!procForm.purchase_link) {
+        setProcSubmitError(t("notifications.enterPurchaseLink"));
+        return;
+      }
+      if (procForm.purchase_app === "other" && !procForm.custom_app_name) {
+        setProcSubmitError(t("notifications.enterEcommerceAppName"));
+        return;
+      }
+    } else if (procForm.purchase_type === "offline") {
+      if (!procForm.store_name) {
+        setProcSubmitError(t("notifications.enterSupplier"));
+        return;
+      }
+      if (!procForm.store_location) {
+        setProcSubmitError(t("notifications.enterAddress"));
+        return;
+      }
+      if (!procForm.supplier_number) {
+        setProcSubmitError(t("notifications.enterSupplierNumber"));
+        return;
+      }
+    }
     try {
-      const purchaseApp = capitalizeFirst(procForm.purchase_app);
+      setProcSubmitLoading(true);
       const storeName = capitalizeFirst(procForm.store_name);
       const storeLocation = capitalizeFirst(procForm.store_location);
       const noteText = capitalizeFirst(procForm.notes);
 
+      // Determine the final app name
+      const finalAppName =
+        procForm.purchase_app === "other"
+          ? capitalizeFirst(procForm.custom_app_name)
+          : ecommercePlatforms.find((p) => p.value === procForm.purchase_app)
+              ?.label || capitalizeFirst(procForm.purchase_app);
+
       const payload = {
         request_items_id: procAsset.request_items_id,
+        asset_id: procAsset.id,
         purchase_date: new Date(procForm.purchase_date)
           .toISOString()
           .slice(0, 10),
@@ -585,10 +749,11 @@ const AssetManagementTabs = () => {
           : 0,
         notes: noteText?.trim() || "",
         purchase_type: procForm.purchase_type,
-        purchase_app: purchaseApp,
+        purchase_app: finalAppName,
         purchase_link: procForm.purchase_link,
         store_name: storeName,
         store_location: storeLocation,
+        supplier_number: procForm.supplier_number?.trim() || "",
       };
 
       await api.post("/procurements", payload);
@@ -596,10 +761,25 @@ const AssetManagementTabs = () => {
       setAssets(res.data || []);
       setShowProcActionModal(false);
       setProcAsset(null);
+      setProcForm({
+        name: "",
+        purchase_type: "",
+        purchase_link: "",
+        purchase_app: "",
+        custom_app_name: "",
+        store_name: "",
+        store_location: "",
+        supplier_number: "",
+        purchase_date: "",
+        amount: "",
+        notes: "",
+      });
     } catch (err) {
       const msg = err?.response?.data?.message || t("common.failedToSave");
       const detail = err?.response?.data?.error;
-      alert(detail ? `${msg}: ${detail}` : msg);
+      setProcSubmitError(detail ? `${msg}: ${detail}` : msg);
+    } finally {
+      setProcSubmitLoading(false);
     }
   };
 
@@ -787,11 +967,8 @@ const AssetManagementTabs = () => {
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            <Wrench className="h-3 w-3 sm:h-4 sm:w-4 inline mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">{t("nav.procurement")}</span>
-            <span className="sm:hidden">
-              {t("assets.tabs.procShort", { defaultValue: "Proc" })}
-            </span>
+            <ShoppingCart className="h-3 w-3 sm:h-4 sm:w-4 inline mr-2" />
+            <span title={t("nav.procurement")}>{t("nav.procurement")}</span>
             <span className="ml-1">
               ({assets.filter((a) => isProcurementRelevant(a)).length})
             </span>
@@ -1402,19 +1579,20 @@ const AssetManagementTabs = () => {
                             {asset.status === "procurement" && (
                               <button
                                 onClick={() => openProcAction(asset)}
-                                className="px-2 py-1 rounded-md text-white bg-accent-600 hover:bg-accent-700 text-xs font-medium shadow-sm"
-                                title={t("common.purchase")}
+                                className="px-3 py-1.5 rounded-md text-white bg-accent-600 hover:bg-accent-700 text-xs font-medium shadow-sm"
+                                title={t("assets.purchase")}
                               >
-                                Purchase
+                                <ShoppingCart className="h-3 w-3 mr-1 inline" />
+                                {t("assets.purchase")}
                               </button>
                             )}
                             {asset.status === "shipping" && (
                               <button
                                 onClick={() => handleMarkReceived(asset)}
-                                className="px-2 py-1 rounded-md text-white bg-green-600 hover:bg-green-700 text-xs font-medium shadow-sm"
+                                className="px-3 py-1.5 rounded-md text-white bg-green-600 hover:bg-green-700 text-xs font-medium shadow-sm"
                                 title={t("common.markAsReceived")}
                               >
-                                Received
+                                {t("common.markAsReceived")}
                               </button>
                             )}
                           </>
@@ -1721,7 +1899,7 @@ const AssetManagementTabs = () => {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700">
-                                {t("assets.acquisitionMethod")}
+                                Metode Pembelian
                               </label>
                               <input
                                 type="text"
@@ -1934,34 +2112,52 @@ const AssetManagementTabs = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">
-                          {t("common.amount")} (Rp)
+                          {t("common.amount")} *
                         </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={formatCurrencyId(procForm.amount)}
-                          onChange={(e) =>
-                            setProcForm({ ...procForm, amount: e.target.value })
-                          }
-                          placeholder="0"
-                          className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        />
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
+                            Rp
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            required
+                            value={formatCurrencyId(procForm.amount)}
+                            onChange={(e) =>
+                              setProcForm({ ...procForm, amount: e.target.value })
+                            }
+                            placeholder="0"
+                            className="block w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                          />
+                        </div>
                       </div>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700">
-                        {t("assets.acquisitionMethod")} *
+                        Metode Pembelian *
                       </label>
                       <FormSelect
                         required
                         value={procForm.purchase_type}
-                        onChange={(e) =>
-                          setProcForm({
-                            ...procForm,
-                            purchase_type: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // If switching to offline, clear online-only fields
+                          if (value === "offline") {
+                            setProcForm((prev) => ({
+                              ...prev,
+                              purchase_type: value,
+                              purchase_app: "",
+                              custom_app_name: "",
+                              purchase_link: "",
+                            }));
+                          } else {
+                            setProcForm((prev) => ({
+                              ...prev,
+                              purchase_type: value,
+                            }));
+                          }
+                        }}
                         options={[
                           { value: "", label: t("common.selectOption") },
                           { value: "online", label: "Online" },
@@ -1972,79 +2168,139 @@ const AssetManagementTabs = () => {
                     </div>
 
                     {procForm.purchase_type === "online" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            {t("assets.purchase", { defaultValue: "Purchase" })}{" "}
-                            App
-                          </label>
-                          <input
-                            type="text"
-                            value={procForm.purchase_app}
-                            onChange={(e) =>
-                              setProcForm({
-                                ...procForm,
-                                purchase_app: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          />
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              {t("assets.ecommerceApp")} *
+                            </label>
+                            <FormSelect
+                              required
+                              value={procForm.purchase_app}
+                              onChange={(e) =>
+                                setProcForm({
+                                  ...procForm,
+                                  purchase_app: e.target.value,
+                                  custom_app_name:
+                                    e.target.value === "other"
+                                      ? procForm.custom_app_name
+                                      : "",
+                                })
+                              }
+                              options={[
+                                { value: "", label: t("common.selectOption") },
+                                ...ecommercePlatforms.map((platform) => ({
+                                  value: platform.value,
+                                  label: platform.label,
+                                })),
+                              ]}
+                              placeholder={t("common.selectOption")}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              {t("assets.purchase", {
+                                defaultValue: "Purchase",
+                              })}{" "}
+                              Link *
+                            </label>
+                            <input
+                              type="url"
+                              required
+                              value={procForm.purchase_link}
+                              onChange={(e) =>
+                                handlePurchaseLinkChange(e.target.value)
+                              }
+                              placeholder={t("assets.purchaseLinkPlaceholder")}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            {t("assets.purchase", { defaultValue: "Purchase" })}{" "}
-                            Link
-                          </label>
-                          <input
-                            type="url"
-                            value={procForm.purchase_link}
-                            onChange={(e) =>
-                              setProcForm({
-                                ...procForm,
-                                purchase_link: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          />
-                        </div>
-                      </div>
+
+                        {/* Custom app name field when "Other" is selected */}
+                        {procForm.purchase_app === "other" && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              {t("assets.ecommerceApp")} Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={procForm.custom_app_name}
+                              onChange={(e) =>
+                                setProcForm({
+                                  ...procForm,
+                                  custom_app_name: e.target.value,
+                                })
+                              }
+                              placeholder={t("assets.ecommerceAppPlaceholder")}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
 
                     {procForm.purchase_type === "offline" && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              {t("assets.supplier")} *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={procForm.store_name}
+                              onChange={(e) =>
+                                setProcForm({
+                                  ...procForm,
+                                  store_name: e.target.value,
+                                })
+                              }
+                              placeholder={t("assets.supplierPlaceholder")}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">
+                              {t("common.address")} *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={procForm.store_location}
+                              onChange={(e) =>
+                                setProcForm({
+                                  ...procForm,
+                                  store_location: e.target.value,
+                                })
+                              }
+                              placeholder={t("assets.addressPlaceholder")}
+                              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+                            />
+                          </div>
+                        </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-700">
-                            {t("assets.supplier")}
+                            {t("assets.supplierNumber")} *
                           </label>
                           <input
                             type="text"
-                            value={procForm.store_name}
+                            required
+                            value={procForm.supplier_number}
                             onChange={(e) =>
                               setProcForm({
                                 ...procForm,
-                                store_name: e.target.value,
+                                supplier_number: e.target.value,
                               })
                             }
+                            placeholder={t("assets.supplierNumberPlaceholder")}
                             className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
                           />
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            {t("common.address")}
-                          </label>
-                          <input
-                            type="text"
-                            value={procForm.store_location}
-                            onChange={(e) =>
-                              setProcForm({
-                                ...procForm,
-                                store_location: e.target.value,
-                              })
-                            }
-                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          />
-                        </div>
-                      </div>
+                      </>
                     )}
 
                     <div>
@@ -2056,10 +2312,17 @@ const AssetManagementTabs = () => {
                         onChange={(e) =>
                           setProcForm({ ...procForm, notes: e.target.value })
                         }
+                        placeholder={t("assets.notesPlaceholder")}
                         rows={3}
                         className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
                       />
                     </div>
+
+                    {procSubmitError && (
+                      <p className="mt-2 text-sm text-red-600">
+                        {procSubmitError}
+                      </p>
+                    )}
 
                     <div className="flex justify-end gap-2 pt-2">
                       <button
@@ -2071,9 +2334,12 @@ const AssetManagementTabs = () => {
                       </button>
                       <button
                         type="submit"
-                        className="px-4 py-2 text-sm rounded-md bg-accent-600 text-white hover:bg-accent-700 shadow"
+                        disabled={procSubmitLoading}
+                        className="px-4 py-2 text-sm rounded-md bg-accent-600 text-white hover:bg-accent-700 shadow disabled:opacity-60"
                       >
-                        {t("common.save")}
+                        {procSubmitLoading
+                          ? t("common.saving", { defaultValue: "Menyimpan..." })
+                          : t("common.save")}
                       </button>
                     </div>
                   </form>
