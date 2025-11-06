@@ -194,11 +194,6 @@ const Layout = ({ children }) => {
           href: "/procurement",
           icon: ShoppingCart,
         },
-        {
-          name: t("nav.assetManagement"),
-          href: "/admin/asset-management",
-          icon: Building,
-        },
         { name: t("nav.history"), href: "/history", icon: History },
       ];
     }
