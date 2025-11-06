@@ -41,6 +41,7 @@ const resources = {
           complete_todo: "Completed Todo",
           evaluate: "Evaluated",
           create_routine_batch: "Created Routine Batch",
+          purchase: "Purchased",
         },
         models: {
           todo: "Todo",
@@ -1195,6 +1196,7 @@ const resources = {
           complete_todo: "Menyelesaikan Tugas",
           evaluate: "Mengevaluasi",
           create_routine_batch: "Membuat Batch Rutin",
+          purchase: "Membeli",
         },
         models: {
           todo: "Tugas",

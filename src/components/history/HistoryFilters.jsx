@@ -22,6 +22,7 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
       { value: "import", label: t("activities.actions.import") },
       { value: "login", label: t("activities.actions.login") },
       { value: "logout", label: t("activities.actions.logout") },
+      { value: "purchase", label: t("activities.actions.purchase") },
     ],
     [t]
   );
