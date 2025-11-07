@@ -87,13 +87,13 @@ const AdminMeetings = () => {
   const getStatusText = (status) => {
     switch (status) {
       case 'scheduled':
-        return 'Terjadwal';
+        return t('meetings.status.scheduled');
       case 'ongoing':
-        return 'Berlangsung';
+        return t('meetings.status.ongoing');
       case 'ended':
-        return 'Selesai';
+        return t('meetings.status.ended');
       case 'canceled':
-        return 'Dibatalkan';
+        return t('meetings.status.canceled');
       default:
         return status;
     }
@@ -166,18 +166,18 @@ const AdminMeetings = () => {
       setCheckNotes('');
       await loadData();
     } catch (e) {
-      alert(e?.response?.data?.message || 'Gagal melakukan checking');
+      alert(e?.response?.data?.message || t('meetings.checkFailed'));
     }
   };
 
   const handleCancelMeeting = async (id) => {
-    if (!window.confirm('Apakah Anda yakin ingin membatalkan meeting ini?')) return;
+    if (!window.confirm(t('meetings.cancelConfirmMessage'))) return;
     
     try {
       await api.patch(`/meetings/${id}/cancel`);
       await loadData();
     } catch (e) {
-      alert(e?.response?.data?.message || 'Gagal membatalkan meeting');
+      alert(e?.response?.data?.message || t('meetings.cancelFailed'));
     }
   };
 
@@ -259,7 +259,7 @@ const AdminMeetings = () => {
   );
 
   const fixedRoomOptions = [
-    { value: '', label: 'Semua Ruang' },
+    { value: '', label: t('meetings.allRoomsOption') },
     { value: 'R. Meeting 1', label: '08 - R. Meeting 1' },
     { value: 'R. Meeting 2', label: '08 - R. Meeting 2' },
     { value: 'R. Meeting Command Centre', label: '08 - R. Meeting Command Centre' },
@@ -412,7 +412,7 @@ const AdminMeetings = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      Terjadwal
+                      {t('meetings.status.scheduled')}
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {scheduledMeetings.length}
@@ -439,7 +439,7 @@ const AdminMeetings = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      Berlangsung
+                      {t('meetings.status.ongoing')}
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {ongoingMeetings.length}
@@ -466,7 +466,7 @@ const AdminMeetings = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      Selesai
+                      {t('meetings.status.ended')}
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {endedMeetings.length}
@@ -495,7 +495,7 @@ const AdminMeetings = () => {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">
-                      Dibatalkan
+                      {t('meetings.status.canceled')}
                     </p>
                     <p className="text-lg font-medium text-gray-900">
                       {canceledMeetings.length}
@@ -513,7 +513,7 @@ const AdminMeetings = () => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
             <Filter className="h-5 w-5 mr-2" />
-            Filter Jadwal
+            {t('meetings.filterSchedule')}
           </h2>
           <button
             onClick={updateStatusAutomatically}
@@ -531,7 +531,7 @@ const AdminMeetings = () => {
             </div>
             <input
               type="text"
-              placeholder="Cari agenda, ruang, atau pemohon..."
+              placeholder={t('meetings.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
@@ -558,11 +558,11 @@ const AdminMeetings = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
             >
-              <option value="">Semua Status</option>
-              <option value="scheduled">Terjadwal</option>
-              <option value="ongoing">Berlangsung</option>
-              <option value="ended">Selesai</option>
-              <option value="canceled">Dibatalkan</option>
+              <option value="">{t('meetings.allStatusOption')}</option>
+              <option value="scheduled">{t('meetings.status.scheduled')}</option>
+              <option value="ongoing">{t('meetings.status.ongoing')}</option>
+              <option value="ended">{t('meetings.status.ended')}</option>
+              <option value="canceled">{t('meetings.status.canceled')}</option>
             </select>
           </div>
           
@@ -572,9 +572,9 @@ const AdminMeetings = () => {
               onChange={(e) => setBookingTypeFilter(e.target.value)}
               className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
             >
-              <option value="">Semua Tipe</option>
-              <option value="internal">Internal</option>
-              <option value="external">Eksternal</option>
+              <option value="">{t('meetings.allTypesOption')}</option>
+              <option value="internal">{t('meetings.internal')}</option>
+              <option value="external">{t('meetings.external')}</option>
             </select>
           </div>
           <div className="relative">
@@ -583,9 +583,9 @@ const AdminMeetings = () => {
               onChange={(e) => setPriorityFilter(e.target.value)}
               className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
             >
-              <option value="">Semua Prioritas</option>
-              <option value="reguler">Reguler</option>
-              <option value="vip">VIP</option>
+              <option value="">{t('meetings.allPrioritiesOption')}</option>
+              <option value="reguler">{t('meetings.regular')}</option>
+              <option value="vip">{t('meetings.vip')}</option>
             </select>
           </div>
           
@@ -609,11 +609,11 @@ const AdminMeetings = () => {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">
-                Meeting Aktif
+                {t('meetings.activeMeetingsAlert')}
               </h3>
               <div className="mt-2 text-sm text-yellow-700">
                 <p>
-                  Ada {ongoingMeetings.length} meeting yang sedang berlangsung:
+                  {t('meetings.activeMeetingsMessage', { count: ongoingMeetings.length })}
                 </p>
                 <ul className="mt-1 list-disc list-inside">
                   {ongoingMeetings.map((meeting) => (
@@ -669,10 +669,10 @@ const AdminMeetings = () => {
                           {getStatusText(meeting.status)}
                         </span>
                         <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                          {meeting.booking_type === 'internal' ? 'Internal' : (meeting.booking_type === 'public' || meeting.booking_type === 'external') ? 'Eksternal' : (meeting.booking_type || '-')}
+                          {meeting.booking_type === 'internal' ? t('meetings.internal') : (meeting.booking_type === 'public' || meeting.booking_type === 'external') ? t('meetings.external') : (meeting.booking_type || '-')}
                         </span>
                         <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-violet-100 text-violet-800">
-                          {normalizePriority(meeting.prioritas) === 'vip' ? 'VIP' : 'Reguler'}
+                          {normalizePriority(meeting.prioritas) === 'vip' ? t('meetings.vip') : t('meetings.regular')}
                         </span>
                       </div>
                     </div>
@@ -687,7 +687,7 @@ const AdminMeetings = () => {
                         <span className="font-semibold text-gray-900">{meeting.room_name}</span>
                       </div>
                       <div className="text-sm text-gray-600">
-                        <span className="font-medium">Pemohon:</span> {meeting.organizer_name || getUserName(meeting.user_id, meeting.user)}
+                        <span className="font-medium">{t('meetings.applicant')}:</span> {meeting.organizer_name || getUserName(meeting.user_id, meeting.user)}
                       </div>
                     </div>
 
@@ -728,7 +728,7 @@ const AdminMeetings = () => {
                           className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                         >
                           <Eye className="h-4 w-4 mr-2" />
-                          Detail
+                          {t('meetings.detail')}
                         </button>
 
                         {meeting.ga_check_status === 'pending' && (
@@ -792,7 +792,7 @@ const AdminMeetings = () => {
             
             {filteredMeetings.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-gray-500">Tidak ada data booking yang sesuai dengan filter</p>
+                <p className="text-gray-500">{t('meetings.noMatchingBookings')}</p>
               </div>
             )}
           </div>
@@ -803,7 +803,7 @@ const AdminMeetings = () => {
       <DetailModal
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
-        title="Detail Meeting"
+        title={t('meetings.meetingDetail')}
         size="md"
       >
         <div className="space-y-4">
@@ -815,39 +815,39 @@ const AdminMeetings = () => {
                 <span className="text-gray-900 font-mono">#{selectedMeeting?.booking_id || selectedMeeting?.id || 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Ruang Meeting</span>
+                <span className="text-gray-600 font-medium">{t('meetings.meetingRoom')}</span>
                 <span className="text-gray-900">{selectedMeeting?.room_name || 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Agenda</span>
+                <span className="text-gray-600 font-medium">{t('meetings.agenda')}</span>
                 <span className="text-gray-900">{selectedMeeting?.agenda || 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Tanggal</span>
+                <span className="text-gray-600 font-medium">{t('meetings.date')}</span>
                 <span className="text-gray-900">{selectedMeeting?.start_time ? formatDateOnly(selectedMeeting.start_time) : 'N/A'}</span>
               </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Waktu</span>
+                <span className="text-gray-600 font-medium">{t('meetings.time')}</span>
                 <span className="text-gray-900">{selectedMeeting?.start_time ? new Date(selectedMeeting.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'} - {selectedMeeting?.end_time ? new Date(selectedMeeting.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Nama Pemohon</span>
+                <span className="text-gray-600 font-medium">{t('meetings.applicantName')}</span>
                 <span className="text-gray-900">{selectedMeeting?.organizer_name || (selectedMeeting?.user ? selectedMeeting.user.name : `User ${selectedMeeting?.user_id || 'N/A'}`)}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Status</span>
+                <span className="text-gray-600 font-medium">{t('common.statusLabel')}</span>
                 <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(selectedMeeting?.status)}`}>{getStatusText(selectedMeeting?.status) || 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                <span className="text-gray-600 font-medium">Tipe Booking</span>
-                <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{selectedMeeting?.booking_type === 'internal' ? 'Internal' : (selectedMeeting?.booking_type === 'public' || selectedMeeting?.booking_type === 'external') ? 'Eksternal' : (selectedMeeting?.booking_type || 'N/A')}</span>
+                <span className="text-gray-600 font-medium">{t('meetings.bookingType')}</span>
+                <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">{selectedMeeting?.booking_type === 'internal' ? t('meetings.internal') : (selectedMeeting?.booking_type === 'public' || selectedMeeting?.booking_type === 'external') ? t('meetings.external') : (selectedMeeting?.booking_type || 'N/A')}</span>
               </div>
             {selectedMeeting?.prioritas && (
                 <div className="flex items-center justify-between border-b border-gray-200 pb-2 text-sm">
-                  <span className="text-gray-600 font-medium">Prioritas</span>
-                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">{normalizePriority(selectedMeeting?.prioritas) === 'vip' ? 'VIP' : 'Reguler'}</span>
+                  <span className="text-gray-600 font-medium">{t('meetings.priority')}</span>
+                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">{normalizePriority(selectedMeeting?.prioritas) === 'vip' ? t('meetings.vip') : t('meetings.regular')}</span>
                 </div>
               )}
             </div>
@@ -856,7 +856,7 @@ const AdminMeetings = () => {
           {/* Kebutuhan Lainnya */}
           {selectedMeeting?.lainnya_detail && (
             <div className="mt-2 border-t border-gray-300 pt-3">
-              <div className="text-sm font-medium text-gray-700">Kebutuhan Lainnya</div>
+              <div className="text-sm font-medium text-gray-700">{t('meetings.otherNeeds')}</div>
               <div className="text-sm text-gray-900 mt-1">{selectedMeeting.lainnya_detail}</div>
             </div>
           )}
@@ -865,22 +865,22 @@ const AdminMeetings = () => {
           {(selectedMeeting?.kebutuhan?.length > 0 || selectedMeeting?.makanan_detail || selectedMeeting?.minuman_detail || selectedMeeting?.lainnya_detail) && (
             <div className="mt-2">
               <div className="bg-gray-50 border border-gray-300 rounded-md">
-                <div className="px-3 py-2 border-b border-gray-300 text-sm font-semibold text-gray-900">Detail Tambahan</div>
+                <div className="px-3 py-2 border-b border-gray-300 text-sm font-semibold text-gray-900">{t('meetings.additionalDetails')}</div>
                 <div className="p-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
-                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Kebutuhan Tambahan</div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">{t('meetings.additionalNeeds')}</div>
                     <div className="mt-1 text-sm text-gray-900">{(selectedMeeting.kebutuhan || []).join(', ') || '-'}</div>
                   </div>
                   <div>
-                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Detail Makanan</div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">{t('meetings.foodDetails')}</div>
                     <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.makanan_detail || '-'}</div>
                   </div>
                   <div>
-                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Detail Minuman</div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">{t('meetings.drinkDetails')}</div>
                     <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.minuman_detail || '-'}</div>
                   </div>
                   <div>
-                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">Kebutuhan Lainnya</div>
+                    <div className="block text-xs font-medium text-gray-600 uppercase tracking-wider">{t('meetings.otherNeeds')}</div>
                     <div className="mt-1 text-sm text-gray-900">{selectedMeeting?.lainnya_detail || '-'}</div>
                   </div>
                 </div>
@@ -892,7 +892,7 @@ const AdminMeetings = () => {
           {(selectedMeeting?.spk_file || selectedMeeting?.spk_file_path) && (
             <div className="mt-2 border-t border-gray-300 pt-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Dokumen SPK</span>
+                <span className="text-sm font-medium text-gray-700">{t('meetings.spkDocument')}</span>
                 <div className="flex items-center gap-3">
                   {(() => {
                     const url = typeof selectedMeeting.spk_file === 'string' ? selectedMeeting.spk_file : (selectedMeeting.spk_file_path ? `http://localhost:8000/storage/${selectedMeeting.spk_file_path}` : null);
@@ -903,7 +903,7 @@ const AdminMeetings = () => {
                         rel="noopener noreferrer"
                         className="inline-flex items-center px-3 py-2 rounded text-white text-sm bg-[#b71c1c] hover:bg-[#a31616]"
                       >
-                        Lihat SPK
+                        {t('meetings.viewSPK')}
                       </a>
                     ) : null;
                   })()}

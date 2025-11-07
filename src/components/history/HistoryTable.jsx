@@ -80,7 +80,7 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
     const newValues = activity.new_values || {};
     const todoType = newValues.todo_type;
     if (!todoType) return null;
-    const label = todoType === 'rutin' ? 'Rutin' : 'Tambahan';
+    const label = todoType === 'rutin' ? t('activities.todoTypes.routine') : t('activities.todoTypes.additional');
     const color = todoType === 'rutin' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200';
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${color} ml-2`}>
@@ -97,8 +97,16 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
     if (nv.occurrence_count != null) chips.push(`${nv.occurrence_count} occurrence`);
     if (nv.recurrence_interval && nv.recurrence_unit) chips.push(`${nv.recurrence_interval} ${nv.recurrence_unit}`);
     if (Array.isArray(nv.days_of_week) && nv.days_of_week.length) {
-      const idDaysShort = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
-      const days = nv.days_of_week.slice().sort((a,b)=>a-b).map(d=>idDaysShort[d]||d).join('·');
+      const daysShort = [
+        t('common.days.sundayShort'),
+        t('common.days.mondayShort'),
+        t('common.days.tuesdayShort'),
+        t('common.days.wednesdayShort'),
+        t('common.days.thursdayShort'),
+        t('common.days.fridayShort'),
+        t('common.days.saturdayShort')
+      ];
+      const days = nv.days_of_week.slice().sort((a,b)=>a-b).map(d=>daysShort[d]||d).join('·');
       chips.push(days);
     }
     if (!chips.length) return null;
@@ -142,18 +150,18 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Jenis Aktivitas
+                {t('activities.table.activityType')}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Deskripsi
+                {t('activities.table.description')}
               </th>
               {isAdmin && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Pengguna
+                  {t('activities.table.user')}
                 </th>
               )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Waktu
+                {t('activities.table.time')}
               </th>
             </tr>
           </thead>
@@ -215,28 +223,28 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
               disabled={pagination.current_page === 1}
               className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              {t('activities.pagination.previous')}
             </button>
             <button
               onClick={() => onPageChange(pagination.current_page + 1)}
               disabled={pagination.current_page === pagination.last_page}
               className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {t('activities.pagination.next')}
             </button>
           </div>
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                Showing{' '}
+                {t('activities.pagination.showing')}{' '}
                 <span className="font-medium">{(pagination.current_page - 1) * pagination.per_page + 1}</span>
-                {' '}to{' '}
+                {' '}{t('activities.pagination.to')}{' '}
                 <span className="font-medium">
                   {Math.min(pagination.current_page * pagination.per_page, pagination.total)}
                 </span>
-                {' '}of{' '}
+                {' '}{t('activities.pagination.of')}{' '}
                 <span className="font-medium">{pagination.total}</span>
-                {' '}results
+                {' '}{t('activities.pagination.results')}
               </p>
             </div>
             <div>
@@ -246,7 +254,7 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
                   disabled={pagination.current_page === 1}
                   className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="sr-only">Previous</span>
+                  <span className="sr-only">{t('activities.pagination.previous')}</span>
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -277,7 +285,7 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
                   disabled={pagination.current_page === pagination.last_page}
                   className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="sr-only">Next</span>
+                  <span className="sr-only">{t('activities.pagination.next')}</span>
                   <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>

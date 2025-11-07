@@ -198,7 +198,10 @@ const AdminHistoryView = () => {
               {t("activities.admin.clear_old_logs_description")}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {`Akan menghapus log yang lebih lama dari ${daysToKeep} hari (sebelum ${new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toLocaleString()}).`}
+              {t("activities.admin.willDeleteLogs", {
+                days: daysToKeep,
+                date: new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toLocaleString()
+              })}
             </p>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -227,7 +230,7 @@ const AdminHistoryView = () => {
                 onClick={() => setShowClearModal(false)}
                 className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           </div>

@@ -30,6 +30,28 @@ import { format } from "date-fns";
 import SimpleChart from "../../components/SimpleChart";
 import SkeletonLoader from "../../components/SkeletonLoader";
 import TodoExportModal from "../../components/TodoExportModal";
+import AdminTodoStats from "../../components/todos/AdminTodoStats";
+import AdminTodoFilters from "../../components/todos/AdminTodoFilters";
+import {
+  formatTargetCategory,
+  formatRoutinePattern,
+  formatRoutinePatternShort,
+  getTaskDate,
+  formatStatusLabel,
+  getDateRange,
+  calculateAutomaticRating,
+  getDuration,
+  getTargetStartTime,
+} from "../../components/todos/todoHelpers";
+import { getStatusColor } from "../../components/todos/TodoStatusIcon";
+import AdminTodoTabs from "../../components/todos/AdminTodoTabs";
+import TodoDetailModal from "../../components/todos/modals/TodoDetailModal";
+import TodoEvidenceModal from "../../components/todos/modals/TodoEvidenceModal";
+import TodoEvaluationModal from "../../components/todos/modals/TodoEvaluationModal";
+import RoutineDetailModal from "../../components/todos/modals/RoutineDetailModal";
+import CreateConfirmModal from "../../components/todos/modals/CreateConfirmModal";
+import CreateEditTodoModal from "../../components/todos/modals/CreateEditTodoModal";
+import EditRoutineModal from "../../components/todos/modals/EditRoutineModal";
 
 const AdminTodos = () => {
   const { t, i18n } = useTranslation();
@@ -108,154 +130,12 @@ const AdminTodos = () => {
   const [modalUserSearch, setModalUserSearch] = useState("");
   const [assignAllInCategory, setAssignAllInCategory] = useState(false);
 
-  // Helpers to display translated category labels instead of raw keys
-  const formatTargetCategory = (category) => {
-    switch (category) {
-      case "ob":
-        return t("todos.officeBoy", { defaultValue: "Office Boy" });
-      case "driver":
-        return t("todos.driverEquipment", { defaultValue: "Driver" });
-      case "security":
-        return t("todos.securityEquipment", { defaultValue: "Security" });
-      case "magang_pkl":
-        return t("common.employeeTypes.magang_pkl", {
-          defaultValue: "Magang/PKL",
-        });
-      case "all":
-        return t("common.allCategories", { defaultValue: "All Categories" });
-      default:
-        return category || t("common.unknown", { defaultValue: "Unknown" });
-    }
-  };
+  // Helper function wrapped for translation
+  const formatTargetCategoryLocal = (category) => formatTargetCategory(category, t);
 
-  const _formatRecurrence = (t) => {
-    const interval = t?.recurrence_interval || 1;
-    const unitRaw = t?.recurrence_unit || "day";
-    const unit = unitRaw.charAt(0).toUpperCase() + unitRaw.slice(1);
-    const countVal = t?.recurrence_count;
-    const count =
-      countVal === 0 || countVal === null || countVal === undefined
-        ? "∞"
-        : countVal;
-    return `Every ${interval} ${unit}${interval > 1 ? "s" : ""} × ${count}`;
-  };
-
-  // Detailed routine pattern in Indonesian, including days and start date
-  const formatRoutinePattern = (t) => {
-    if (!t) return "";
-    const interval = t.recurrence_interval || 1;
-    const unit = t.recurrence_unit || "day";
-    const unitId =
-      unit === "day"
-        ? "hari"
-        : unit === "week"
-        ? "minggu"
-        : unit === "month"
-        ? "bulan"
-        : "tahun";
-    const startStr = (() => {
-      const d = t.recurrence_start_date
-        ? new Date(t.recurrence_start_date)
-        : null;
-      if (!d || isNaN(d.getTime())) return "";
-      try {
-        return d.toLocaleDateString(i18n.language === "id" ? "id-ID" : "en-US", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
-      } catch {
-        const dd = String(d.getDate());
-        const mm = String(d.getMonth() + 1);
-        const yy = d.getFullYear();
-        return `${dd}/${mm}/${yy}`;
-      }
-    })();
-    let daysStr = "";
-    if (
-      unit === "week" &&
-      Array.isArray(t.days_of_week) &&
-      t.days_of_week.length > 0
-    ) {
-      const idDays = [
-        "Minggu",
-        "Senin",
-        "Selasa",
-        "Rabu",
-        "Kamis",
-        "Jumat",
-        "Sabtu",
-      ];
-      const sorted = t.days_of_week.slice().sort((a, b) => a - b);
-      const dayNames = sorted.map((d) => idDays[d] || d);
-      if (dayNames.length === 1) {
-        daysStr = dayNames[0];
-      } else if (dayNames.length === 2) {
-        daysStr = dayNames.join(" dan ");
-      } else {
-        daysStr =
-          dayNames.slice(0, -1).join(", ") +
-          " dan " +
-          dayNames[dayNames.length - 1];
-      }
-    }
-    const pattern = `Setiap ${interval} ${unitId}`;
-    if (unit === "week" && daysStr) {
-      return startStr
-        ? `${pattern} pada hari ${daysStr}, berlaku mulai ${startStr}`
-        : `${pattern} pada hari ${daysStr}`;
-    }
-    return startStr ? `${pattern}, berlaku mulai ${startStr}` : pattern;
-  };
-
-  // Short, mobile-friendly routine label
-  const formatRoutinePatternShort = (t) => {
-    if (!t) return "";
-    const interval = t.recurrence_interval || 1;
-    const unit = t.recurrence_unit || "day";
-    const unitShort =
-      unit === "day"
-        ? "H"
-        : unit === "week"
-        ? "Mgg"
-        : unit === "month"
-        ? "Bln"
-        : "Thn";
-    const startStr = (() => {
-      const d = t.recurrence_start_date
-        ? new Date(t.recurrence_start_date)
-        : null;
-      if (!d || isNaN(d.getTime())) return "";
-      try {
-        return d.toLocaleDateString(i18n.language === "id" ? "id-ID" : "en-US", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
-      } catch {
-        const dd = String(d.getDate());
-        const mm = String(d.getMonth() + 1);
-        const yy = d.getFullYear();
-        return `${dd}/${mm}/${yy}`;
-      }
-    })();
-    let daysStr = "";
-    if (
-      unit === "week" &&
-      Array.isArray(t.days_of_week) &&
-      t.days_of_week.length > 0
-    ) {
-      const idDaysShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-      const sorted = t.days_of_week.slice().sort((a, b) => a - b);
-      daysStr = sorted.map((d) => idDaysShort[d] || d).join("·");
-    }
-    // examples: "1 Mgg • Sen·Sel • 1 Okt 2025" or "1 H • 1 Okt 2025"
-    const base = `${interval} ${unitShort}`;
-    if (unit === "week" && daysStr) {
-      return `${base} • ${daysStr} • ${startStr}`;
-    }
-    return `${base} • ${startStr}`;
-  };
+  // Helper functions wrapped for i18n
+  const formatRoutinePatternLocal = (t) => formatRoutinePattern(t, i18n);
+  const formatRoutinePatternShortLocal = (t) => formatRoutinePatternShort(t, i18n);
 
   // Filters for group user list inside cards
   const [_groupUserSearch, _setGroupUserSearch] = useState("");
@@ -597,25 +477,6 @@ const AdminTodos = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "not_started":
-        return "bg-gray-100 text-gray-800 border border-gray-200";
-      case "in_progress":
-        return "bg-blue-100 text-blue-800 border border-blue-200";
-      case "hold":
-        return "bg-pink-100 text-pink-800 border border-pink-200";
-      case "checking":
-        return "bg-orange-100 text-orange-800 border border-orange-200";
-      case "evaluating":
-        return "bg-purple-100 text-purple-800 border border-purple-200";
-
-      case "completed":
-        return "bg-green-100 text-green-800 border border-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 border border-gray-200";
-    }
-  };
 
   // Memoize user names map untuk performa lebih baik
   const userNamesMap = React.useMemo(() => {
@@ -630,36 +491,8 @@ const AdminTodos = () => {
     return userNamesMap.get(userId) || `User ${userId}`;
   };
 
-  // Logical task date helper (prefer scheduled_date when present)
-  const getTaskDate = (todo) => {
-    const dateStr = todo?.scheduled_date || todo?.created_at;
-    return dateStr ? new Date(dateStr) : null;
-  };
-
-  const formatStatusLabel = (status) => {
-    if (!status) return t("common.unknown", { defaultValue: "Unknown" });
-
-    switch (status) {
-      case "not_started":
-        return t("todos.notStarted");
-      case "in_progress":
-        return t("todos.inProgress");
-      case "hold":
-        return t("todos.hold");
-      case "checking":
-        return t("todos.checking");
-      case "evaluating":
-        return t("todos.evaluating");
-      case "reworked":
-        return t("todos.reworked");
-      case "completed":
-        return t("todos.completed");
-      default:
-        return status
-          .replace("_", " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase());
-    }
-  };
+  // Helper functions wrapped for translation
+  const formatStatusLabelLocal = (status) => formatStatusLabel(status, t);
 
   const handleEdit = (todo) => {
     setEditingTodo(todo);
@@ -809,46 +642,8 @@ const AdminTodos = () => {
     }
   };
 
-  const getDateRange = () => {
-    if (dateFrom || dateTo) {
-      const start = dateFrom ? new Date(dateFrom) : null;
-      const end = dateTo ? new Date(dateTo) : null;
-      if (start) start.setHours(0, 0, 0, 0);
-      if (end) end.setHours(23, 59, 59, 999);
-      if (!start && !end) return null;
-      return { start: start || new Date(0), end };
-    }
-
-    const filter = dateFilter;
-    if (!filter || filter === "") return null;
-    const now = new Date();
-    switch (filter) {
-      case "today": {
-        const start = new Date();
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setDate(end.getDate() + 1);
-        return { start, end };
-      }
-      case "this_week": {
-        const start = new Date(now);
-        start.setDate(now.getDate() - now.getDay());
-        start.setHours(0, 0, 0, 0);
-        return { start, end: null };
-      }
-      case "this_month": {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { start, end: null };
-      }
-      case "this_year": {
-        const start = new Date(now.getFullYear(), 0, 1);
-        return { start, end: null };
-      }
-      default: {
-        return null;
-      }
-    }
-  };
+  // Use imported getDateRange helper
+  const getDateRangeLocal = () => getDateRange(dateFilter, dateFrom, dateTo);
 
   // Optimized search: pre-compute user names untuk performa lebih baik
   const filteredTodos = React.useMemo(() => {
@@ -920,135 +715,7 @@ const AdminTodos = () => {
   const startIndex = (safePage - 1) * itemsPerPage;
   const listForDisplay = listForDisplayBase.slice(startIndex, startIndex + itemsPerPage);
 
-  const getDuration = (todo) => {
-    // Prefer formatted duration from backend
-    if (todo.total_work_time_formatted) {
-      return todo.total_work_time_formatted;
-    }
 
-    // Prefer explicit minutes field provided by the API
-    const minutesField =
-      typeof todo.total_work_time_minutes === "number"
-        ? todo.total_work_time_minutes
-        : typeof todo.total_work_time === "number"
-        ? todo.total_work_time
-        : null;
-
-    if (typeof minutesField === "number") {
-      const hours = Math.floor(minutesField / 60);
-      const minutes = Math.floor(minutesField % 60);
-      if (hours > 0) return `${hours}h ${minutes}m`;
-      return `${minutes}m`;
-    }
-
-    // Try to parse formatted string like "2h 30m"
-    if (typeof todo.total_work_time === "string") {
-      const m = todo.total_work_time.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
-      if (m) {
-        const h = parseInt(m[1] || "0", 10);
-        const mm = parseInt(m[2] || "0", 10);
-        if (!isNaN(h) || !isNaN(mm)) return `${h}h ${mm}m`;
-      }
-    }
-
-    // Fallback to calculating from raw timestamps (api may provide _raw iso fields)
-    const startRaw = todo.started_at_raw || todo.started_at;
-    const endRaw = todo.submitted_at_raw || todo.submitted_at;
-    if (
-      startRaw &&
-      endRaw &&
-      !isNaN(Date.parse(startRaw)) &&
-      !isNaN(Date.parse(endRaw))
-    ) {
-      const start = new Date(startRaw);
-      const end = new Date(endRaw);
-      const diffMs = end - start;
-      if (diffMs >= 0) {
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMinutes = Math.floor(
-          (diffMs % (1000 * 60 * 60)) / (1000 * 60)
-        );
-        return `${diffHours}h ${diffMinutes}m`;
-      }
-    }
-
-    return "-";
-  };
-
-  // Format target start time as HH:mm using raw ISO when available
-  const getTargetStartTime = (todo) => {
-    try {
-      if (
-        todo?.target_start_at_raw &&
-        !isNaN(Date.parse(todo.target_start_at_raw))
-      ) {
-        const d = new Date(todo.target_start_at_raw);
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mm = String(d.getMinutes()).padStart(2, "0");
-        return `${hh}:${mm}`;
-      }
-      if (
-        typeof todo?.target_start_at === "string" &&
-        todo.target_start_at.trim()
-      ) {
-        const m = todo.target_start_at.match(/(\d{1,2}):(\d{2})/);
-        if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
-      }
-    } catch {}
-    return null;
-  };
-
-  // Helper function to calculate automatic rating based on duration
-  const calculateAutomaticRating = (todo) => {
-    if (!todo.target_duration_value || !todo.target_duration_unit) return null;
-
-    // Convert target duration to minutes
-    let targetMinutes = Number(todo.target_duration_value);
-    if (isNaN(targetMinutes)) return null;
-    if (todo.target_duration_unit === "hours")
-      targetMinutes = targetMinutes * 60;
-
-    // Determine actual minutes: prefer explicit minutes field, then numeric, then try parse
-    let actualMinutes = null;
-    if (typeof todo.total_work_time_minutes === "number") {
-      actualMinutes = todo.total_work_time_minutes;
-    } else if (typeof todo.total_work_time === "number") {
-      actualMinutes = todo.total_work_time;
-    } else if (typeof todo.total_work_time === "string") {
-      const m = todo.total_work_time.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
-      if (m) {
-        const h = parseInt(m[1] || "0", 10);
-        const mm = parseInt(m[2] || "0", 10);
-        actualMinutes = h * 60 + mm;
-      }
-    } else if (todo.started_at_raw && todo.submitted_at_raw) {
-      const s = Date.parse(todo.started_at_raw);
-      const e = Date.parse(todo.submitted_at_raw);
-      if (!isNaN(s) && !isNaN(e) && e >= s) {
-        actualMinutes = Math.round((e - s) / (1000 * 60));
-      }
-    }
-
-    if (actualMinutes === null || isNaN(actualMinutes)) return null;
-
-    // Calculate rating 1-5 scale
-    // Rating 5: Completed on time or before target time
-    if (actualMinutes <= targetMinutes) return 5;
-    
-    const overtimeRatio = actualMinutes / targetMinutes;
-    
-    // If overtime is less than 25% over target: Rating 4
-    if (overtimeRatio <= 1.25) return 4;
-    
-    // If overtime is 25-50% over target: Rating 3
-    if (overtimeRatio <= 1.5) return 3;
-    
-    // If overtime is 50-100% over target: Rating 2
-    if (overtimeRatio <= 2.0) return 2;
-    
-    // If overtime is more than 100%: Rating 1
-    return 1;
-  };
 
   const distribution = React.useMemo(() => {
     // Compute status counts ignoring the current statusFilter,
@@ -1198,398 +865,39 @@ const AdminTodos = () => {
         </div>
       </div>
 
-      {/* Tabs: All / Rutin / Tambahan (match Asset Management style) */}
-      {(() => {
-        const tambahanCount = filteredTodos.filter(
-          (t) => (t.todo_type || "rutin") !== "rutin"
-        ).length;
-        const rutinCount = filteredTodos.filter(
-          (t) => (t.todo_type || "rutin") === "rutin"
-        ).length;
-        return (
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setTodoTab("all")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  todoTab === "all"
-                    ? "border-accent-500 text-accent-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {t("todos.allTodos")} ({filteredTodos.length})
-              </button>
-              <button
-                onClick={() => setTodoTab("rutin")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  todoTab === "rutin"
-                    ? "border-accent-500 text-accent-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {t("todos.routine")} ({rutinCount})
-              </button>
-              <button
-                onClick={() => setTodoTab("tambahan")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  todoTab === "tambahan"
-                    ? "border-accent-500 text-accent-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {t("todos.additional")} ({tambahanCount})
-              </button>
-            </nav>
-          </div>
-        );
-      })()}
+      {/* Tabs: All / Rutin / Tambahan */}
+      <AdminTodoTabs
+        todoTab={todoTab}
+        onTabChange={setTodoTab}
+        filteredTodos={filteredTodos}
+        t={t}
+      />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-5 sm:grid-cols-3 lg:grid-cols-6">
-        {loading ? (
-          <>
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-            <SkeletonLoader type="stats" />
-          </>
-        ) : (
-          <>
-            <div
-              className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "not_started"
-                  ? "ring-2 ring-yellow-500 bg-yellow-50"
-                  : ""
-              }`}
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "not_started" ? "all" : "not_started"
-                )
-              }
-              role="button"
-              tabIndex={0}
-            >
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {t("todos.notStarted")}
-                      </dt>
-                      <dd className="text-base sm:text-lg font-medium text-gray-900">
-                        {distribution.not_started}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "in_progress"
-                  ? "ring-2 ring-blue-500 bg-blue-50"
-                  : ""
-              }`}
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "in_progress" ? "all" : "in_progress"
-                )
-              }
-              role="button"
-              tabIndex={0}
-            >
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Play className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {t("todos.inProgress")}
-                      </dt>
-                      <dd className="text-base sm:text-lg font-medium text-gray-900">
-                        {distribution.in_progress}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "hold" ? "ring-2 ring-pink-500 bg-pink-50" : ""
-              }`}
-              onClick={() =>
-                setStatusFilter(statusFilter === "hold" ? "all" : "hold")
-              }
-              role="button"
-              tabIndex={0}
-            >
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Pause className="h-6 w-6 sm:h-8 sm:w-8 text-pink-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {t("todos.hold")}
-                      </dt>
-                      <dd className="text-base sm:text-lg font-medium text-gray-900">
-                        {distribution.hold}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "checking"
-                  ? "ring-2 ring-orange-500 bg-orange-50"
-                  : ""
-              }`}
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "checking" ? "all" : "checking"
-                )
-              }
-              role="button"
-              tabIndex={0}
-            >
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Eye className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {t("todos.checking")}
-                      </dt>
-                      <dd className="text-base sm:text-lg font-medium text-gray-900">
-                        {distribution.checking}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "evaluating"
-                  ? "ring-2 ring-purple-500 bg-purple-50"
-                  : ""
-              }`}
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "evaluating" ? "all" : "evaluating"
-                )
-              }
-              role="button"
-              tabIndex={0}
-            >
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {t("todos.evaluating")}
-                      </dt>
-                      <dd className="text-base sm:text-lg font-medium text-gray-900">
-                        {distribution.evaluating}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`card hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                statusFilter === "completed"
-                  ? "ring-2 ring-green-500 bg-green-50"
-                  : ""
-              }`}
-              onClick={() =>
-                setStatusFilter(
-                  statusFilter === "completed" ? "all" : "completed"
-                )
-              }
-              role="button"
-              tabIndex={0}
-            >
-              <div className="p-3 sm:p-4 lg:p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
-                  </div>
-                  <div className="ml-3 sm:ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
-                        {t("todos.completed")}
-                      </dt>
-                      <dd className="text-base sm:text-lg font-medium text-gray-900">
-                        {distribution.completed}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      <AdminTodoStats
+        distribution={distribution}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        loading={loading}
+        t={t}
+      />
 
       {/* Filters */}
-      <div className="card p-3 sm:p-4">
-        <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Time range filter */}
-          <div className="relative" data-dropdown="date">
-            <button
-              type="button"
-              onClick={() => setShowDateDropdown(!showDateDropdown)}
-              className="w-full pl-3 pr-10 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900 text-left"
-            >
-              <span className="text-gray-900 text-sm sm:text-base">
-                {dateFrom || dateTo
-                  ? `${dateFrom || '-'} → ${dateTo || '-'}`
-                  : dateFilter === "all"
-                  ? t("common.dateFilter.allDates")
-                  : dateFilter === "today"
-                  ? t("common.dateFilter.today")
-                  : dateFilter === "this_week"
-                  ? t("common.dateFilter.thisWeek")
-                  : dateFilter === "this_month"
-                  ? t("common.dateFilter.thisMonth")
-                  : t("common.dateFilter.thisYear")}
-              </span>
-              <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                <ChevronDown className={`h-4 w-4 text-gray-400`} />
-              </span>
-            </button>
-            {showDateDropdown && (
-              <div className="absolute z-10 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none mt-1">
-                {[
-                  {
-                    value: "all",
-                    label: t("common.dateFilter.allDates"),
-                  },
-                  {
-                    value: "today",
-                    label: t("common.dateFilter.today"),
-                  },
-                  {
-                    value: "this_week",
-                    label: t("common.dateFilter.thisWeek"),
-                  },
-                  {
-                    value: "this_month",
-                    label: t("common.dateFilter.thisMonth"),
-                  },
-                  {
-                    value: "this_year",
-                    label: t("common.dateFilter.thisYear"),
-                  },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      setDateFilter(option.value);
-                      // Clear custom range when choosing any preset (including "all")
-                      setDateFrom("");
-                      setDateTo("");
-                      setShowDateDropdown(false);
-                    }}
-                    className={`relative w-full text-left py-2 pl-3 pr-9 cursor-pointer hover:bg-gray-50 ${
-                      dateFilter === option.value
-                        ? "bg-accent-50 text-accent-900"
-                        : "text-gray-900"
-                    }`}
-                  >
-                    <span className="block truncate">{option.label}</span>
-                    {dateFilter === option.value && (
-                      <span className="absolute inset-y-0 right-0 flex items-center pr-4">
-                        <Check className="h-4 w-4 text-accent-600" />
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Custom date range */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="relative">
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                placeholder={t("meetings.from")}
-                className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-              />
-            </div>
-            <div className="relative">
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                placeholder={t("meetings.to")}
-                className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-              />
-            </div>
-          </div>
-
-          {/* Total count for current range */}
-          <div className="flex items-center text-sm text-gray-700">
-            <span>
-              {t("common.total", { defaultValue: "Total" })}:{" "}
-              {(() => {
-                const range = getDateRange();
-                if (!range) return todos.length;
-                return todos.filter((t) => {
-                  const d = getTaskDate(t);
-                  if (!d) return false;
-                  const after = d >= range.start;
-                  const before = !range.end || d < range.end;
-                  return after && before;
-                }).length;
-              })()}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="card p-4">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder={t("todos.searchTodos")}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200"
-            title={t("todos.searchTodosHint")}
-          />
-        </div>
-      </div>
+      <AdminTodoFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        dateFilter={dateFilter}
+        onDateFilterChange={setDateFilter}
+        dateFrom={dateFrom}
+        onDateFromChange={setDateFrom}
+        dateTo={dateTo}
+        onDateToChange={setDateTo}
+        showDateDropdown={showDateDropdown}
+        onToggleDateDropdown={setShowDateDropdown}
+        todos={todos}
+        getTaskDate={getTaskDate}
+        t={t}
+      />
 
       {/* Routine Groups */}
       {/* Routine list cards */}
@@ -1624,7 +932,7 @@ const AdminTodos = () => {
                     <div className="font-semibold text-gray-900">{g.title}</div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-blue-700 bg-blue-50 inline-block px-2 py-0.5 rounded-full border border-blue-200">
-                        {formatRoutinePatternShort(g.def || g.sample)}
+                        {formatRoutinePatternShortLocal(g.def || g.sample)}
                       </span>
                     </div>
                   </div>
@@ -1642,7 +950,7 @@ const AdminTodos = () => {
                           start:
                             s.recurrence_start_date ||
                             new Date().toISOString().slice(0, 10),
-                          pattern: formatRoutinePattern(s),
+                          pattern: formatRoutinePatternLocal(s),
                           days:
                             Array.isArray(s.days_of_week) &&
                             s.days_of_week.length
@@ -2051,7 +1359,7 @@ const AdminTodos = () => {
                                                   todoItem.status
                                                 )}`}
                                               >
-                                                {formatStatusLabel(
+                                                {formatStatusLabelLocal(
                                                   todoItem.status
                                                 )}
                                               </span>
@@ -2238,7 +1546,7 @@ const AdminTodos = () => {
                           todo.status
                         )}`}
                       >
-                        {formatStatusLabel(todo.status)}
+                        {formatStatusLabelLocal(todo.status)}
                       </span>
                       <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-600">
                         {(todo.todo_type || "rutin") === "rutin"
@@ -2247,7 +1555,7 @@ const AdminTodos = () => {
                       </span>
                       {(todo.todo_type || "rutin") === "rutin" && (
                         <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-                          {formatRoutinePattern(todo)}
+                          {formatRoutinePatternLocal(todo)}
                         </span>
                       )}
                     </div>
@@ -2405,1935 +1713,247 @@ const AdminTodos = () => {
       </div>
 
       {/* Detail Modal */}
-      {showDetailModal && selectedTodo && (
-        <ModalPortal>
-          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  {t("todos.taskDetails")}: {selectedTodo.title}
-                </h3>
-                <div className="space-y-6">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.basicInformation")}
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.taskName")}:</strong>{" "}
-                          {selectedTodo.title}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.description")}:</strong>{" "}
-                          {selectedTodo.description || "N/A"}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.status")}:</strong>
-                          <span
-                            className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              selectedTodo.status
-                            )}`}
-                          >
-                            {formatStatusLabel(selectedTodo.status)}
-                          </span>
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.todoType")}:</strong>{" "}
-                          {(selectedTodo.todo_type || "rutin") === "rutin"
-                            ? t("todos.routine", { defaultValue: "Routine" })
-                            : t("todos.additional", {
-                                defaultValue: "Additional",
-                              })}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.targetCategory")}:</strong>{" "}
-                          {formatTargetCategory(selectedTodo.target_category)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.user")}:</strong>{" "}
-                          {getUserName(selectedTodo.user_id)}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.scheduledDate")}:</strong>{" "}
-                          {(() => {
-                            const localeTag = i18n.language === "id" ? "id-ID" : "en-US";
-                            const dateText = selectedTodo.scheduled_date
-                              ? new Date(
-                                  selectedTodo.scheduled_date
-                                ).toLocaleDateString(localeTag, {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                })
-                              : selectedTodo.formatted_created_at || new Date(selectedTodo.created_at).toLocaleDateString(localeTag, {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                });
-                            const hhmm = getTargetStartTime(selectedTodo);
-                            return hhmm ? `${dateText}, ${hhmm}` : dateText;
-                          })()}
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>{t("todos.created")}:</strong>{" "}
-                          {selectedTodo.formatted_created_at || "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Target Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.targetInfo", {
-                        defaultValue: "Informasi Target",
-                      })}
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">
-                          <strong>
-                            {t("todos.targetStartTime", {
-                              defaultValue: "Waktu Mulai Target",
-                            })}
-                            :
-                          </strong>{" "}
-                          {selectedTodo.target_start_at || "N/A"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">
-                          <strong>
-                            {t("todos.targetDuration", {
-                              defaultValue: "Durasi Target",
-                            })}
-                            :
-                          </strong>{" "}
-                          {selectedTodo.target_duration_formatted ||
-                            (selectedTodo.target_duration_value &&
-                            selectedTodo.target_duration_unit
-                              ? `${selectedTodo.target_duration_value} ${
-                                  selectedTodo.target_duration_unit === "hours"
-                                    ? "jam"
-                                    : "menit"
-                                }`
-                              : "N/A")}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actual Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.actualInfo", {
-                        defaultValue: "Informasi Aktual",
-                      })}
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-600">
-                          <strong>
-                            {t("todos.actualStartTime", {
-                              defaultValue: "Waktu Mulai Aktual",
-                            })}
-                            :
-                          </strong>{" "}
-                          {selectedTodo.started_at || "Belum dimulai"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600">
-                          <strong>
-                            {t("todos.actualDuration", {
-                              defaultValue: "Durasi Aktual",
-                            })}
-                            :
-                          </strong>{" "}
-                          {getDuration(selectedTodo)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.duration")}
-                    </h4>
-                    <div className="text-sm text-gray-600">
-                      <p>
-                        <strong>{t("todos.workDuration")}:</strong>{" "}
-                        {getDuration(selectedTodo)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {selectedTodo.rating !== null &&
-                    selectedTodo.rating !== undefined && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">
-                          Performance Rating
-                        </h4>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {selectedTodo.rating}/5
-                          </div>
-                          <div className="flex-1">
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${(selectedTodo.rating / 5) * 100}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                  {selectedTodo.warnings &&
-                    selectedTodo.warnings.report &&
-                    selectedTodo.warnings.report.points && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">
-                          Warning Report
-                        </h4>
-                        <div className="text-sm">
-                          <p className="text-gray-600">
-                            <strong>Points:</strong>{" "}
-                            {selectedTodo.warnings.report.points}
-                          </p>
-                          <p className="text-gray-600">
-                            <strong>Level:</strong>{" "}
-                            {selectedTodo.warnings.report.level}
-                          </p>
-                          <p className="text-gray-600">
-                            <strong>Note:</strong>{" "}
-                            {selectedTodo.warnings.report.note || "N/A"}
-                          </p>
-                          <p className="text-gray-600">
-                            <strong>Published:</strong>{" "}
-                            {selectedTodo.warnings.report.published_at || "N/A"}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                  {selectedTodo.hold_note && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {t("todos.holdInfo", {
-                          defaultValue: "Informasi Hold",
-                        })}
-                      </h4>
-                      <div className="text-sm text-gray-600">
-                        <p>
-                          <strong>
-                            {t("todos.holdReason", {
-                              defaultValue: "Alasan Hold",
-                            })}
-                            :
-                          </strong>{" "}
-                          {selectedTodo.hold_note}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedTodo.notes && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        Admin Notes
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {selectedTodo.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedTodo.evidence_files &&
-                    selectedTodo.evidence_files.length > 0 && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">
-                          {t("todos.evidenceFiles")}
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                          {selectedTodo.evidence_files.map((file, index) => (
-                            <div
-                              key={index}
-                              className="border rounded-lg overflow-hidden bg-white"
-                            >
-                              {/\.(jpg|jpeg|png|gif)$/i.test(
-                                file.path || file.url || file.full_url
-                              ) ? (
-                                <div
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() =>
-                                    window.open(
-                                      file.full_url ||
-                                        file.url ||
-                                        getStorageUrl(`storage/${file.path}`),
-                                      "_blank"
-                                    )
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      window.open(
-                                        file.full_url ||
-                                          file.url ||
-                                          getStorageUrl(`storage/${file.path}`),
-                                        "_blank"
-                                      );
-                                  }}
-                                  className="cursor-pointer"
-                                >
-                                  <img
-                                    src={
-                                      file.full_url ||
-                                      file.url ||
-                                      getStorageUrl(`storage/${file.path}`)
-                                    }
-                                    alt={file.name || `Evidence ${index + 1}`}
-                                    className="w-full h-40 object-cover"
-                                    onError={(e) => {
-                                      console.log("Image failed to load:", {
-                                        src: file.full_url || file.url,
-                                        file: file,
-                                        error: e
-                                      });
-                                      // Try fallback URL with correct backend port
-                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
-                                      if (e.target.src !== fallbackUrl) {
-                                        e.target.src = fallbackUrl;
-                                      } else {
-                                        e.target.style.display = "none";
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="p-3 flex items-center space-x-2">
-                                  <Eye className="h-4 w-4 text-blue-500" />
-                                  <a
-                                    href={
-                                      file.full_url ||
-                                      file.url ||
-                                      getStorageUrl(`storage/${file.path}`)
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline"
-                                  >
-                                    {file.name || `Evidence File ${index + 1}`}
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <button
-                      onClick={() => setShowDetailModal(false)}
-                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      {t("common.close")}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <TodoDetailModal
+        isOpen={showDetailModal}
+        todo={selectedTodo}
+        onClose={() => setShowDetailModal(false)}
+        getUserName={getUserName}
+        formatTargetCategoryLocal={formatTargetCategoryLocal}
+        formatStatusLabelLocal={formatStatusLabelLocal}
+        i18n={i18n}
+        t={t}
+      />
 
       {/* Evidence Modal */}
-      {showEvidenceModal && selectedTodo && (
-        <ModalPortal>
-          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  {t("todos.evidence")} untuk: {selectedTodo.title}
-                </h3>
-                <div className="space-y-6">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.taskDetails")}
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {selectedTodo.description}
-                    </p>
-                    <div className="text-xs text-gray-500">
-                      <p>
-                        {t("todos.user")}: {getUserName(selectedTodo.user_id)}
-                      </p>
-                      <p>
-                        {t("todos.submitted")}:{" "}
-                        {selectedTodo.formatted_submitted_at || "N/A"}
-                      </p>
-                      <p>
-                        {t("todos.duration")}: {getDuration(selectedTodo)}
-                      </p>
-                      <p>
-                        {t("todos.created")}:{" "}
-                        {selectedTodo.formatted_created_at || "N/A"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {selectedTodo.evidence_files &&
-                    selectedTodo.evidence_files.length > 0 && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">
-                          {t("todos.evidenceFiles")}
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                          {selectedTodo.evidence_files.map((file, index) => (
-                            <div
-                              key={index}
-                              className="border rounded-lg overflow-hidden bg-white"
-                            >
-                              {/\.(jpg|jpeg|png|gif)$/i.test(
-                                file.path || file.url || file.full_url
-                              ) ? (
-                                <div
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() =>
-                                    window.open(
-                                      file.full_url ||
-                                        file.url ||
-                                        getStorageUrl(`storage/${file.path}`),
-                                      "_blank"
-                                    )
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      window.open(
-                                        file.full_url ||
-                                          file.url ||
-                                          getStorageUrl(`storage/${file.path}`),
-                                        "_blank"
-                                      );
-                                  }}
-                                  className="cursor-pointer"
-                                >
-                                  <img
-                                    src={
-                                      file.full_url ||
-                                      file.url ||
-                                      getStorageUrl(`storage/${file.path}`)
-                                    }
-                                    alt={file.name || `Evidence ${index + 1}`}
-                                    className="w-full h-40 object-cover"
-                                    onError={(e) => {
-                                      console.log("Image failed to load:", {
-                                        src: file.full_url || file.url,
-                                        file: file,
-                                        error: e
-                                      });
-                                      // Try fallback URL with correct backend port
-                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
-                                      if (e.target.src !== fallbackUrl) {
-                                        e.target.src = fallbackUrl;
-                                      } else {
-                                        e.target.style.display = "none";
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="p-3 flex items-center space-x-2">
-                                  <Eye className="h-4 w-4 text-blue-500" />
-                                  <a
-                                    href={
-                                      file.full_url ||
-                                      file.url ||
-                                      getStorageUrl(`storage/${file.path}`)
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline"
-                                  >
-                                    {file.name || `Evidence File ${index + 1}`}
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {selectedTodo.evidence_path &&
-                    !selectedTodo.evidence_files && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-2">
-                          Evidence File
-                        </h4>
-                        <div className="flex items-center space-x-2">
-                          <Eye className="h-4 w-4 text-blue-500" />
-                          <a
-                            href={`/storage/${selectedTodo.evidence_path}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 underline"
-                          >
-                            View Evidence File
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowEvidenceModal(false);
-                        setSelectedTodo(null);
-                      }}
-                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      {t("common.close")}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowEvidenceModal(false);
-                        handleEvaluate(selectedTodo);
-                      }}
-                      className="btn-primary px-6 py-3 text-sm font-medium"
-                    >
-                      Evaluate Task
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <TodoEvidenceModal
+        isOpen={showEvidenceModal}
+        todo={selectedTodo}
+        onClose={() => {
+          setShowEvidenceModal(false);
+          setSelectedTodo(null);
+        }}
+        onEvaluate={handleEvaluate}
+        getUserName={getUserName}
+        t={t}
+      />
 
       {/* Evaluation Modal */}
-      {showEvaluationModal && selectedTodo && (
-        <ModalPortal>
-          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  {t("todos.evaluateTask")}: {selectedTodo.title}
-                </h3>
-                <div className="space-y-6">
-                  {/* Evidence Review Section */}
-                  {selectedTodo.evidence_files &&
-                    selectedTodo.evidence_files.length > 0 && (
-                      <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-gray-900 mb-3">
-                          {t("todos.evidenceReview", {
-                            defaultValue: "Review Bukti Pengerjaan",
-                          })}
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                          {selectedTodo.evidence_files.map((file, index) => (
-                            <div
-                              key={index}
-                              className="border rounded-lg overflow-hidden bg-white"
-                            >
-                              {/\.(jpg|jpeg|png|gif)$/i.test(
-                                file.path || file.url || file.full_url
-                              ) ? (
-                                <div
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={() =>
-                                    window.open(
-                                      file.full_url ||
-                                        file.url ||
-                                        getStorageUrl(`storage/${file.path}`),
-                                      "_blank"
-                                    )
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      window.open(
-                                        file.full_url ||
-                                          file.url ||
-                                          getStorageUrl(`storage/${file.path}`),
-                                        "_blank"
-                                      );
-                                  }}
-                                  className="cursor-pointer"
-                                >
-                                  <img
-                                    src={
-                                      file.full_url ||
-                                      file.url ||
-                                      getStorageUrl(`storage/${file.path}`)
-                                    }
-                                    alt={file.name || `Evidence ${index + 1}`}
-                                    className="w-full h-32 object-cover"
-                                    onError={(e) => {
-                                      console.log("Image failed to load:", {
-                                        src: file.full_url || file.url,
-                                        file: file,
-                                        error: e
-                                      });
-                                      // Try fallback URL with correct backend port
-                                      const fallbackUrl = getStorageUrl(`storage/${file.path}`);
-                                      if (e.target.src !== fallbackUrl) {
-                                        e.target.src = fallbackUrl;
-                                      } else {
-                                        e.target.style.display = "none";
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="p-3 flex items-center space-x-2">
-                                  <Eye className="h-4 w-4 text-blue-500" />
-                                  <a
-                                    href={
-                                      file.full_url ||
-                                      file.url ||
-                                      getStorageUrl(`storage/${file.path}`)
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline text-sm"
-                                  >
-                                    {file.name || `Evidence File ${index + 1}`}
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Task Information */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      {t("todos.taskInfo", { defaultValue: "Informasi Tugas" })}
-                    </h4>
-                    <div className="text-sm text-gray-600 space-y-1">
-                      <p>
-                        <strong>{t("todos.user")}:</strong>{" "}
-                        {getUserName(selectedTodo.user_id)}
-                      </p>
-                      <p>
-                        <strong>{t("todos.duration")}:</strong>{" "}
-                        {getDuration(selectedTodo)}
-                      </p>
-                      <p>
-                        <strong>{t("todos.targetDuration")}:</strong>{" "}
-                        {selectedTodo.target_duration_formatted || "N/A"}
-                      </p>
-                      {selectedTodo.evidence_note && (
-                        <p>
-                          <strong>
-                            {t("todos.userNote", {
-                              defaultValue: "Catatan User",
-                            })}
-                            :
-                          </strong>{" "}
-                          {selectedTodo.evidence_note}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t("common.notes")}
-                    </label>
-                    <textarea
-                      value={evaluationData.notes}
-                      onChange={(e) =>
-                        setEvaluationData({
-                          ...evaluationData,
-                          notes: e.target.value,
-                        })
-                      }
-                      rows={4}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                      placeholder={t("todos.evaluationPlaceholder")}
-                    />
-                  </div>
-
-                  <div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Performance Rating (otomatis)
-                      </label>
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {evaluationData.rating ?? "-"}/5
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Nilai dihitung otomatis dari perbandingan waktu
-                          pengerjaan aktual dan target.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowEvaluationModal(false);
-                        setSelectedTodo(null);
-                        setEvaluationData({
-                          action: "approve",
-                          notes: "",
-                          warningPoints: 0,
-                          warningNote: "",
-                          rating: 0,
-                        });
-                      }}
-                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      {t("common.cancel", { defaultValue: "Cancel" })}
-                    </button>
-                    <button
-                      onClick={handleSubmitEvaluation}
-                      className="btn-primary px-6 py-3 text-sm font-medium"
-                    >
-                      {t("todos.evaluate")}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <TodoEvaluationModal
+        isOpen={showEvaluationModal}
+        todo={selectedTodo}
+        evaluationData={evaluationData}
+        onEvaluationDataChange={setEvaluationData}
+        onClose={() => {
+          setShowEvaluationModal(false);
+          setSelectedTodo(null);
+          setEvaluationData({
+            action: "approve",
+            notes: "",
+            warningPoints: 0,
+            warningNote: "",
+            rating: 0,
+          });
+        }}
+        onSubmit={handleSubmitEvaluation}
+        getUserName={getUserName}
+        t={t}
+      />
 
       {/* Create/Edit Modal */}
-      {showCreateModal && (
-        <ModalPortal>
-          <div className="fixed inset-0 bg-gray-900/60 z-[1000] flex items-center justify-center p-4">
-            <div className="relative mx-auto border border-gray-200 w-full max-w-4xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">
-                  {editingTodo
-                    ? t("common.editTodo")
-                    : t("common.createNewTodo")}
-                </h3>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (formData.todo_type === "tambahan") {
-                      const dateStr = formData.scheduled_date || "";
-                      const startTime = formData.target_start_at || "";
-                      const endTime = formData.target_end_at || "";
-                      setCreateSummary({
-                        type: "tambahan",
-                        title: formData.title,
-                        description: formData.description,
-                        priority: formData.priority,
-                        target_category: formData.target_category,
-                        selected_users: formData.selected_user_ids?.length || 0,
-                        date: dateStr,
-                        start_time: startTime,
-                        end_time: endTime,
-                      });
-                    } else {
-                      const unit = formData.recurrence_unit;
-                      const interval = formData.recurrence_interval;
-                      const days =
-                        Array.isArray(formData.days_of_week) &&
-                        formData.days_of_week.length
-                          ? formData.days_of_week
-                              .slice()
-                              .sort((a, b) => a - b)
-                              .map(
-                                (d) =>
-                                  [
-                                    "Sun",
-                                    "Mon",
-                                    "Tue",
-                                    "Wed",
-                                    "Thu",
-                                    "Fri",
-                                    "Sat",
-                                  ][d]
-                              )
-                              .join(", ")
-                          : unit === "week"
-                          ? "-"
-                          : "";
-                      setCreateSummary({
-                        type: "rutin",
-                        title: formData.title,
-                        description: formData.description,
-                        priority: formData.priority,
-                        target_category: formData.target_category,
-                        selected_users: formData.selected_user_ids?.length || 0,
-                        start:
-                          formData.recurrence_start_date ||
-                          new Date().toISOString().slice(0, 10),
-                        pattern: `Every ${interval} ${unit}${
-                          interval > 1 ? "s" : ""
-                        }`,
-                        days,
-                        preview: createRoutinePreviewCount,
-                      });
-                    }
-                    setShowCreateConfirm(true);
-                  }}
-                  className="space-y-8"
-                >
-                  {/* Informasi Penugasan */}
-                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                      Informasi Penugasan
-                    </h3>
-                    <div className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("todos.targetAssignment")}
-                        </label>
-                        <select
-                          value={formData.target_category}
-                          onChange={(e) => {
-                            setFormData({
-                              ...formData,
-                              target_category: e.target.value,
-                              selected_user_ids: [],
-                            });
-                            setAssignAllInCategory(false);
-                          }}
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        >
-                          <option value="all">{t("todos.allCategory")}</option>
-                          <option value="ob">{t("todos.officeBoy")}</option>
-                          <option value="driver">
-                            {t("todos.driverEquipment")}
-                          </option>
-                          <option value="security">
-                            {t("todos.securityEquipment")}
-                          </option>
-                          <option value="magang_pkl">
-                            {t("common.employeeTypes.magang_pkl")}
-                          </option>
-                        </select>
-                      </div>
-
-                      {formData.target_category !== "all" && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {t("todos.assignTo")} (Cari & Pilih Ganda)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder={`Cari pengguna ${formData.target_category}...`}
-                            value={modalUserSearch}
-                            onChange={(e) => setModalUserSearch(e.target.value)}
-                            className="mb-3 block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          />
-
-                          {/* Assign to All Option */}
-                          <div className="mb-3">
-                            <label className="flex items-center gap-2 px-3 py-2 border rounded-md bg-blue-50">
-                              <input
-                                type="checkbox"
-                                checked={assignAllInCategory}
-                                onChange={(e) => {
-                                  setAssignAllInCategory(e.target.checked);
-                                  if (e.target.checked) {
-                                    const allUserIds = users
-                                      .filter(
-                                        (u) =>
-                                          u.category ===
-                                          formData.target_category
-                                      )
-                                      .map((u) => u.id);
-                                    setFormData({
-                                      ...formData,
-                                      selected_user_ids: allUserIds,
-                                    });
-                                  } else {
-                                    setFormData({
-                                      ...formData,
-                                      selected_user_ids: [],
-                                    });
-                                  }
-                                }}
-                              />
-                              <span className="text-sm font-medium text-blue-900">
-                                {t("todos.assignToAll")}
-                              </span>
-                            </label>
-                          </div>
-
-                          <div className="max-h-40 overflow-auto border rounded-md">
-                            {users
-                              .filter(
-                                (u) => u.category === formData.target_category
-                              )
-                              .filter(
-                                (u) =>
-                                  !modalUserSearch ||
-                                  u.name
-                                    .toLowerCase()
-                                    .includes(modalUserSearch.toLowerCase())
-                              )
-                              .map((u) => (
-                                <label
-                                  key={u.id}
-                                  className="flex items-center gap-2 px-3 py-3 border-b last:border-b-0 hover:bg-gray-50"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.selected_user_ids.includes(
-                                      u.id
-                                    )}
-                                    onChange={(e) => {
-                                      const next = new Set(
-                                        formData.selected_user_ids
-                                      );
-                                      if (e.target.checked) next.add(u.id);
-                                      else next.delete(u.id);
-                                      setFormData({
-                                        ...formData,
-                                        selected_user_ids: Array.from(next),
-                                      });
-                                      setAssignAllInCategory(false);
-                                    }}
-                                  />
-                                  <span className="text-sm">{u.name}</span>
-                                </label>
-                              ))}
-                            {users.filter(
-                              (u) =>
-                                u.category === formData.target_category &&
-                                (!modalUserSearch ||
-                                  u.name
-                                    .toLowerCase()
-                                    .includes(modalUserSearch.toLowerCase()))
-                            ).length === 0 && (
-                              <div className="px-3 py-4 text-sm text-gray-500 text-center">
-                                {t("common.noUsersFound")}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Informasi Tugas */}
-                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                      Informasi Tugas
-                    </h3>
-                    <div className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("todos.taskName")}
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.title}
-                          onChange={(e) =>
-                            setFormData({ ...formData, title: e.target.value })
-                          }
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          placeholder="Masukkan nama tugas..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("todos.description")}
-                        </label>
-                        <textarea
-                          value={formData.description}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              description: e.target.value,
-                            })
-                          }
-                          rows={4}
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                          placeholder="Masukkan deskripsi tugas..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {t("todos.todoType")}
-                        </label>
-                        <select
-                          value={formData.todo_type}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              todo_type: e.target.value,
-                            })
-                          }
-                          className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                        >
-                          <option value="rutin">{t("todos.routine")}</option>
-                          <option value="tambahan">
-                            {t("todos.additional")}
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Waktu */}
-                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                      Waktu
-                    </h3>
-                    <div className="space-y-6">
-                      {formData.todo_type === "tambahan" && (
-                        <div className="grid grid-cols-1 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              {t("todos.startDate")}
-                            </label>
-                            <input
-                              type="date"
-                              value={formData.scheduled_date || ""}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  scheduled_date: e.target.value,
-                                })
-                              }
-                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Jam Mulai
-                            </label>
-                            <input
-                              type="time"
-                              value={formData.target_start_at || ""}
-                              onChange={(e) => {
-                                const selectedTime = e.target.value;
-                                const now = new Date();
-                                const today = now.toISOString().slice(0, 10);
-
-                                // For today's date, prevent selecting past times
-                                if (formData.scheduled_date === today) {
-                                  const selectedDateTime = new Date(
-                                    `${today}T${selectedTime}`
-                                  );
-                                  if (selectedDateTime < now) {
-                                    notifyError(
-                                      "Waktu mulai tidak boleh lebih awal dari waktu saat ini"
-                                    );
-                                    return;
-                                  }
-                                }
-
-                                setFormData({
-                                  ...formData,
-                                  target_start_at: selectedTime,
-                                });
-                              }}
-                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                            />
-                          </div>
-
-                          {/* Target Duration Fields */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Target Durasi
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={formData.target_duration_value || ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    target_duration_value: e.target.value,
-                                  })
-                                }
-                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                                placeholder="Masukkan durasi target"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Satuan Durasi
-                              </label>
-                              <select
-                                value={formData.target_duration_unit}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    target_duration_unit: e.target.value,
-                                  })
-                                }
-                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                              >
-                                <option value="minutes">Menit</option>
-                                <option value="hours">Jam</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {formData.todo_type === "rutin" && (
-                        <div className="grid grid-cols-1 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              {t("todos.startDate")}
-                            </label>
-                            <input
-                              type="date"
-                              value={formData.recurrence_start_date}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  recurrence_start_date: e.target.value,
-                                })
-                              }
-                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Jam Mulai
-                            </label>
-                            <input
-                              type="time"
-                              value={formData.target_start_at || ""}
-                              onChange={(e) => {
-                                const selectedTime = e.target.value;
-                                const now = new Date();
-                                const today = now.toISOString().slice(0, 10);
-
-                                // For today's date, prevent selecting past times
-                                if (formData.recurrence_start_date === today) {
-                                  const selectedDateTime = new Date(
-                                    `${today}T${selectedTime}`
-                                  );
-                                  if (selectedDateTime < now) {
-                                    notifyError(
-                                      "Waktu mulai tidak boleh lebih awal dari waktu saat ini"
-                                    );
-                                    return;
-                                  }
-                                }
-
-                                setFormData({
-                                  ...formData,
-                                  target_start_at: selectedTime,
-                                });
-                              }}
-                              className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                            />
-                          </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {t("todos.every")}
-                              </label>
-                              <input
-                                type="number"
-                                min={1}
-                                value={formData.recurrence_interval}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    recurrence_interval: parseInt(
-                                      e.target.value || "1"
-                                    ),
-                                  })
-                                }
-                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {t("todos.unit")}
-                              </label>
-                              <select
-                                value={formData.recurrence_unit}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    recurrence_unit: e.target.value,
-                                  })
-                                }
-                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                              >
-                                <option value="day">{t("todos.day")}</option>
-                                <option value="week">{t("todos.week")}</option>
-                                <option value="month">
-                                  {t("todos.month")}
-                                </option>
-                              </select>
-                            </div>
-                          </div>
-
-                          {formData.recurrence_unit === "week" && (
-                            <div className="grid grid-cols-1 gap-3 mt-2">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-3">
-                                  {t("todos.days")}
-                                </label>
-                                <div className="grid grid-cols-4 gap-2 text-sm">
-                                  {[
-                                    { v: 1, l: "Sen" },
-                                    { v: 2, l: "Sel" },
-                                    { v: 3, l: "Rab" },
-                                    { v: 4, l: "Kam" },
-                                    { v: 5, l: "Jum" },
-                                    { v: 6, l: "Sab" },
-                                    { v: 0, l: "Min" },
-                                  ].map((d) => (
-                                    <label
-                                      key={d.v}
-                                      className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-gray-50"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        checked={(Array.isArray(
-                                          formData.days_of_week
-                                        )
-                                          ? formData.days_of_week
-                                          : []
-                                        ).includes(d.v)}
-                                        onChange={(e) => {
-                                          const base = Array.isArray(
-                                            formData.days_of_week
-                                          )
-                                            ? formData.days_of_week
-                                            : [];
-                                          const next = new Set(base);
-                                          if (e.target.checked) next.add(d.v);
-                                          else next.delete(d.v);
-                                          setFormData({
-                                            ...formData,
-                                            days_of_week: Array.from(next),
-                                          });
-                                        }}
-                                      />
-                                      <span>{d.l}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                  Pilih hari-hari dalam minggu untuk
-                                  penjadwalan.
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Target Duration Fields for Routine */}
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Target Durasi
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={formData.target_duration_value || ""}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    target_duration_value: e.target.value,
-                                  })
-                                }
-                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                                placeholder="Masukkan durasi target"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Satuan Durasi
-                              </label>
-                              <select
-                                value={formData.target_duration_unit}
-                                onChange={(e) =>
-                                  setFormData({
-                                    ...formData,
-                                    target_duration_unit: e.target.value,
-                                  })
-                                }
-                                className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                              >
-                                <option value="minutes">Menit</option>
-                                <option value="hours">Jam</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 border border-blue-200">
-                            <p className="font-medium mb-2">Perkiraan Tugas:</p>
-                            <p>
-                              Perkiraan 30 hari ke depan — sekitar{" "}
-                              {createRoutinePreviewPerUser} tugas per orang ×{" "}
-                              {createRoutinePreviewUsers} orang ={" "}
-                              {createRoutinePreviewCount} tugas.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateModal(false);
-                        setEditingTodo(null);
-                        setAssignAllInCategory(false);
-                        setFormData({
-                          title: "",
-                          description: "",
-                          todo_type: "rutin",
-                          target_category: "all",
-                          target_user_id: "",
-                          selected_user_ids: [],
-                          recurrence_start_date: "",
-                          recurrence_interval: 1,
-                          recurrence_unit: "day",
-                          recurrence_count: 0,
-                          days_of_week: [],
-                          scheduled_date: "",
-                          target_start_at: "",
-                          target_end_at: "",
-                          target_duration_value: "",
-                          target_duration_unit: "minutes",
-                        });
-                      }}
-                      className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      {t("common.cancel", { defaultValue: "Cancel" })}
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn-primary px-6 py-3 text-sm font-medium"
-                    >
-                      {editingTodo ? t("common.update") : t("common.create", { defaultValue: "Create" })}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <CreateEditTodoModal
+        isOpen={showCreateModal}
+        editingTodo={editingTodo}
+        formData={formData}
+        onFormDataChange={setFormData}
+        modalUserSearch={modalUserSearch}
+        onModalUserSearchChange={setModalUserSearch}
+        assignAllInCategory={assignAllInCategory}
+        onAssignAllInCategoryChange={setAssignAllInCategory}
+        users={users}
+        createRoutinePreviewCount={createRoutinePreviewCount}
+        createRoutinePreviewPerUser={createRoutinePreviewPerUser}
+        createRoutinePreviewUsers={createRoutinePreviewUsers}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingTodo(null);
+          setAssignAllInCategory(false);
+          setFormData({
+            title: "",
+            description: "",
+            todo_type: "rutin",
+            target_category: "all",
+            target_user_id: "",
+            selected_user_ids: [],
+            recurrence_start_date: "",
+            recurrence_interval: 1,
+            recurrence_unit: "day",
+            recurrence_count: 0,
+            days_of_week: [],
+            scheduled_date: "",
+            target_start_at: "",
+            target_end_at: "",
+            target_duration_value: "",
+            target_duration_unit: "minutes",
+          });
+        }}
+        onSubmit={() => {
+          if (formData.todo_type === "tambahan") {
+            const dateStr = formData.scheduled_date || "";
+            const startTime = formData.target_start_at || "";
+            const endTime = formData.target_end_at || "";
+            setCreateSummary({
+              type: "tambahan",
+              title: formData.title,
+              description: formData.description,
+              priority: formData.priority,
+              target_category: formData.target_category,
+              selected_users: formData.selected_user_ids?.length || 0,
+              date: dateStr,
+              start_time: startTime,
+              end_time: endTime,
+            });
+          } else {
+            const unit = formData.recurrence_unit;
+            const interval = formData.recurrence_interval;
+            const days =
+              Array.isArray(formData.days_of_week) &&
+              formData.days_of_week.length
+                ? formData.days_of_week
+                    .slice()
+                    .sort((a, b) => a - b)
+                    .map(
+                      (d) =>
+                        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]
+                    )
+                    .join(", ")
+                : unit === "week"
+                ? "-"
+                : "";
+            setCreateSummary({
+              type: "rutin",
+              title: formData.title,
+              description: formData.description,
+              priority: formData.priority,
+              target_category: formData.target_category,
+              selected_users: formData.selected_user_ids?.length || 0,
+              start:
+                formData.recurrence_start_date ||
+                new Date().toISOString().slice(0, 10),
+              pattern: `Every ${interval} ${unit}${interval > 1 ? "s" : ""}`,
+              days,
+              preview: createRoutinePreviewCount,
+            });
+          }
+          setShowCreateConfirm(true);
+        }}
+        notifyError={notifyError}
+        t={t}
+      />
 
       {/* Edit Routine Modal */}
-      {showEditRoutineModal && routineGroupEdited && (
-        <div className="fixed inset-0 bg-gray-600/40 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className="relative mx-auto border border-gray-200 w-full max-w-2xl shadow-lg rounded-xl bg-white max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {t("todos.editRoutine")}
-              </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Group: {routineGroupEdited.title}
-              </p>
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  try {
-                    // Confirmation summary
-                    const summary = `Title: ${routineForm.title}\nCategory: ${
-                      routineForm.target_category
-                    }${
-                      routineForm.selected_user_ids?.length
-                        ? ` (selected ${routineForm.selected_user_ids.length})`
-                        : ""
-                    }\nRecurrence: Every ${routineForm.recurrence_interval} ${
-                      routineForm.recurrence_unit
-                    }${routineForm.recurrence_interval > 1 ? "s" : ""} × ${
-                      (routineForm.recurrence_count ?? 0) || "∞"
-                    }\nStart: ${
-                      routineForm.recurrence_start_date || "(today)"
-                    }\nWill create approximately ${routinePreviewCount} tasks this month.`;
-                    if (!window.confirm(`Apply routine changes?\n\n${summary}`))
-                      return;
-
-                    // If delete & recreate current month
-                    if (routineStrategy === "delete_recreate") {
-                      const delPayload = {
-                        title: routineGroupEdited.title,
-                        recurrence_interval:
-                          routineGroupEdited.sample?.recurrence_interval || 1,
-                        recurrence_unit:
-                          routineGroupEdited.sample?.recurrence_unit || "day",
-                        target_category:
-                          routineGroupEdited.sample?.target_category ||
-                          undefined,
-                        recurrence_count:
-                          routineGroupEdited.sample?.recurrence_count ?? 0,
-                        user_id:
-                          routineGroupEdited.users.length === 1
-                            ? routineGroupEdited.users[0].id
-                            : undefined,
-                      };
-                      await api.post("/todos/routine-group/delete", delPayload);
-                    }
-
-                    // Create new routine occurrences
-                    const createPayload = { ...routineForm };
-                    // if target_category !== all and no selected users, assign to all in that category
-                    if (
-                      createPayload.target_category !== "all" &&
-                      (!createPayload.selected_user_ids ||
-                        createPayload.selected_user_ids.length === 0)
-                    ) {
-                      const ids = users
-                        .filter(
-                          (u) =>
-                            u.role === "user" &&
-                            u.category === createPayload.target_category
-                        )
-                        .map((u) => u.id);
-                      createPayload.selected_user_ids = ids;
-                    }
-                    await api.post("/todos", createPayload);
-
-                    const [todosRes, usersRes] = await Promise.all([
-                      api.get("/todos/all"),
-                      api.get("/users"),
-                    ]);
-                    setTodos(todosRes.data.data || todosRes.data);
-                    setUsers(usersRes.data || []);
-                    setShowEditRoutineModal(false);
-                    setRoutineGroupEdited(null);
-                  } catch (er) {
-                    alert(
-                      er?.response?.data?.message || "Failed to update routine"
-                    );
-                  }
-                }}
-                className="space-y-6"
-              >
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("todos.taskName")}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={routineForm.title}
-                    onChange={(e) =>
-                      setRoutineForm({ ...routineForm, title: e.target.value })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Priority
-                  </label>
-                  <select
-                    value={routineForm.priority}
-                    onChange={(e) =>
-                      setRoutineForm({
-                        ...routineForm,
-                        priority: e.target.value,
-                      })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("todos.targetAssignment")}
-                  </label>
-                  <select
-                    value={routineForm.target_category}
-                    onChange={(e) =>
-                      setRoutineForm({
-                        ...routineForm,
-                        target_category: e.target.value,
-                        selected_user_ids: [],
-                      })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  >
-                    <option value="all">{t("todos.allCategory")}</option>
-                    <option value="ob">
-                      {t("common.categories.obEquipment")}
-                    </option>
-                    <option value="driver">
-                      {t("common.categories.driverEquipment")}
-                    </option>
-                    <option value="security">
-                      {t("common.categories.securityEquipment")}
-                    </option>
-                    <option value="magang_pkl">
-                      {t("common.employeeTypes.magang_pkl")}
-                    </option>
-                  </select>
-                </div>
-                {routineForm.target_category !== "all" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Assign To (optional)
-                    </label>
-                    <div className="max-h-32 overflow-auto border rounded-md">
-                      {users
-                        .filter(
-                          (u) =>
-                            u.role === "user" &&
-                            u.category === routineForm.target_category
-                        )
-                        .map((u) => (
-                          <label
-                            key={u.id}
-                            className="flex items-center gap-2 px-3 py-3 border-b last:border-b-0 hover:bg-gray-50"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={routineForm.selected_user_ids.includes(
-                                u.id
-                              )}
-                              onChange={(e) => {
-                                const next = new Set(
-                                  routineForm.selected_user_ids
-                                );
-                                if (e.target.checked) next.add(u.id);
-                                else next.delete(u.id);
-                                setRoutineForm({
-                                  ...routineForm,
-                                  selected_user_ids: Array.from(next),
-                                });
-                              }}
-                            />
-                            <span className="text-sm text-gray-700">
-                              {u.name}
-                            </span>
-                          </label>
-                        ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Biarkan kosong untuk assign ke semua user di kategori ini.
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t("common.startDate")}
-                  </label>
-                  <input
-                    type="date"
-                    value={routineForm.recurrence_start_date}
-                    onChange={(e) =>
-                      setRoutineForm({
-                        ...routineForm,
-                        recurrence_start_date: e.target.value,
-                      })
-                    }
-                    className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t("common.every")}
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={routineForm.recurrence_interval}
-                      onChange={(e) =>
-                        setRoutineForm({
-                          ...routineForm,
-                          recurrence_interval: parseInt(
-                            e.target.value || "1",
-                            10
-                          ),
-                        })
-                      }
-                      className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {t("common.unit")}
-                    </label>
-                    <select
-                      value={routineForm.recurrence_unit}
-                      onChange={(e) =>
-                        setRoutineForm({
-                          ...routineForm,
-                          recurrence_unit: e.target.value,
-                        })
-                      }
-                      className="block w-full border border-gray-300 rounded-md px-3 py-3 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-                    >
-                      <option value="day">Day</option>
-                      <option value="week">Week</option>
-                      <option value="month">Month</option>
-                    </select>
-                  </div>
-                  {/* Repeat count removed for clarity in edit as well */}
-                </div>
-
-                {routineForm.recurrence_unit === "week" && (
-                  <div className="grid grid-cols-1 gap-3 mt-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Days of week
-                      </label>
-                      <div className="grid grid-cols-4 gap-2 text-sm">
-                        {[
-                          { v: 1, l: "Mon" },
-                          { v: 2, l: "Tue" },
-                          { v: 3, l: "Wed" },
-                          { v: 4, l: "Thu" },
-                          { v: 5, l: "Fri" },
-                          { v: 6, l: "Sat" },
-                          { v: 0, l: "Sun" },
-                        ].map((d) => (
-                          <label
-                            key={d.v}
-                            className="flex items-center gap-2 border rounded px-2 py-1"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={(Array.isArray(routineForm.days_of_week)
-                                ? routineForm.days_of_week
-                                : []
-                              ).includes(d.v)}
-                              onChange={(e) => {
-                                const base = Array.isArray(
-                                  routineForm.days_of_week
-                                )
-                                  ? routineForm.days_of_week
-                                  : [];
-                                const next = new Set(base);
-                                if (e.target.checked) next.add(d.v);
-                                else next.delete(d.v);
-                                setRoutineForm({
-                                  ...routineForm,
-                                  days_of_week: Array.from(next),
-                                });
-                              }}
-                            />
-                            <span>{d.l}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Pilih hari-hari dalam minggu untuk penjadwalan.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    {t("common.applyStrategy")}
-                  </label>
-                  <div className="space-y-1 text-sm">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="routineStrategy"
-                        checked={routineStrategy === "future_only"}
-                        onChange={() => setRoutineStrategy("future_only")}
-                      />
-                      <span>
-                        Apply to future only (create new from start date)
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="routineStrategy"
-                        checked={routineStrategy === "delete_recreate"}
-                        onChange={() => setRoutineStrategy("delete_recreate")}
-                      />
-                      <span>{t("todos.deleteRecreate")}</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600 border border-gray-200">
-                  <p className="font-medium mb-1">Preview:</p>
-                  <p>
-                    Sekitar <strong>{routinePreviewCount}</strong> tugas akan
-                    dibuat bulan ini.
-                  </p>
-                </div>
-
-                <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowEditRoutineModal(false);
-                      setRoutineGroupEdited(null);
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    {t("common.cancel")}
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary px-6 py-3 text-sm font-medium"
-                  >
-                    {t("common.save")}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditRoutineModal
+        isOpen={showEditRoutineModal}
+        routineGroupEdited={routineGroupEdited}
+        routineForm={routineForm}
+        onRoutineFormChange={setRoutineForm}
+        routineStrategy={routineStrategy}
+        onRoutineStrategyChange={setRoutineStrategy}
+        routinePreviewCount={routinePreviewCount}
+        users={users}
+        onClose={() => {
+          setShowEditRoutineModal(false);
+          setRoutineGroupEdited(null);
+        }}
+        onSubmit={async () => {
+          // Handler is inside EditRoutineModal component
+        }}
+        onSuccess={(todosRes, usersRes) => {
+          setTodos(todosRes.data.data || todosRes.data);
+          setUsers(usersRes.data || []);
+          setShowEditRoutineModal(false);
+          setRoutineGroupEdited(null);
+        }}
+        t={t}
+      />
 
       {/* Confirm Create Routine Modal */}
-      {showCreateConfirm && createSummary && (
-        <ModalPortal>
-          <div className="fixed inset-0 bg-gray-900/60 z-[1100] flex items-center justify-center p-4">
-            <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {t("common.confirmDetails")}
-                </h3>
-                <div className="text-sm text-gray-700 space-y-2">
-                  <div>
-                    <span className="text-gray-500">
-                      {t("todos.taskName")}:
-                    </span>{" "}
-                    {createSummary.title}
-                  </div>
-                  {createSummary.description && (
-                    <div>
-                      <span className="text-gray-500">Description:</span>{" "}
-                      {createSummary.description}
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-gray-500">
-                      {t("todos.targetAssignment")}:
-                    </span>{" "}
-                    {formatTargetCategory(createSummary.target_category)}
-                    {createSummary.selected_users
-                      ? ` (${createSummary.selected_users} selected)`
-                      : ""}
-                  </div>
-                  {createSummary.type === "tambahan" ? (
-                    <>
-                      <div>
-                        <span className="text-gray-500">Date:</span>{" "}
-                        {createSummary.date || "-"}
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Start Time:</span>{" "}
-                        {createSummary.start_time || "-"}
-                      </div>
-                      <div>
-                        <span className="text-gray-500">End Time:</span>{" "}
-                        {createSummary.end_time || "-"}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <span className="text-gray-500">{t("todos.start")}:</span>{" "}
-                        {createSummary.start}
-                      </div>
-                      <div>
-                        <span className="text-gray-500">{t("todos.pattern")}:</span>{" "}
-                        {createSummary.pattern}
-                      </div>
-                      {createSummary.days && (
-                        <div>
-                          <span className="text-gray-500">{t("todos.days")}:</span>{" "}
-                          {createSummary.days}
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-500 mt-2">
-                        Akan membuat sekitar <b>{createSummary.preview}</b>{" "}
-                        tugas bulan ini.
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateConfirm(false);
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    {t("common.back")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (isCreating) return; // guard against double clicks
-                      setIsCreating(true);
-                      try {
-                        if (editingTodo) {
-                          await api.patch(`/todos/${editingTodo.id}`, formData);
-                        } else {
-                          const payload = { ...formData };
-                          if (assignAllInCategory)
-                            payload.selected_user_ids = [];
-                          if (payload.todo_type === "tambahan") {
-                            // compose MySQL-friendly datetimes (local) YYYY-MM-DD HH:mm:ss
-                            const dateStr = payload.scheduled_date || "";
-                            const fmt = (d, t) => {
-                              if (!d || !t) return null;
-                              const [hh = "00", mm = "00"] =
-                                String(t).split(":");
-                              return `${d} ${hh.padStart(2, "0")}:${mm.padStart(
-                                2,
-                                "0"
-                              )}:00`;
-                            };
-                            payload.target_start_at = fmt(
-                              dateStr,
-                              payload.target_start_at
-                            );
-                            payload.target_end_at = fmt(
-                              dateStr,
-                              payload.target_end_at
-                            );
-                            // Normalize empties to null for backend validator compatibility
-                            // TODO: review this merge decision — ensure empty strings are not sent for date fields
-                            if (!payload.target_start_at)
-                              payload.target_start_at = null;
-                            if (!payload.target_end_at)
-                              payload.target_end_at = null;
-                            if (!payload.scheduled_date)
-                              payload.scheduled_date = null;
-                            delete payload.recurrence_start_date;
-                            delete payload.recurrence_interval;
-                            delete payload.recurrence_unit;
-                            delete payload.recurrence_count;
-                            delete payload.days_of_week;
-                          } else {
-                            // Routine: avoid sending stray time-only values
-                            if (
-                              payload.target_start_at &&
-                              payload.target_start_at.length <= 5
-                            ) {
-                              payload.target_start_at = null;
-                            }
-                            if (
-                              payload.target_end_at &&
-                              payload.target_end_at.length <= 5
-                            ) {
-                              payload.target_end_at = null;
-                            }
-                            if (!payload.recurrence_start_date)
-                              payload.recurrence_start_date = null;
-                          }
-                          // Common: convert empty string dates to null
-                          if (!payload.due_date) payload.due_date = null;
-                          await api.post("/todos", payload);
-                        }
-                        const res = await api.get("/todos/all");
-                        setTodos(res.data.data || res.data);
-                        setShowCreateConfirm(false);
-                        setShowCreateModal(false);
-                        setEditingTodo(null);
-                      } catch (e) {
-                        alert(e?.response?.data?.message || "Failed to save");
-                      } finally {
-                        setIsCreating(false);
-                      }
-                    }}
-                    className="btn-primary px-6 py-3 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                    disabled={isCreating}
-                  >
-                    {t("common.create", { defaultValue: "Create" })}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <CreateConfirmModal
+        isOpen={showCreateConfirm}
+        createSummary={createSummary}
+        onClose={() => setShowCreateConfirm(false)}
+        onConfirm={async () => {
+          if (isCreating) return; // guard against double clicks
+          setIsCreating(true);
+          try {
+            if (editingTodo) {
+              await api.patch(`/todos/${editingTodo.id}`, formData);
+            } else {
+              const payload = { ...formData };
+              if (assignAllInCategory) payload.selected_user_ids = [];
+              if (payload.todo_type === "tambahan") {
+                // compose MySQL-friendly datetimes (local) YYYY-MM-DD HH:mm:ss
+                const dateStr = payload.scheduled_date || "";
+                const fmt = (d, t) => {
+                  if (!d || !t) return null;
+                  const [hh = "00", mm = "00"] = String(t).split(":");
+                  return `${d} ${hh.padStart(2, "0")}:${mm.padStart(2, "0")}:00`;
+                };
+                payload.target_start_at = fmt(dateStr, payload.target_start_at);
+                payload.target_end_at = fmt(dateStr, payload.target_end_at);
+                // Normalize empties to null for backend validator compatibility
+                if (!payload.target_start_at) payload.target_start_at = null;
+                if (!payload.target_end_at) payload.target_end_at = null;
+                if (!payload.scheduled_date) payload.scheduled_date = null;
+                delete payload.recurrence_start_date;
+                delete payload.recurrence_interval;
+                delete payload.recurrence_unit;
+                delete payload.recurrence_count;
+                delete payload.days_of_week;
+              } else {
+                // Routine: avoid sending stray time-only values
+                if (
+                  payload.target_start_at &&
+                  payload.target_start_at.length <= 5
+                ) {
+                  payload.target_start_at = null;
+                }
+                if (payload.target_end_at && payload.target_end_at.length <= 5) {
+                  payload.target_end_at = null;
+                }
+                if (!payload.recurrence_start_date)
+                  payload.recurrence_start_date = null;
+              }
+              // Common: convert empty string dates to null
+              if (!payload.due_date) payload.due_date = null;
+              await api.post("/todos", payload);
+            }
+            const res = await api.get("/todos/all");
+            setTodos(res.data.data || res.data);
+            setShowCreateConfirm(false);
+            setShowCreateModal(false);
+            setEditingTodo(null);
+          } catch (e) {
+            alert(e?.response?.data?.message || "Failed to save");
+          } finally {
+            setIsCreating(false);
+          }
+        }}
+        isCreating={isCreating}
+        formatTargetCategoryLocal={formatTargetCategoryLocal}
+        t={t}
+      />
 
       {/* Routine Group Detail Modal (read-only) */}
-      {showRoutineDetail && routineDetail && (
-        <ModalPortal>
-          <div className="fixed inset-0 bg-gray-900/60 z-[1100] flex items-center justify-center p-4">
-            <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {t("todos.routineDetails")}
-                </h3>
-                <div className="text-sm text-gray-700 space-y-2">
-                  <div>
-                    <span className="text-gray-500">
-                      {t("todos.taskName")}:
-                    </span>{" "}
-                    {routineDetail.title}
-                  </div>
-                  {routineDetail.description && (
-                    <div>
-                      <span className="text-gray-500">{t("todos.description")}:</span>{" "}
-                      {routineDetail.description}
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-gray-500">
-                      {t("todos.targetAssignment")}:
-                    </span>{" "}
-                    {formatTargetCategory(routineDetail.target_category)}
-                  </div>
-                  <div>
-                    <span className="text-gray-500">{t("todos.start")}:</span>{" "}
-                    {routineDetail.start}
-                  </div>
-                  <div>
-                    <span className="text-gray-500">{t("todos.pattern")}:</span>{" "}
-                    {routineDetail.pattern}
-                  </div>
-                  {routineDetail.days && (
-                    <div>
-                      <span className="text-gray-500">{t("todos.days")}:</span>{" "}
-                      {routineDetail.days}
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRoutineDetail(false);
-                      setRoutineDetail(null);
-                    }}
-                    className="px-6 py-3 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    {t("common.close")}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      )}
+      <RoutineDetailModal
+        isOpen={showRoutineDetail}
+        routineDetail={routineDetail}
+        onClose={() => {
+          setShowRoutineDetail(false);
+          setRoutineDetail(null);
+        }}
+        formatTargetCategoryLocal={formatTargetCategoryLocal}
+        t={t}
+      />
 
       {/* Todo Export Modal */}
       <TodoExportModal

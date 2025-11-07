@@ -29,25 +29,25 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
 
   const roles = useMemo(
     () => [
-      { value: "all", label: "Semua Jenis User" },
+      { value: "all", label: t("activities.filters.allUserTypes") },
       { value: "user", label: "User" },
       { value: "admin_ga", label: "Admin GA" },
       { value: "admin_ga_manager", label: "Admin GA Manager" },
       { value: "super_admin", label: "Super Admin" },
     ],
-    []
+    [t]
   );
 
   const timeRanges = useMemo(
     () => [
-      { value: "all", label: "Semua Waktu" },
-      { value: "today", label: "Hari Ini" },
-      { value: "7d", label: "7 Hari Terakhir" },
-      { value: "30d", label: "30 Hari Terakhir" },
-      { value: "this_month", label: "Bulan Ini" },
-      { value: "this_year", label: "Tahun Ini" },
+      { value: "all", label: t("activities.filters.allTime") },
+      { value: "today", label: t("activities.filters.today") },
+      { value: "7d", label: t("activities.filters.last7Days") },
+      { value: "30d", label: t("activities.filters.last30Days") },
+      { value: "this_month", label: t("activities.filters.thisMonth") },
+      { value: "this_year", label: t("activities.filters.thisYear") },
     ],
-    []
+    [t]
   );
 
   const applyTimeRange = (rangeValue) => {
@@ -108,7 +108,7 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Jenis Aktivitas
+            {t("activities.filters.activityType")}
           </label>
           <select
             value={filters.action}
@@ -127,7 +127,7 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Waktu
+            {t("activities.filters.time")}
           </label>
           <select
             value={currentRangeValue}
@@ -145,7 +145,7 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
         {isAdmin && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Jenis User
+              {t("activities.filters.userType")}
             </label>
             <select
               value={filters.user_role || ""}
@@ -166,7 +166,7 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Cari
+          {t("activities.filters.searchLabel")}
         </label>
         <input
           type="text"
@@ -174,7 +174,7 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
           onChange={(e) =>
             onFilterChange({ ...filters, search: e.target.value })
           }
-          placeholder="Cari aktivitas..."
+          placeholder={t("activities.filters.searchPlaceholder")}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
         />
       </div>
