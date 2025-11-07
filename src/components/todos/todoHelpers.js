@@ -19,21 +19,21 @@ export const formatTargetCategory = (category, t) => {
   }
 };
 
-export const formatRoutinePattern = (t, i18n) => {
-  if (!t) return "";
-  const interval = t.recurrence_interval || 1;
-  const unit = t.recurrence_unit || "day";
+export const formatRoutinePattern = (routineData, t, i18n) => {
+  if (!routineData || !t) return "";
+  const interval = routineData.recurrence_interval || 1;
+  const unit = routineData.recurrence_unit || "day";
   const unitId =
     unit === "day"
-      ? "hari"
+      ? t("todos.routinePattern.unitDay")
       : unit === "week"
-      ? "minggu"
+      ? t("todos.routinePattern.unitWeek")
       : unit === "month"
-      ? "bulan"
-      : "tahun";
+      ? t("todos.routinePattern.unitMonth")
+      : t("todos.routinePattern.unitYear");
   const startStr = (() => {
-    const d = t.recurrence_start_date
-      ? new Date(t.recurrence_start_date)
+    const d = routineData.recurrence_start_date
+      ? new Date(routineData.recurrence_start_date)
       : null;
     if (!d || isNaN(d.getTime())) return "";
     try {
@@ -52,55 +52,56 @@ export const formatRoutinePattern = (t, i18n) => {
   let daysStr = "";
   if (
     unit === "week" &&
-    Array.isArray(t.days_of_week) &&
-    t.days_of_week.length > 0
+    Array.isArray(routineData.days_of_week) &&
+    routineData.days_of_week.length > 0
   ) {
-    const idDays = [
-      "Minggu",
-      "Senin",
-      "Selasa",
-      "Rabu",
-      "Kamis",
-      "Jumat",
-      "Sabtu",
+    const days = [
+      t("common.days.sunday"),
+      t("common.days.monday"),
+      t("common.days.tuesday"),
+      t("common.days.wednesday"),
+      t("common.days.thursday"),
+      t("common.days.friday"),
+      t("common.days.saturday"),
     ];
-    const sorted = t.days_of_week.slice().sort((a, b) => a - b);
-    const dayNames = sorted.map((d) => idDays[d] || d);
+    const sorted = routineData.days_of_week.slice().sort((a, b) => a - b);
+    const dayNames = sorted.map((d) => days[d] || d);
     if (dayNames.length === 1) {
       daysStr = dayNames[0];
     } else if (dayNames.length === 2) {
-      daysStr = dayNames.join(" dan ");
+      daysStr = dayNames.join(` ${t("todos.routinePattern.and")} `);
     } else {
       daysStr =
         dayNames.slice(0, -1).join(", ") +
-        " dan " +
+        ` ${t("todos.routinePattern.and")} ` +
         dayNames[dayNames.length - 1];
     }
   }
-  const pattern = `Setiap ${interval} ${unitId}`;
+  const pattern = `${t("todos.routinePattern.every")} ${interval} ${unitId}`;
   if (unit === "week" && daysStr) {
+    const dayLabel = i18n.language === "id" ? "hari" : "days";
     return startStr
-      ? `${pattern} pada hari ${daysStr}, berlaku mulai ${startStr}`
-      : `${pattern} pada hari ${daysStr}`;
+      ? `${pattern} ${t("todos.routinePattern.on")} ${dayLabel} ${daysStr}, ${t("todos.routinePattern.effectiveStarting")} ${startStr}`
+      : `${pattern} ${t("todos.routinePattern.on")} ${dayLabel} ${daysStr}`;
   }
-  return startStr ? `${pattern}, berlaku mulai ${startStr}` : pattern;
+  return startStr ? `${pattern}, ${t("todos.routinePattern.effectiveStarting")} ${startStr}` : pattern;
 };
 
-export const formatRoutinePatternShort = (t, i18n) => {
-  if (!t) return "";
-  const interval = t.recurrence_interval || 1;
-  const unit = t.recurrence_unit || "day";
+export const formatRoutinePatternShort = (routineData, t, i18n) => {
+  if (!routineData || !t) return "";
+  const interval = routineData.recurrence_interval || 1;
+  const unit = routineData.recurrence_unit || "day";
   const unitShort =
     unit === "day"
-      ? "H"
+      ? t("common.units.dayShort", { defaultValue: "D" })
       : unit === "week"
-      ? "Mgg"
+      ? t("common.units.weekShort", { defaultValue: "W" })
       : unit === "month"
-      ? "Bln"
-      : "Thn";
+      ? t("common.units.monthShort", { defaultValue: "M" })
+      : t("common.units.yearShort", { defaultValue: "Y" });
   const startStr = (() => {
-    const d = t.recurrence_start_date
-      ? new Date(t.recurrence_start_date)
+    const d = routineData.recurrence_start_date
+      ? new Date(routineData.recurrence_start_date)
       : null;
     if (!d || isNaN(d.getTime())) return "";
     try {
@@ -119,12 +120,20 @@ export const formatRoutinePatternShort = (t, i18n) => {
   let daysStr = "";
   if (
     unit === "week" &&
-    Array.isArray(t.days_of_week) &&
-    t.days_of_week.length > 0
+    Array.isArray(routineData.days_of_week) &&
+    routineData.days_of_week.length > 0
   ) {
-    const idDaysShort = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
-    const sorted = t.days_of_week.slice().sort((a, b) => a - b);
-    daysStr = sorted.map((d) => idDaysShort[d] || d).join("·");
+    const daysShort = [
+      t("common.days.sundayShort"),
+      t("common.days.mondayShort"),
+      t("common.days.tuesdayShort"),
+      t("common.days.wednesdayShort"),
+      t("common.days.thursdayShort"),
+      t("common.days.fridayShort"),
+      t("common.days.saturdayShort"),
+    ];
+    const sorted = routineData.days_of_week.slice().sort((a, b) => a - b);
+    daysStr = sorted.map((d) => daysShort[d] || d).join("·");
   }
   const base = `${interval} ${unitShort}`;
   if (unit === "week" && daysStr) {

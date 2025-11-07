@@ -134,8 +134,8 @@ const AdminTodos = () => {
   const formatTargetCategoryLocal = (category) => formatTargetCategory(category, t);
 
   // Helper functions wrapped for i18n
-  const formatRoutinePatternLocal = (t) => formatRoutinePattern(t, i18n);
-  const formatRoutinePatternShortLocal = (t) => formatRoutinePatternShort(t, i18n);
+  const formatRoutinePatternLocal = (routineData) => formatRoutinePattern(routineData, t, i18n);
+  const formatRoutinePatternShortLocal = (routineData) => formatRoutinePatternShort(routineData, t, i18n);
 
   // Filters for group user list inside cards
   const [_groupUserSearch, _setGroupUserSearch] = useState("");
@@ -1674,7 +1674,7 @@ const AdminTodos = () => {
       {/* Pagination controls */}
       <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Items per page:</span>
+          <span>{t("common.itemsPerPage")}:</span>
           <select
             value={itemsPerPage}
             onChange={(e) => {
@@ -1690,7 +1690,11 @@ const AdminTodos = () => {
             ))}
           </select>
           <span>
-            {startIndex + 1}-{Math.min(startIndex + itemsPerPage, totalItems)} of {totalItems}
+            {t("common.showingItems", {
+              start: startIndex + 1,
+              end: Math.min(startIndex + itemsPerPage, totalItems),
+              total: totalItems,
+            })}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -1699,15 +1703,17 @@ const AdminTodos = () => {
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={safePage <= 1}
           >
-            Prev
+            {t("common.previous")}
           </button>
-          <span className="text-sm text-gray-600">Page {safePage} / {totalPages}</span>
+          <span className="text-sm text-gray-600">
+            {t("common.pageInfo", { current: safePage, total: totalPages })}
+          </span>
           <button
             className="px-3 py-1 border rounded disabled:opacity-50"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={safePage >= totalPages}
           >
-            Next
+            {t("common.next")}
           </button>
         </div>
       </div>
