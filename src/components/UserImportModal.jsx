@@ -210,10 +210,54 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
         }, 2000);
       }
     } catch (err) {
-      setError(
-        err?.response?.data?.message || 
-        "Gagal mengimport data. Pastikan format file sesuai dengan template."
-      );
+      console.error('Import error:', err);
+      let errorMessage = "Gagal mengimport data. Pastikan format file sesuai dengan template.";
+      
+      if (err?.response?.data) {
+        const data = err.response.data;
+        
+        // If there are failures with details, show them
+        if (data.failures && Array.isArray(data.failures) && data.failures.length > 0) {
+          const failureMessages = data.failures.slice(0, 5).map((failure) => {
+            const row = failure.row || '?';
+            let errors = 'Data tidak valid';
+            
+            if (Array.isArray(failure.errors)) {
+              errors = failure.errors.join(', ');
+            } else if (typeof failure.errors === 'object' && failure.errors !== null) {
+              // Handle object errors (Laravel validation format)
+              errors = Object.values(failure.errors).flat().join(', ');
+            } else if (failure.errors) {
+              errors = String(failure.errors);
+            }
+            
+            const attribute = failure.attribute ? ` (${failure.attribute})` : '';
+            return `Baris ${row}${attribute}: ${errors}`;
+          });
+          
+          errorMessage = `Validasi gagal:\n${failureMessages.join('\n')}`;
+          if (data.failures.length > 5) {
+            errorMessage += `\n... dan ${data.failures.length - 5} baris lainnya`;
+          }
+        } else if (data.message) {
+          errorMessage = data.message;
+          // If there's a debug error, append it
+          if (data.error && process.env.NODE_ENV === 'development') {
+            errorMessage += `\n\nDetail: ${data.error}`;
+          }
+        } else if (data.errors) {
+          // Handle Laravel validation errors format
+          const errorList = Object.entries(data.errors).map(([key, value]) => {
+            const messages = Array.isArray(value) ? value : [value];
+            return `${key}: ${messages.join(', ')}`;
+          });
+          errorMessage = `Validasi gagal:\n${errorList.join('\n')}`;
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsUploading(false);
     }
@@ -334,7 +378,9 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start">
               <AlertCircle className="h-5 w-5 text-red-600 mr-2 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{error}</p>
+              <div className="flex-1">
+                <p className="text-sm text-red-800 whitespace-pre-line">{error}</p>
+              </div>
             </div>
           )}
 
