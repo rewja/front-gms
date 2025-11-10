@@ -10,25 +10,25 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
     const diffInSeconds = Math.floor((now - date) / 1000);
 
     if (diffInSeconds < 60) {
-      return t('activities.time.just_now');
+      return t('activities.time.just_now', { defaultValue: 'Just now' });
     } else if (diffInSeconds < 3600) {
       const minutes = Math.floor(diffInSeconds / 60);
-      return t('activities.time.minutes_ago', { count: minutes });
+      return t('activities.time.minutes_ago', { count: minutes, defaultValue: `${minutes} minutes ago` });
     } else if (diffInSeconds < 86400) {
       const hours = Math.floor(diffInSeconds / 3600);
-      return t('activities.time.hours_ago', { count: hours });
+      return t('activities.time.hours_ago', { count: hours, defaultValue: `${hours} hours ago` });
     } else if (diffInSeconds < 604800) {
       const days = Math.floor(diffInSeconds / 86400);
-      return t('activities.time.days_ago', { count: days });
+      return t('activities.time.days_ago', { count: days, defaultValue: `${days} days ago` });
     } else if (diffInSeconds < 2592000) {
       const weeks = Math.floor(diffInSeconds / 604800);
-      return t('activities.time.weeks_ago', { count: weeks });
+      return t('activities.time.weeks_ago', { count: weeks, defaultValue: `${weeks} weeks ago` });
     } else if (diffInSeconds < 31536000) {
       const months = Math.floor(diffInSeconds / 2592000);
-      return t('activities.time.months_ago', { count: months });
+      return t('activities.time.months_ago', { count: months, defaultValue: `${months} months ago` });
     } else {
       const years = Math.floor(diffInSeconds / 31536000);
-      return t('activities.time.years_ago', { count: years });
+      return t('activities.time.years_ago', { count: years, defaultValue: `${years} years ago` });
     }
   };
 
@@ -80,7 +80,9 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
     const newValues = activity.new_values || {};
     const todoType = newValues.todo_type;
     if (!todoType) return null;
-    const label = todoType === 'rutin' ? t('activities.todoTypes.routine') : t('activities.todoTypes.additional');
+    const label = todoType === 'rutin' 
+      ? t('activities.todoTypes.routine', { defaultValue: 'Routine' })
+      : t('activities.todoTypes.additional', { defaultValue: 'Additional' });
     const color = todoType === 'rutin' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200';
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${color} ml-2`}>
@@ -93,18 +95,37 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
     const nv = activity.new_values || {};
     if (activity.action !== 'create_routine_batch') return null;
     const chips = [];
-    if (nv.user_count != null) chips.push(`${nv.user_count} user`);
-    if (nv.occurrence_count != null) chips.push(`${nv.occurrence_count} occurrence`);
-    if (nv.recurrence_interval && nv.recurrence_unit) chips.push(`${nv.recurrence_interval} ${nv.recurrence_unit}`);
+    if (nv.user_count != null) {
+      const userLabel = nv.user_count === 1 
+        ? t('activities.batchSummary.user', { defaultValue: 'user' })
+        : t('activities.batchSummary.users', { defaultValue: 'users' });
+      chips.push(`${nv.user_count} ${userLabel}`);
+    }
+    if (nv.occurrence_count != null) {
+      const occurrenceLabel = nv.occurrence_count === 1
+        ? t('activities.batchSummary.occurrence', { defaultValue: 'occurrence' })
+        : t('activities.batchSummary.occurrences', { defaultValue: 'occurrences' });
+      chips.push(`${nv.occurrence_count} ${occurrenceLabel}`);
+    }
+    if (nv.recurrence_interval && nv.recurrence_unit) {
+      const unitMap = {
+        day: t('todos.routinePattern.unitDay', { defaultValue: 'day' }),
+        week: t('todos.routinePattern.unitWeek', { defaultValue: 'week' }),
+        month: t('todos.routinePattern.unitMonth', { defaultValue: 'month' }),
+        year: t('todos.routinePattern.unitYear', { defaultValue: 'year' }),
+      };
+      const unitLabel = unitMap[nv.recurrence_unit] || nv.recurrence_unit;
+      chips.push(`${nv.recurrence_interval} ${unitLabel}`);
+    }
     if (Array.isArray(nv.days_of_week) && nv.days_of_week.length) {
       const daysShort = [
-        t('common.days.sundayShort'),
-        t('common.days.mondayShort'),
-        t('common.days.tuesdayShort'),
-        t('common.days.wednesdayShort'),
-        t('common.days.thursdayShort'),
-        t('common.days.fridayShort'),
-        t('common.days.saturdayShort')
+        t('common.days.sundayShort', { defaultValue: 'Sun' }),
+        t('common.days.mondayShort', { defaultValue: 'Mon' }),
+        t('common.days.tuesdayShort', { defaultValue: 'Tue' }),
+        t('common.days.wednesdayShort', { defaultValue: 'Wed' }),
+        t('common.days.thursdayShort', { defaultValue: 'Thu' }),
+        t('common.days.fridayShort', { defaultValue: 'Fri' }),
+        t('common.days.saturdayShort', { defaultValue: 'Sat' })
       ];
       const days = nv.days_of_week.slice().sort((a,b)=>a-b).map(d=>daysShort[d]||d).join('·');
       chips.push(days);
@@ -174,7 +195,7 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
                       <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={getActionIcon(activity.action)} />
                       </svg>
-                      {t(`activities.actions.${activity.action}`)}
+                      {t(`activities.actions.${activity.action}`, { defaultValue: activity.action })}
                     </div>
                   </div>
                 </td>
@@ -186,7 +207,7 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
                   {renderBatchSummaryChips(activity)}
                   {activity.model_type && (
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {t(`activities.models.${activity.model_type.split('\\').pop().toLowerCase()}`)} #{activity.model_id}
+                      {t(`activities.models.${activity.model_type.split('\\').pop().toLowerCase()}`, { defaultValue: activity.model_type.split('\\').pop() })} #{activity.model_id}
                     </div>
                   )}
                 </td>

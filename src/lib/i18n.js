@@ -52,6 +52,12 @@ const resources = {
           visitor: "Visitor",
           procurement: "Procurement",
         },
+        batchSummary: {
+          user: "user",
+          users: "users",
+          occurrence: "occurrence",
+          occurrences: "occurrences",
+        },
         stats: {
           title: "Activity Statistics",
           total_activities: "Total Activities",
@@ -1315,6 +1321,12 @@ const resources = {
           meeting: "Rapat",
           visitor: "Tamu",
           procurement: "Pengadaan",
+        },
+        batchSummary: {
+          user: "pengguna",
+          users: "pengguna",
+          occurrence: "kejadian",
+          occurrences: "kejadian",
         },
         stats: {
           title: "Statistik Aktivitas",
