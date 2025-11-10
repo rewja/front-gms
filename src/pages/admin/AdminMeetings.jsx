@@ -585,20 +585,6 @@ const AdminMeetings = () => {
           
           <div className="relative">
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
-            >
-              <option value="">{t('meetings.allStatusOption')}</option>
-              <option value="scheduled">{t('meetings.status.scheduled')}</option>
-              <option value="ongoing">{t('meetings.status.ongoing')}</option>
-              <option value="ended">{t('meetings.status.ended')}</option>
-              <option value="canceled">{t('meetings.status.canceled')}</option>
-            </select>
-          </div>
-          
-          <div className="relative">
-            <select
               value={bookingTypeFilter}
               onChange={(e) => setBookingTypeFilter(e.target.value)}
               className="w-full pl-3 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500 transition-all duration-200 text-gray-900"
