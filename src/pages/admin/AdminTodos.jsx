@@ -960,16 +960,16 @@ const AdminTodos = () => {
                                   .map(
                                     (d) =>
                                       [
-                                        "Minggu",
-                                        "Senin",
-                                        "Selasa",
-                                        "Rabu",
-                                        "Kamis",
-                                        "Jumat",
-                                        "Sabtu",
+                                        t("common.days.sunday"),
+                                        t("common.days.monday"),
+                                        t("common.days.tuesday"),
+                                        t("common.days.wednesday"),
+                                        t("common.days.thursday"),
+                                        t("common.days.friday"),
+                                        t("common.days.saturday"),
                                       ][d] || d
                                   )
-                                  .join(" dan ")
+                                  .join(` ${t("todos.routinePattern.and")} `)
                               : "",
                         });
                         setShowRoutineDetail(true);
@@ -1821,6 +1821,7 @@ const AdminTodos = () => {
           } else {
             const unit = formData.recurrence_unit;
             const interval = formData.recurrence_interval;
+            // Format days using translation
             const days =
               Array.isArray(formData.days_of_week) &&
               formData.days_of_week.length
@@ -1829,12 +1830,27 @@ const AdminTodos = () => {
                     .sort((a, b) => a - b)
                     .map(
                       (d) =>
-                        ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]
+                        [
+                          t("common.days.sundayShort"),
+                          t("common.days.mondayShort"),
+                          t("common.days.tuesdayShort"),
+                          t("common.days.wednesdayShort"),
+                          t("common.days.thursdayShort"),
+                          t("common.days.fridayShort"),
+                          t("common.days.saturdayShort"),
+                        ][d]
                     )
                     .join(", ")
                 : unit === "week"
                 ? "-"
                 : "";
+            // Create routine data object for formatRoutinePattern
+            const routineData = {
+              recurrence_unit: unit,
+              recurrence_interval: interval,
+              recurrence_start_date: formData.recurrence_start_date || new Date().toISOString().slice(0, 10),
+              days_of_week: formData.days_of_week || [],
+            };
             setCreateSummary({
               type: "rutin",
               title: formData.title,
@@ -1845,7 +1861,7 @@ const AdminTodos = () => {
               start:
                 formData.recurrence_start_date ||
                 new Date().toISOString().slice(0, 10),
-              pattern: `Every ${interval} ${unit}${interval > 1 ? "s" : ""}`,
+              pattern: formatRoutinePatternLocal(routineData),
               days,
               preview: createRoutinePreviewCount,
             });

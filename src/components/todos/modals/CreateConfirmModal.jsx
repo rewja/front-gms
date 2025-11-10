@@ -19,7 +19,7 @@ const CreateConfirmModal = ({
         <div className="relative mx-auto border border-gray-200 w-full max-w-md shadow-lg rounded-xl bg-white">
           <div className="p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {t("common.confirmDetails")}
+              {t("common.confirmDetails", { defaultValue: "Confirm Details" })}
             </h3>
             <div className="text-sm text-gray-700 space-y-2">
               <div>
@@ -28,7 +28,7 @@ const CreateConfirmModal = ({
               </div>
               {createSummary.description && (
                 <div>
-                  <span className="text-gray-500">Description:</span>{" "}
+                  <span className="text-gray-500">{t("todos.description")}:</span>{" "}
                   {createSummary.description}
                 </div>
               )}
@@ -38,22 +38,18 @@ const CreateConfirmModal = ({
                 </span>{" "}
                 {formatTargetCategoryLocal(createSummary.target_category)}
                 {createSummary.selected_users
-                  ? ` (${createSummary.selected_users} selected)`
+                  ? ` (${createSummary.selected_users} ${t("common.selected", { defaultValue: "selected" })})`
                   : ""}
               </div>
               {createSummary.type === "tambahan" ? (
                 <>
                   <div>
-                    <span className="text-gray-500">Date:</span>{" "}
+                    <span className="text-gray-500">{t("common.date")}:</span>{" "}
                     {createSummary.date || "-"}
                   </div>
                   <div>
-                    <span className="text-gray-500">Start Time:</span>{" "}
+                    <span className="text-gray-500">{t("todos.startTime")}:</span>{" "}
                     {createSummary.start_time || "-"}
-                  </div>
-                  <div>
-                    <span className="text-gray-500">End Time:</span>{" "}
-                    {createSummary.end_time || "-"}
                   </div>
                 </>
               ) : (
@@ -72,10 +68,11 @@ const CreateConfirmModal = ({
                       {createSummary.days}
                     </div>
                   )}
-                  <div className="text-xs text-gray-500 mt-2">
-                    Akan membuat sekitar <b>{createSummary.preview}</b> tugas
-                    bulan ini.
-                  </div>
+                  {createSummary.preview !== undefined && createSummary.preview !== null && (
+                    <div className="text-xs text-gray-500 mt-2">
+                      {t("todos.willCreateTasksThisMonth", { count: createSummary.preview })}
+                    </div>
+                  )}
                 </>
               )}
             </div>

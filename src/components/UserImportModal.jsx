@@ -11,6 +11,7 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [error, setError] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleDownloadTemplate = () => {
@@ -126,32 +127,58 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
     }
   };
 
+  const validateAndSetFile = (selectedFile) => {
+    if (!selectedFile) return;
+
+    // Validate file type
+    const validTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+    ];
+    
+    if (!validTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
+      setError("File harus berupa Excel (.xlsx atau .xls)");
+      setFile(null);
+      return;
+    }
+
+    // Validate file size (10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setError("Ukuran file maksimal 10MB");
+      setFile(null);
+      return;
+    }
+
+    setFile(selectedFile);
+    setError(null);
+    setImportResult(null);
+  };
+
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      // Validate file type
-      const validTypes = [
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-excel",
-      ];
-      
-      if (!validTypes.includes(selectedFile.type) && !selectedFile.name.endsWith('.xlsx') && !selectedFile.name.endsWith('.xls')) {
-        setError("File harus berupa Excel (.xlsx atau .xls)");
-        setFile(null);
-        return;
-      }
+    validateAndSetFile(selectedFile);
+  };
 
-      // Validate file size (10MB)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setError("Ukuran file maksimal 10MB");
-        setFile(null);
-        return;
-      }
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files[0];
+    validateAndSetFile(droppedFile);
+  };
 
-      setFile(selectedFile);
-      setError(null);
-      setImportResult(null);
-    }
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleAreaClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleImport = async () => {
@@ -249,32 +276,39 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t("users.selectFile", { defaultValue: "Pilih File Excel" })}
             </label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+            <div
+              onClick={handleAreaClick}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                isDragging
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+              }`}
+            >
               <div className="space-y-1 text-center">
-                <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="flex text-sm text-gray-600">
-                  <label
-                    htmlFor="file-upload"
-                    className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
-                  >
-                    <span>{t("users.uploadFile", { defaultValue: "Upload file" })}</span>
-                    <input
-                      id="file-upload"
-                      name="file-upload"
-                      type="file"
-                      ref={fileInputRef}
-                      accept=".xlsx,.xls"
-                      className="sr-only"
-                      onChange={handleFileSelect}
-                    />
-                  </label>
-                  <p className="pl-1">atau drag and drop</p>
+                <FileSpreadsheet className={`mx-auto h-12 w-12 ${isDragging ? "text-blue-500" : "text-gray-400"}`} />
+                <div className="flex text-sm text-gray-600 justify-center items-center">
+                  <span className="font-medium text-blue-600 hover:text-blue-500">
+                    {t("users.uploadFile", { defaultValue: "Upload file" })}
+                  </span>
+                  <span className="pl-1">atau drag and drop</span>
                 </div>
                 <p className="text-xs text-gray-500">
                   {t("users.supportedFormats", { defaultValue: "XLSX, XLS (maks 10MB)" })}
                 </p>
               </div>
             </div>
+            <input
+              id="file-upload"
+              name="file-upload"
+              type="file"
+              ref={fileInputRef}
+              accept=".xlsx,.xls"
+              className="sr-only"
+              onChange={handleFileSelect}
+            />
             {file && (
               <div className="mt-2 flex items-center justify-between bg-gray-50 p-2 rounded">
                 <div className="flex items-center">
