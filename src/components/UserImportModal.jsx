@@ -221,21 +221,48 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
       if (errorData) {
         // If there are failures with details, show them
         if (errorData.failures && Array.isArray(errorData.failures) && errorData.failures.length > 0) {
+          console.log('Failures data:', errorData.failures);
+          
           const failureMessages = errorData.failures.slice(0, 5).map((failure) => {
+            console.log('Processing failure:', failure);
+            
             const row = failure.row || '?';
             let errors = 'Data tidak valid';
             
+            // Try to get error messages
             if (Array.isArray(failure.errors)) {
-              errors = failure.errors.join(', ');
+              errors = failure.errors.filter(e => e && e.trim()).join(', ') || 'Data tidak valid';
             } else if (typeof failure.errors === 'object' && failure.errors !== null) {
               // Handle object errors (Laravel validation format)
-              errors = Object.values(failure.errors).flat().join(', ');
+              const errorValues = Object.values(failure.errors).flat();
+              errors = errorValues.filter(e => e && e.trim()).join(', ') || 'Data tidak valid';
             } else if (failure.errors) {
-              errors = String(failure.errors);
+              errors = String(failure.errors).trim() || 'Data tidak valid';
             }
             
-            const attribute = failure.attribute ? ` (${failure.attribute})` : '';
-            return `Baris ${row}${attribute}: ${errors}`;
+            // If still generic, try to get from message field
+            if (errors === 'Data tidak valid' && failure.message) {
+              errors = String(failure.message).trim();
+            }
+            
+            // Show attribute (field name) if available
+            const attribute = failure.attribute ? ` (kolom: ${failure.attribute})` : '';
+            
+            // Show values if available for debugging
+            let valuesInfo = '';
+            if (failure.values && typeof failure.values === 'object') {
+              const valueList = Object.entries(failure.values)
+                .filter(([key, val]) => val !== null && val !== undefined && val !== '')
+                .map(([key, val]) => `${key}: ${val}`)
+                .join(', ');
+              if (valueList) {
+                valuesInfo = ` [Data: ${valueList}]`;
+              }
+            }
+            
+            const message = `Baris ${row}${attribute}: ${errors}${valuesInfo}`;
+            console.log('Generated message:', message);
+            return message;
           });
           
           errorMessage = `Validasi gagal:\n${failureMessages.join('\n')}`;
@@ -404,14 +431,45 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
                     {importResult.failures && importResult.failures.length > 0 && (
                       <div className="mt-2">
                         <p className="font-medium">Baris yang gagal:</p>
-                        <ul className="list-disc list-inside mt-1">
-                          {importResult.failures.slice(0, 5).map((failure, idx) => (
-                            <li key={idx}>
-                              Baris {failure.row}: {failure.errors?.join(", ") || "Data tidak valid"}
-                            </li>
-                          ))}
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                          {importResult.failures.slice(0, 5).map((failure, idx) => {
+                            const row = failure.row || '?';
+                            let errorMessages = 'Data tidak valid';
+                            
+                            // Try to get error messages
+                            if (Array.isArray(failure.errors)) {
+                              errorMessages = failure.errors.filter(e => e && e.trim()).join(', ') || 'Data tidak valid';
+                            } else if (typeof failure.errors === 'object' && failure.errors !== null) {
+                              // Handle object errors (Laravel validation format)
+                              const errorValues = Object.values(failure.errors).flat();
+                              errorMessages = errorValues.filter(e => e && e.trim()).join(', ') || 'Data tidak valid';
+                            } else if (failure.errors) {
+                              errorMessages = String(failure.errors).trim() || 'Data tidak valid';
+                            }
+                            
+                            // Show attribute (field name) if available
+                            const attribute = failure.attribute ? ` (kolom: ${failure.attribute})` : '';
+                            
+                            // Show values if available for debugging
+                            let valuesInfo = '';
+                            if (failure.values && typeof failure.values === 'object') {
+                              const valueList = Object.entries(failure.values)
+                                .filter(([key, val]) => val !== null && val !== undefined && val !== '')
+                                .map(([key, val]) => `${key}: ${val}`)
+                                .join(', ');
+                              if (valueList) {
+                                valuesInfo = ` [Data: ${valueList}]`;
+                              }
+                            }
+                            
+                            return (
+                              <li key={idx} className="text-sm">
+                                <span className="font-medium">Baris {row}{attribute}:</span> {errorMessages}{valuesInfo}
+                              </li>
+                            );
+                          })}
                           {importResult.failures.length > 5 && (
-                            <li>... dan {importResult.failures.length - 5} baris lainnya</li>
+                            <li className="text-sm">... dan {importResult.failures.length - 5} baris lainnya</li>
                           )}
                         </ul>
                       </div>
