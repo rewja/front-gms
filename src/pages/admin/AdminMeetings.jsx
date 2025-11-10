@@ -218,24 +218,53 @@ const AdminMeetings = () => {
     return v;
   };
 
-  const filteredMeetings = meetings.filter((meeting) => {
-    const matchesSearch =
-      meeting.agenda?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      meeting.room_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getUserName(meeting.user_id, meeting.user)
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      meeting.organizer_name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRoom = !roomFilter || meeting.room_name === roomFilter;
-    const matchesStatus = !statusFilter || meeting.status === statusFilter;
-    const matchesBookingType = !bookingTypeFilter || meeting.booking_type === bookingTypeFilter || (bookingTypeFilter === 'external' && meeting.booking_type === 'public');
-    const matchesPriority = !priorityFilter || normalizePriority(meeting.prioritas) === priorityFilter;
-    const matchesDate = !dateFilter || 
-      new Date(meeting.start_time).toISOString().split('T')[0] === dateFilter;
-    
-    return matchesSearch && matchesRoom && matchesStatus && matchesBookingType && matchesPriority && matchesDate;
-  });
+  const filteredMeetings = meetings
+    .filter((meeting) => {
+      const matchesSearch =
+        meeting.agenda?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        meeting.room_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getUserName(meeting.user_id, meeting.user)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        meeting.organizer_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesRoom = !roomFilter || meeting.room_name === roomFilter;
+      const matchesStatus = !statusFilter || meeting.status === statusFilter;
+      const matchesBookingType = !bookingTypeFilter || meeting.booking_type === bookingTypeFilter || (bookingTypeFilter === 'external' && meeting.booking_type === 'public');
+      const matchesPriority = !priorityFilter || normalizePriority(meeting.prioritas) === priorityFilter;
+      const matchesDate = !dateFilter || 
+        new Date(meeting.start_time).toISOString().split('T')[0] === dateFilter;
+      
+      return matchesSearch && matchesRoom && matchesStatus && matchesBookingType && matchesPriority && matchesDate;
+    })
+    .sort((a, b) => {
+      // Sort by created_at (terbaru di atas), fallback ke id (auto increment)
+      // Prioritas: created_at > id > start_time
+      let dateA, dateB;
+      
+      if (a.created_at) {
+        dateA = new Date(a.created_at).getTime();
+      } else if (a.id) {
+        dateA = a.id; // ID biasanya auto increment, jadi lebih besar = lebih baru
+      } else if (a.start_time) {
+        dateA = new Date(a.start_time).getTime();
+      } else {
+        dateA = 0;
+      }
+      
+      if (b.created_at) {
+        dateB = new Date(b.created_at).getTime();
+      } else if (b.id) {
+        dateB = b.id;
+      } else if (b.start_time) {
+        dateB = new Date(b.start_time).getTime();
+      } else {
+        dateB = 0;
+      }
+      
+      // Descending order (terbaru di atas)
+      return dateB - dateA;
+    });
 
   const getDateFilteredMeetings = (meetings) => {
     return meetings.filter((meeting) => {
