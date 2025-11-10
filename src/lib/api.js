@@ -51,8 +51,13 @@ export const api = {
       ...headers,
     };
     if (AUTH_TOKEN) finalHeaders["Authorization"] = `Bearer ${AUTH_TOKEN}`;
+    // Don't set Content-Type for FormData - browser will set it automatically with boundary
+    // Only set Content-Type for JSON data when not using FormData
     if (!isForm && body && !(body instanceof FormData)) {
       finalHeaders["Content-Type"] = "application/json";
+    } else if (isForm && body instanceof FormData) {
+      // Explicitly remove Content-Type header for FormData to let browser set it
+      delete finalHeaders["Content-Type"];
     }
 
     const res = await fetch(url, {
@@ -68,13 +73,77 @@ export const api = {
 
     if (!res.ok) {
       let errMsg = `HTTP ${res.status}`;
+      let errorData = null;
+      
+      // Read response as text first to handle cases where HTML warnings might be present
+      const contentType = res.headers.get("content-type") || "";
       try {
-        const data = await res.json();
-        errMsg = data.message || errMsg;
-        throw { response: { status: res.status, data } };
-      } catch {
-        throw new Error(errMsg);
+        const text = await res.text();
+        console.log('Error response text (first 500 chars):', text.substring(0, 500)); // Debug log
+        
+        // Try to extract JSON from response (might have HTML warnings before JSON)
+        // Look for JSON object in the text - try multiple strategies
+        let jsonText = null;
+        let parsedData = null;
+        
+        // Strategy 1: Find first { and last } and extract JSON
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          jsonText = text.substring(jsonStart, jsonEnd + 1);
+          try {
+            parsedData = JSON.parse(jsonText);
+          } catch (e) {
+            // Try strategy 2: Find JSON after </b> or </br> tags
+            const afterHtml = text.split(/<\/[^>]+>/).pop();
+            const jsonStart2 = afterHtml.indexOf('{');
+            const jsonEnd2 = afterHtml.lastIndexOf('}');
+            if (jsonStart2 !== -1 && jsonEnd2 !== -1 && jsonEnd2 > jsonStart2) {
+              jsonText = afterHtml.substring(jsonStart2, jsonEnd2 + 1);
+              try {
+                parsedData = JSON.parse(jsonText);
+              } catch (e2) {
+                // Strategy 3: Try to find JSON using regex
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  try {
+                    parsedData = JSON.parse(jsonMatch[0]);
+                  } catch (e3) {
+                    console.error('All JSON parsing strategies failed');
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        if (parsedData) {
+          errMsg = parsedData.message || errMsg;
+          errorData = parsedData;
+          console.log('Successfully parsed error data:', errorData); // Debug log
+        } else {
+          // No valid JSON found, extract message from HTML/text
+          const htmlMessage = text.match(/<b>([^<]+)<\/b>/)?.[1] || 
+                             text.match(/message["\s:]+"([^"]+)"/)?.[1] ||
+                             text.match(/The ([^<]+)/)?.[1] ||
+                             text.match(/"message"\s*:\s*"([^"]+)"/)?.[1];
+          errMsg = htmlMessage || text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() || errMsg;
+          errorData = { message: errMsg };
+          console.log('Extracted error message from text:', errMsg); // Debug log
+        }
+      } catch (readError) {
+        // If reading response fails, use default message
+        console.error('Failed to read error response:', readError);
       }
+      
+      // Always throw an error object with response property for consistent handling
+      const error = new Error(errMsg);
+      error.response = {
+        status: res.status,
+        data: errorData || { message: errMsg }
+      };
+      throw error;
     }
 
     const contentType = res.headers.get("content-type") || "";

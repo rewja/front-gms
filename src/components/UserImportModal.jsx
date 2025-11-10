@@ -195,10 +195,9 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
       const formData = new FormData();
       formData.append("file", file);
 
+      // Don't set Content-Type header for FormData - browser will set it automatically with boundary
       const response = await api.post("/users/import", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        isForm: true, // This tells api.js to not set Content-Type header
       });
 
       setImportResult(response.data);
@@ -211,14 +210,18 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
       }
     } catch (err) {
       console.error('Import error:', err);
+      console.error('Error response:', err?.response);
+      console.error('Error data:', err?.response?.data);
+      
       let errorMessage = "Gagal mengimport data. Pastikan format file sesuai dengan template.";
       
-      if (err?.response?.data) {
-        const data = err.response.data;
-        
+      // Try to get error data from response
+      const errorData = err?.response?.data || err?.data || null;
+      
+      if (errorData) {
         // If there are failures with details, show them
-        if (data.failures && Array.isArray(data.failures) && data.failures.length > 0) {
-          const failureMessages = data.failures.slice(0, 5).map((failure) => {
+        if (errorData.failures && Array.isArray(errorData.failures) && errorData.failures.length > 0) {
+          const failureMessages = errorData.failures.slice(0, 5).map((failure) => {
             const row = failure.row || '?';
             let errors = 'Data tidak valid';
             
@@ -236,18 +239,18 @@ const UserImportModal = ({ isOpen, onClose, onImportSuccess }) => {
           });
           
           errorMessage = `Validasi gagal:\n${failureMessages.join('\n')}`;
-          if (data.failures.length > 5) {
-            errorMessage += `\n... dan ${data.failures.length - 5} baris lainnya`;
+          if (errorData.failures.length > 5) {
+            errorMessage += `\n... dan ${errorData.failures.length - 5} baris lainnya`;
           }
-        } else if (data.message) {
-          errorMessage = data.message;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
           // If there's a debug error, append it
-          if (data.error && process.env.NODE_ENV === 'development') {
-            errorMessage += `\n\nDetail: ${data.error}`;
+          if (errorData.error && import.meta.env.DEV) {
+            errorMessage += `\n\nDetail: ${errorData.error}`;
           }
-        } else if (data.errors) {
+        } else if (errorData.errors) {
           // Handle Laravel validation errors format
-          const errorList = Object.entries(data.errors).map(([key, value]) => {
+          const errorList = Object.entries(errorData.errors).map(([key, value]) => {
             const messages = Array.isArray(value) ? value : [value];
             return `${key}: ${messages.join(', ')}`;
           });

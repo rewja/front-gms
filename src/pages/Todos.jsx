@@ -1082,36 +1082,6 @@ const Todos = () => {
                 </div>
               </div>
 
-              {/* Evaluating */}
-              <div
-                className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${
-                  statusFilter === "evaluating"
-                    ? "ring-2 ring-purple-500 bg-purple-50"
-                    : ""
-                }`}
-                onClick={() =>
-                  setStatusFilter(
-                    statusFilter === "evaluating" ? "all" : "evaluating"
-                  )
-                }
-              >
-                <div className="p-3 sm:p-4">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="flex-shrink-0 mb-2">
-                      <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-purple-500" />
-                    </div>
-                    <dl>
-                      <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                        {t("todos.evaluating")}
-                      </dt>
-                      <dd className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
-                        {filteredStats.evaluating}
-                      </dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-
               {/* Completed */}
               <div
                 className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 cursor-pointer ${

@@ -143,7 +143,6 @@ const AdminTodos = () => {
   const [groupCategoryFilter, setGroupCategoryFilter] = useState("all"); // all|ob|driver|security
   const [expandedGroupKey, setExpandedGroupKey] = useState(null);
   const [expandedUserId, setExpandedUserId] = useState(null);
-  const [evalFilter, setEvalFilter] = useState("all"); // all | to_evaluate | evaluated
   const PAGE_SIZE = 5;
   const [groupUserPageByKey, setGroupUserPageByKey] = useState({}); // { [groupKey]: page }
   const [groupTaskPageByKey, setGroupTaskPageByKey] = useState({}); // { [groupKey-userId]: page }
@@ -1095,19 +1094,6 @@ const AdminTodos = () => {
                 {expandedGroupKey === g.key && (
                   <div className="px-4 pb-4">
                     <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <span className="text-xs text-gray-600">
-                        {t("common.filter")}:
-                      </span>
-                      {/* Evaluate filter always */}
-                      <select
-                        value={evalFilter}
-                        onChange={(e) => setEvalFilter(e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded-md text-xs"
-                      >
-                        <option value="all">{t("todos.all")}</option>
-                        <option value="to_evaluate">{t("todos.toEvaluate")}</option>
-                        <option value="evaluated">{t("todos.evaluated")}</option>
-                      </select>
                       {/* Show category filter only if target_category === 'all' and there are multiple categories */}
                       {g.sample?.target_category === "all" && (
                         <select
@@ -1289,13 +1275,6 @@ const AdminTodos = () => {
                                 (t.recurrence_unit || "day") ===
                                   (g.sample.recurrence_unit || "day")
                             )
-                            .filter((t) =>
-                              evalFilter === "all"
-                                ? true
-                                : evalFilter === "to_evaluate"
-                                ? t.status === "checking"
-                                : t.status === "completed"
-                            )
                             .sort((a, b) => {
                               // Sort by scheduled_date first, then by created_at
                               const getDateForSort = (todo) => {
@@ -1435,16 +1414,19 @@ const AdminTodos = () => {
                                         >
                                           <Eye className="h-4 w-4" />
                                         </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEdit(todoItem);
-                                          }}
-                                          className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
-                                          title={t("common.edit")}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </button>
+                                        {/* Edit - Hide when status is checking */}
+                                        {todoItem.status !== "checking" && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEdit(todoItem);
+                                            }}
+                                            className="p-2 text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded"
+                                            title={t("common.edit")}
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </button>
+                                        )}
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -1645,14 +1627,16 @@ const AdminTodos = () => {
                           <Eye className="h-4 w-4" />
                         </button>
 
-                        {/* Edit - Admin can edit all todos */}
-                        <button
-                          onClick={() => handleEdit(todo)}
-                          className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors duration-200"
-                          title={t("common.editTodo")}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
+                        {/* Edit - Hide when status is checking */}
+                        {todo.status !== "checking" && (
+                          <button
+                            onClick={() => handleEdit(todo)}
+                            className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors duration-200"
+                            title={t("common.editTodo")}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                        )}
 
                         {/* Delete - Admin can delete all todos */}
                         <button

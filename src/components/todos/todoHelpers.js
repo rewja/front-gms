@@ -220,38 +220,62 @@ export const getDateRange = (dateFilter, dateFrom, dateTo) => {
 };
 
 export const calculateAutomaticRating = (todo) => {
-  if (!todo.target_duration_value || !todo.target_duration_unit) return null;
-
-  let targetMinutes = Number(todo.target_duration_value);
-  if (isNaN(targetMinutes)) return null;
-  if (todo.target_duration_unit === "hours")
-    targetMinutes = targetMinutes * 60;
-
-  let actualMinutes = null;
-  if (typeof todo.total_work_time_minutes === "number") {
-    actualMinutes = todo.total_work_time_minutes;
-  } else if (typeof todo.total_work_time === "number") {
-    actualMinutes = todo.total_work_time;
-  } else if (typeof todo.total_work_time === "string") {
-    const m = todo.total_work_time.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
-    if (m) {
-      const h = parseInt(m[1] || "0", 10);
-      const mm = parseInt(m[2] || "0", 10);
-      actualMinutes = h * 60 + mm;
+  // Calculate target duration
+  let targetMinutes = null;
+  if (todo.target_duration_value && todo.target_duration_unit) {
+    targetMinutes = Number(todo.target_duration_value);
+    if (isNaN(targetMinutes)) return null;
+    if (todo.target_duration_unit === "hours")
+      targetMinutes = targetMinutes * 60;
+  } else if (todo.target_start_at_raw && todo.target_end_at_raw) {
+    // Fallback: calculate from target_start_at to target_end_at
+    const targetStart = Date.parse(todo.target_start_at_raw);
+    const targetEnd = Date.parse(todo.target_end_at_raw);
+    if (!isNaN(targetStart) && !isNaN(targetEnd) && targetEnd >= targetStart) {
+      targetMinutes = (targetEnd - targetStart) / (1000 * 60);
     }
-  } else if (todo.started_at_raw && todo.submitted_at_raw) {
-    const s = Date.parse(todo.started_at_raw);
-    const e = Date.parse(todo.submitted_at_raw);
-    if (!isNaN(s) && !isNaN(e) && e >= s) {
-      actualMinutes = Math.round((e - s) / (1000 * 60));
+  }
+  
+  if (!targetMinutes || targetMinutes <= 0) return null;
+
+  // Calculate total time from target_start to actual_end (considers late start time)
+  let totalTimeFromTargetStart = null;
+  
+  if (todo.target_start_at_raw && todo.submitted_at_raw) {
+    // Calculate from target start to actual end (includes delay in starting)
+    const targetStart = Date.parse(todo.target_start_at_raw);
+    const actualEnd = Date.parse(todo.submitted_at_raw);
+    if (!isNaN(targetStart) && !isNaN(actualEnd) && actualEnd >= targetStart) {
+      totalTimeFromTargetStart = (actualEnd - targetStart) / (1000 * 60); // in minutes with decimal precision
+    }
+  } else if (todo.target_duration_value && todo.target_duration_unit) {
+    // Fallback: if no target_start_at, use actual duration (backward compatibility)
+    if (typeof todo.total_work_time_minutes === "number") {
+      totalTimeFromTargetStart = todo.total_work_time_minutes;
+    } else if (typeof todo.total_work_time === "number") {
+      totalTimeFromTargetStart = todo.total_work_time;
+    } else if (typeof todo.total_work_time === "string") {
+      const m = todo.total_work_time.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/);
+      if (m) {
+        const h = parseInt(m[1] || "0", 10);
+        const mm = parseInt(m[2] || "0", 10);
+        totalTimeFromTargetStart = h * 60 + mm;
+      }
+    } else if (todo.started_at_raw && todo.submitted_at_raw) {
+      const s = Date.parse(todo.started_at_raw);
+      const e = Date.parse(todo.submitted_at_raw);
+      if (!isNaN(s) && !isNaN(e) && e >= s) {
+        totalTimeFromTargetStart = (e - s) / (1000 * 60);
+      }
     }
   }
 
-  if (actualMinutes === null || isNaN(actualMinutes)) return null;
+  if (totalTimeFromTargetStart === null || isNaN(totalTimeFromTargetStart) || totalTimeFromTargetStart <= 0) return null;
 
-  if (actualMinutes <= targetMinutes) return 5;
+  // Calculate rating based on total time from target start vs target duration
+  if (totalTimeFromTargetStart <= targetMinutes) return 5;
   
-  const overtimeRatio = actualMinutes / targetMinutes;
+  const overtimeRatio = totalTimeFromTargetStart / targetMinutes;
   
   if (overtimeRatio <= 1.25) return 4;
   if (overtimeRatio <= 1.5) return 3;

@@ -37,6 +37,7 @@ const Layout = ({ children }) => {
   const [todayNotStarted, setTodayNotStarted] = useState(0);
   const [pendingMeetingCount, setPendingMeetingCount] = useState(0);
   const [todayMeetingCount, setTodayMeetingCount] = useState(0);
+  const [checkingTodoCount, setCheckingTodoCount] = useState(0);
 
   const handleLogout = () => {
     logout();
@@ -217,6 +218,42 @@ const Layout = ({ children }) => {
       setTodayMeetingCount(0); // Clear badge immediately
     }
   }, [location.pathname, user]);
+
+  // Load checking todos count for admin badge
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCheckingTodoCount() {
+      try {
+        if (!user) return;
+        if (!['admin_ga', 'admin_ga_manager', 'super_admin'].includes(user.role)) {
+          setCheckingTodoCount(0);
+          return;
+        }
+        const res = await api.get("/todos/checking-count");
+        if (!cancelled && res?.data?.count !== undefined) {
+          setCheckingTodoCount(res.data.count);
+        }
+      } catch (e) {
+        // silent fail for badge
+        if (!cancelled) setCheckingTodoCount(0);
+      }
+    }
+    loadCheckingTodoCount();
+    // Refresh every minute
+    const interval = setInterval(loadCheckingTodoCount, 60000);
+    
+    // Listen for refresh events
+    const handleRefresh = () => {
+      loadCheckingTodoCount();
+    };
+    window.addEventListener('refreshData', handleRefresh);
+    
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('refreshData', handleRefresh);
+    };
+  }, [user, location.pathname]);
 
   // Format time for Asia/Jakarta timezone
   const formatJakartaTime = () => {
@@ -421,6 +458,7 @@ const Layout = ({ children }) => {
           <nav className="flex-1 px-4 py-4">
             {navigationItems.map((item) => {
               const isTodos = (item.href || "").includes("/todos");
+              const isAdminTodos = (item.href || "").includes("/admin/todos");
               const isMeetings = (item.href || "").includes("/admin/meetings");
               return (
                 <Link
@@ -435,6 +473,11 @@ const Layout = ({ children }) => {
                     {isTodos && todayNotStarted > 0 && (
                       <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
                         {todayNotStarted}
+                      </span>
+                    )}
+                    {isAdminTodos && checkingTodoCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
+                        {checkingTodoCount > 99 ? '99+' : checkingTodoCount}
                       </span>
                     )}
                     {isMeetings && (pendingMeetingCount > 0 || todayMeetingCount > 0) && (
@@ -475,6 +518,7 @@ const Layout = ({ children }) => {
           <nav className="flex-1 px-4 py-4">
             {navigationItems.map((item) => {
               const isTodos = (item.href || "").includes("/todos");
+              const isAdminTodos = (item.href || "").includes("/admin/todos");
               const isMeetings = (item.href || "").includes("/admin/meetings");
               return (
                 <Link
@@ -488,6 +532,11 @@ const Layout = ({ children }) => {
                     {isTodos && todayNotStarted > 0 && (
                       <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
                         {todayNotStarted}
+                      </span>
+                    )}
+                    {isAdminTodos && checkingTodoCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-semibold rounded-full bg-red-500 text-white">
+                        {checkingTodoCount > 99 ? '99+' : checkingTodoCount}
                       </span>
                     )}
                     {isMeetings && (pendingMeetingCount > 0 || todayMeetingCount > 0) && (
