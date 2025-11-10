@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../lib/api';
 import { useTranslatedLabels } from '../../hooks/useTranslatedLabels';
 import { useNotification } from '../../components/NotificationSystem';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Calendar,
   Clock,
@@ -26,6 +27,7 @@ const AdminMeetings = () => {
   const { t } = useTranslation();
   const { formatStatusLabel } = useTranslatedLabels();
   const { addNotification } = useNotification();
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -734,7 +736,12 @@ const AdminMeetings = () => {
                         {meeting.ga_check_status === 'pending' && (
                           <button
                             onClick={() => handleCheckMeeting(meeting, 'ga')}
-                            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            disabled={user?.role !== 'admin_ga' && user?.role !== 'super_admin'}
+                            className={`flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
+                              user?.role !== 'admin_ga' && user?.role !== 'super_admin'
+                                ? 'text-blue-400 bg-blue-50 cursor-not-allowed opacity-50'
+                                : 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                            }`}
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             GA Check
@@ -744,7 +751,12 @@ const AdminMeetings = () => {
                         {meeting.ga_manager_check_status === 'pending' && (
                           <button
                             onClick={() => handleCheckMeeting(meeting, 'ga_manager')}
-                            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+                            disabled={user?.role !== 'admin_ga_manager' && user?.role !== 'super_admin'}
+                            className={`flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
+                              user?.role !== 'admin_ga_manager' && user?.role !== 'super_admin'
+                                ? 'text-purple-400 bg-purple-50 cursor-not-allowed opacity-50'
+                                : 'text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
+                            }`}
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             GA Manager Check
@@ -757,7 +769,12 @@ const AdminMeetings = () => {
                         {meeting.status !== 'canceled' && meeting.status !== 'ended' && (
                           <button
                             onClick={() => handleCancelMeeting(meeting.id)}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                            disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
+                            className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
+                              meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'
+                                ? 'text-red-400 bg-red-50 cursor-not-allowed opacity-50'
+                                : 'text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                            }`}
                           >
                             <AlertCircle className="h-4 w-4 mr-2" />
                             {t('meetings.cancel', { defaultValue: 'Cancel' })}
@@ -767,7 +784,12 @@ const AdminMeetings = () => {
                         {meeting.status === 'scheduled' && (
                           <button
                             onClick={() => handleForceStart(meeting.id)}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
+                            className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
+                              meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'
+                                ? 'text-blue-400 bg-blue-50 cursor-not-allowed opacity-50'
+                                : 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                            }`}
                           >
                             <Play className="h-4 w-4 mr-2" />
                             {t('meetings.forceStart', { defaultValue: 'Force Start' })}
