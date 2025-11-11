@@ -180,7 +180,7 @@ const RequestExportModal = ({
       pdf.save(fileName);
 
       try {
-        await logExport({ feature: "Permintaan", format: "pdf", menu_path: "Admin > Manajemen Permintaan" });
+        await logExport({ feature: "Manajemen Permintaan", format: "pdf", menu_path: "Admin > Manajemen Permintaan" });
       } catch (_) {}
     } catch (error) {
       console.error("PDF Export Error:", error);
@@ -249,7 +249,7 @@ const RequestExportModal = ({
       saveAs(data, fileName);
 
       try {
-        await logExport({ feature: "Permintaan", format: "excel", menu_path: "Admin > Manajemen Permintaan" });
+        await logExport({ feature: "Manajemen Permintaan", format: "excel", menu_path: "Admin > Manajemen Permintaan" });
       } catch (_) {}
     } catch (error) {
       console.error("Excel Export Error:", error);

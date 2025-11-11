@@ -213,7 +213,7 @@ const TodoExportModal = ({
       pdf.save(fileName);
 
       try {
-        await logExport({ feature: "Todo", format: "pdf", menu_path: "Admin > Todo" });
+        await logExport({ feature: "Manajemen Tugas", format: "pdf", menu_path: "Admin > Manajemen Tugas" });
       } catch (_) {}
     } catch (error) {
       console.error("PDF Export Error:", error);
@@ -524,7 +524,7 @@ const TodoExportModal = ({
       saveAs(data, fileName);
 
       try {
-        await logExport({ feature: "Todo", format: "excel", menu_path: "Admin > Todo" });
+        await logExport({ feature: "Manajemen Tugas", format: "excel", menu_path: "Admin > Manajemen Tugas" });
       } catch (_) {}
     } catch (error) {
       console.error("Excel Export Error:", error);

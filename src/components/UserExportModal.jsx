@@ -171,7 +171,7 @@ const UserExportModal = ({
       pdf.save(fileName);
 
       try {
-        await logExport({ feature: "Pengguna", format: "pdf", menu_path: "Admin > Manajemen Pengguna" });
+        await logExport({ feature: "Manajemen Pengguna", format: "pdf", menu_path: "Admin > Manajemen Pengguna" });
       } catch (_) {}
     } catch (error) {
       console.error("PDF Export Error:", error);
@@ -237,7 +237,7 @@ const UserExportModal = ({
       saveAs(data, fileName);
 
       try {
-        await logExport({ feature: "Pengguna", format: "excel", menu_path: "Admin > Manajemen Pengguna" });
+        await logExport({ feature: "Manajemen Pengguna", format: "excel", menu_path: "Admin > Manajemen Pengguna" });
       } catch (_) {}
     } catch (error) {
       console.error("Excel Export Error:", error);

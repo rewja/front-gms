@@ -48,7 +48,14 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
       complete_todo: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
       evaluate: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
       create_routine_batch: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
-      purchase: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z'
+      purchase: 'M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z',
+      force_start_meeting: 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z',
+      force_end_meeting: 'M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z',
+      cancel_meeting: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+      ga_approve_meeting: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      ga_reject_meeting: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+      ga_manager_approve_meeting: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      ga_manager_reject_meeting: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'
     };
 
     return icons[action] || icons.view;
@@ -70,7 +77,14 @@ const HistoryTable = ({ activities, loading, pagination, onPageChange, isAdmin }
       hold_todo: 'text-yellow-600 bg-yellow-100',
       complete_todo: 'text-green-600 bg-green-100',
       evaluate: 'text-purple-600 bg-purple-100',
-      purchase: 'text-teal-600 bg-teal-100'
+      purchase: 'text-teal-600 bg-teal-100',
+      force_start_meeting: 'text-blue-600 bg-blue-100',
+      force_end_meeting: 'text-orange-600 bg-orange-100',
+      cancel_meeting: 'text-red-600 bg-red-100',
+      ga_approve_meeting: 'text-green-600 bg-green-100',
+      ga_reject_meeting: 'text-red-600 bg-red-100',
+      ga_manager_approve_meeting: 'text-green-600 bg-green-100',
+      ga_manager_reject_meeting: 'text-red-600 bg-red-100'
     };
 
     return colors[action] || 'text-gray-600 bg-gray-100';

@@ -308,7 +308,7 @@ const AssetExportModal = ({
       // Log export activity
       try {
         await logExport({
-          feature: "Aset",
+          feature: "Manajemen Aset",
           format: "pdf",
           menu_path: "Admin > Manajemen Aset",
         });
@@ -393,7 +393,7 @@ const AssetExportModal = ({
       // Log export activity
       try {
         await logExport({
-          feature: "Aset",
+          feature: "Manajemen Aset",
           format: "excel",
           menu_path: "Admin > Manajemen Aset",
         });
