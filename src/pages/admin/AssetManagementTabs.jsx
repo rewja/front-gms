@@ -42,6 +42,7 @@ import Pagination from "../../components/Pagination"; // TODO: review this merge
 import AssetExportModal from "../../components/AssetExportModal"; // TODO: review this merge decision — added from friend's project
 import { createPortal } from "react-dom";
 import MaintenanceActionMenu from "../../components/MaintenanceActionMenu";
+import { canCreate, canEdit, canDelete } from "../../utils/permissions";
 
 const AssetManagementTabs = () => {
   const { t } = useTranslation();
@@ -931,8 +932,8 @@ const AssetManagementTabs = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {/* Add New Asset Button */}
-          {user?.role === "admin_ga" && (
+          {/* Add New Asset Button - Only for admin_ga and admin_ga_manager */}
+          {canCreate(user) && (
             <button
               onClick={handleCreate}
               className="btn-primary w-full sm:w-auto"
@@ -1846,26 +1847,30 @@ const AssetManagementTabs = () => {
                                   <Eye className="h-4 w-4" />
                                   <span>{t("common.view")}</span>
                                 </button>
-                                <button
-                                  onClick={() => {
-                                    setOpenActionForId(null);
-                                    handleEdit(asset);
-                                  }}
-                                  className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-gray-700"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                  <span>{t("common.edit")}</span>
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setOpenActionForId(null);
-                                    handleDelete(asset.id);
-                                  }}
-                                  className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span>{t("common.delete")}</span>
-                                </button>
+                                {canEdit(user) && (
+                                  <button
+                                    onClick={() => {
+                                      setOpenActionForId(null);
+                                      handleEdit(asset);
+                                    }}
+                                    className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                    <span>{t("common.edit")}</span>
+                                  </button>
+                                )}
+                                {canDelete(user) && (
+                                  <button
+                                    onClick={() => {
+                                      setOpenActionForId(null);
+                                      handleDelete(asset.id);
+                                    }}
+                                    className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span>{t("common.delete")}</span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           )}

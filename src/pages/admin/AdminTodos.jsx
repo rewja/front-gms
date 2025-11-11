@@ -52,6 +52,7 @@ import RoutineDetailModal from "../../components/todos/modals/RoutineDetailModal
 import CreateConfirmModal from "../../components/todos/modals/CreateConfirmModal";
 import CreateEditTodoModal from "../../components/todos/modals/CreateEditTodoModal";
 import EditRoutineModal from "../../components/todos/modals/EditRoutineModal";
+import { canCreate, canEdit, canDelete } from "../../utils/permissions";
 
 const AdminTodos = () => {
   const { t, i18n } = useTranslation();
@@ -853,14 +854,16 @@ const AdminTodos = () => {
             <Download className="h-4 w-4 mr-2" />
             {t("todos.exportTodos", { defaultValue: "Export Todos" })}
           </button>
-          {/* Create New Todo Button */}
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="btn-primary w-full sm:w-auto flex items-center justify-center"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("todos.createNew")}
-          </button>
+          {/* Create New Todo Button - Only for admin_ga and admin_ga_manager */}
+          {canCreate(user) && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="btn-primary w-full sm:w-auto flex items-center justify-center"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t("todos.createNew")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -977,53 +980,56 @@ const AdminTodos = () => {
                     >
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button
-                      type="button"
-                      title={t("common.editRoutine")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // open edit modal, prefill form with sample
-                        const sample = g.sample || {};
-                        setRoutineGroupEdited(g);
-                        setRoutineForm({
-                          title: g.title || "",
-                          description: sample.description || "",
-                          todo_type: "rutin",
-                          target_category: sample.target_category || "all",
-                          selected_user_ids: [],
-                          recurrence_start_date:
-                            sample.recurrence_start_date ||
-                            new Date().toISOString().slice(0, 10),
-                          recurrence_interval: sample.recurrence_interval || 1,
-                          recurrence_unit: sample.recurrence_unit || "day",
-                          recurrence_count: sample.recurrence_count ?? 0,
-                          occurrences_per_interval:
-                            sample.occurrences_per_interval || 1,
-                          days_of_week: Array.isArray(sample.days_of_week)
-                            ? sample.days_of_week
-                            : [],
-                        });
-                        setRoutineStrategy("future_only");
-                        setShowEditRoutineModal(true);
-                      }}
-                      className="p-1.5 text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      title={t("common.deleteAll")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!window.confirm(t("common.deleteAllConfirm")))
-                          return;
-                        (async () => {
-                          try {
-                            const payload = {
-                              title: g.title,
-                              recurrence_interval:
-                                g.sample?.recurrence_interval || 1,
-                              recurrence_unit:
+                    {canEdit(user) && (
+                      <button
+                        type="button"
+                        title={t("common.editRoutine")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // open edit modal, prefill form with sample
+                          const sample = g.sample || {};
+                          setRoutineGroupEdited(g);
+                          setRoutineForm({
+                            title: g.title || "",
+                            description: sample.description || "",
+                            todo_type: "rutin",
+                            target_category: sample.target_category || "all",
+                            selected_user_ids: [],
+                            recurrence_start_date:
+                              sample.recurrence_start_date ||
+                              new Date().toISOString().slice(0, 10),
+                            recurrence_interval: sample.recurrence_interval || 1,
+                            recurrence_unit: sample.recurrence_unit || "day",
+                            recurrence_count: sample.recurrence_count ?? 0,
+                            occurrences_per_interval:
+                              sample.occurrences_per_interval || 1,
+                            days_of_week: Array.isArray(sample.days_of_week)
+                              ? sample.days_of_week
+                              : [],
+                          });
+                          setRoutineStrategy("future_only");
+                          setShowEditRoutineModal(true);
+                        }}
+                        className="p-1.5 text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canDelete(user) && (
+                      <button
+                        type="button"
+                        title={t("common.deleteAll")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!window.confirm(t("common.deleteAllConfirm")))
+                            return;
+                          (async () => {
+                            try {
+                              const payload = {
+                                title: g.title,
+                                recurrence_interval:
+                                  g.sample?.recurrence_interval || 1,
+                                recurrence_unit:
                                 g.sample?.recurrence_unit || "day",
                               target_category:
                                 g.sample?.target_category || undefined,
@@ -1085,6 +1091,7 @@ const AdminTodos = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
+                    )}
                     <span className="text-[10px] text-gray-400 hidden sm:inline">
                       {t("todos.expandToView")}
                     </span>
@@ -1627,8 +1634,8 @@ const AdminTodos = () => {
                           <Eye className="h-4 w-4" />
                         </button>
 
-                        {/* Edit - Hide when status is checking */}
-                        {todo.status !== "checking" && (
+                        {/* Edit - Hide when status is checking or super_admin */}
+                        {todo.status !== "checking" && canEdit(user) && (
                           <button
                             onClick={() => handleEdit(todo)}
                             className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors duration-200"
@@ -1638,14 +1645,16 @@ const AdminTodos = () => {
                           </button>
                         )}
 
-                        {/* Delete - Admin can delete all todos */}
-                        <button
-                          onClick={() => handleDelete(todo.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200"
-                          title={t("common.deleteTodo")}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {/* Delete - Only admin_ga and admin_ga_manager can delete */}
+                        {canDelete(user) && (
+                          <button
+                            onClick={() => handleDelete(todo.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-200"
+                            title={t("common.deleteTodo")}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

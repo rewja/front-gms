@@ -20,9 +20,12 @@ import {
 import SkeletonLoader from "../../components/SkeletonLoader";
 import UserExportModal from "../../components/UserExportModal";
 import UserImportModal from "../../components/UserImportModal";
+import { canCreate, canEdit, canDelete } from "../../utils/permissions";
+import { useAuth } from "../../contexts/AuthContext";
 
 const AdminUsers = () => {
   const { t } = useTranslation();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -308,37 +311,41 @@ const AdminUsers = () => {
             <Download className="h-4 w-4 mr-2" />
             {t("users.exportUsers", { defaultValue: "Export Users" })}
           </button>
-          {/* Import Button */}
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="btn-secondary w-full sm:w-auto flex items-center justify-center"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            {t("users.importUsers", { defaultValue: "Import Users" })}
-          </button>
-          {/* Add New User Button */}
-          <button
-            onClick={() => {
-              // Reset all states first
-              setEditingUser(null);
-              setShowPassword(false);
-              setShowRoleDropdown(false);
-              setFormData({
-                name: "",
-                email: "",
-                password: "",
-                role: "user",
-                department: "",
-                position: "",
-              });
-              // Then open modal
-              setShowModal(true);
-            }}
-            className="btn-primary w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {t("users.addNewUser")}
-          </button>
+          {/* Import Button - Only for admin_ga and admin_ga_manager */}
+          {canCreate(currentUser) && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="btn-secondary w-full sm:w-auto flex items-center justify-center"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {t("users.importUsers", { defaultValue: "Import Users" })}
+            </button>
+          )}
+          {/* Add New User Button - Only for admin_ga and admin_ga_manager */}
+          {canCreate(currentUser) && (
+            <button
+              onClick={() => {
+                // Reset all states first
+                setEditingUser(null);
+                setShowPassword(false);
+                setShowRoleDropdown(false);
+                setFormData({
+                  name: "",
+                  email: "",
+                  password: "",
+                  role: "user",
+                  department: "",
+                  position: "",
+                });
+                // Then open modal
+                setShowModal(true);
+              }}
+              className="btn-primary w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {t("users.addNewUser")}
+            </button>
+          )}
         </div>
       </div>
 
@@ -586,19 +593,23 @@ const AdminUsers = () => {
                     >
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => handleEdit(user)}
-                      className="text-accent-600 hover:text-accent-800"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
+                    {canEdit(currentUser) && (
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="text-accent-600 hover:text-accent-800"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => handleDelete(user.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canDelete(currentUser) && (
+                      <button
+                        onClick={() => handleDelete(user.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </li>

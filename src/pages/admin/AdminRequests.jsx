@@ -35,9 +35,12 @@ import {
   DetailField,
   DetailGrid,
 } from "../../components/Modal";
+import { useAuth } from "../../contexts/AuthContext";
+import { canApprove, canEdit, canDelete } from "../../utils/permissions";
 
 const AdminRequests = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1601,9 +1604,9 @@ const AdminRequests = () => {
 
                   {/* Right Actions */}
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
-                    {/* Approve/Reject (only for pending) */}
+                    {/* Approve/Reject (only for pending and admin_ga/admin_ga_manager) */}
                     <div className="flex items-center gap-1 ml-auto justify-end w-full">
-                      {request.status === "pending" && (
+                      {request.status === "pending" && canApprove(user) && (
                         <>
                           <button
                             onClick={() => handleApproveWithModal(request)}
@@ -1681,26 +1684,30 @@ const AdminRequests = () => {
                                 <MessageSquare className="h-4 w-4 text-accent-600" />
                                 <span>{t('common.notes')}</span>
                               </button>
-                              <button
-                                onClick={() => {
-                                  setOpenActionForId(null);
-                                  handleEdit(request);
-                                }}
-                                className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-gray-700"
-                              >
-                                <Pencil className="h-4 w-4 text-gray-700" />
-                                <span>{t('common.edit')}</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setOpenActionForId(null);
-                                  handleDelete(request.id);
-                                }}
-                                className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                                <span>{t('common.delete')}</span>
-                              </button>
+                              {canEdit(user) && (
+                                <button
+                                  onClick={() => {
+                                    setOpenActionForId(null);
+                                    handleEdit(request);
+                                  }}
+                                  className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-gray-700"
+                                >
+                                  <Pencil className="h-4 w-4 text-gray-700" />
+                                  <span>{t('common.edit')}</span>
+                                </button>
+                              )}
+                              {canDelete(user) && (
+                                <button
+                                  onClick={() => {
+                                    setOpenActionForId(null);
+                                    handleDelete(request.id);
+                                  }}
+                                  className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                  <span>{t('common.delete')}</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}

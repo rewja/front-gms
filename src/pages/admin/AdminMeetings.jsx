@@ -25,6 +25,7 @@ import {
 } from '../../components/Modal';
 import MeetingExportModal from '../../components/MeetingExportModal';
 import Pagination from '../../components/Pagination';
+import { canApprove } from '../../utils/permissions';
 
 const AdminMeetings = () => {
   const { t } = useTranslation();
@@ -778,30 +779,20 @@ const AdminMeetings = () => {
                           {t('meetings.detail')}
                         </button>
 
-                        {meeting.ga_check_status === 'pending' && (
+                        {meeting.ga_check_status === 'pending' && canApprove(user, 'admin_ga') && (
                           <button
                             onClick={() => handleCheckMeeting(meeting, 'ga')}
-                            disabled={user?.role !== 'admin_ga' && user?.role !== 'super_admin'}
-                            className={`flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
-                              user?.role !== 'admin_ga' && user?.role !== 'super_admin'
-                                ? 'text-blue-400 bg-blue-50 cursor-not-allowed opacity-50'
-                                : 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                            }`}
+                            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             GA Check
                           </button>
                         )}
 
-                        {meeting.ga_manager_check_status === 'pending' && (
+                        {meeting.ga_manager_check_status === 'pending' && canApprove(user, 'admin_ga_manager') && (
                           <button
                             onClick={() => handleCheckMeeting(meeting, 'ga_manager')}
-                            disabled={user?.role !== 'admin_ga_manager' && user?.role !== 'super_admin'}
-                            className={`flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
-                              user?.role !== 'admin_ga_manager' && user?.role !== 'super_admin'
-                                ? 'text-purple-400 bg-purple-50 cursor-not-allowed opacity-50'
-                                : 'text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500'
-                            }`}
+                            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             GA Manager Check
@@ -809,48 +800,50 @@ const AdminMeetings = () => {
                         )}
                       </div>
 
-                      {/* Secondary Actions */}
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {meeting.status !== 'canceled' && meeting.status !== 'ended' && meeting.status !== 'force_ended' && (
-                          <button
-                            onClick={() => handleCancelMeeting(meeting.id)}
-                            disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
-                            className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
-                              meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'
-                                ? 'text-red-400 bg-red-50 cursor-not-allowed opacity-50'
-                                : 'text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
-                            }`}
-                          >
-                            <AlertCircle className="h-4 w-4 mr-2" />
-                            {t('meetings.cancel', { defaultValue: 'Cancel' })}
-                          </button>
-                        )}
+                      {/* Secondary Actions - Only for admin_ga and admin_ga_manager */}
+                      {canApprove(user) && (
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          {meeting.status !== 'canceled' && meeting.status !== 'ended' && meeting.status !== 'force_ended' && (
+                            <button
+                              onClick={() => handleCancelMeeting(meeting.id)}
+                              disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
+                              className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
+                                meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'
+                                  ? 'text-red-400 bg-red-50 cursor-not-allowed opacity-50'
+                                  : 'text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                              }`}
+                            >
+                              <AlertCircle className="h-4 w-4 mr-2" />
+                              {t('meetings.cancel', { defaultValue: 'Cancel' })}
+                            </button>
+                          )}
 
-                        {meeting.status === 'scheduled' && (
-                          <button
-                            onClick={() => handleForceStart(meeting.id)}
-                            disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
-                            className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
-                              meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'
-                                ? 'text-blue-400 bg-blue-50 cursor-not-allowed opacity-50'
-                                : 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                            }`}
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            {t('meetings.forceStart', { defaultValue: 'Force Start' })}
-                          </button>
-                        )}
+                          {meeting.status === 'scheduled' && (
+                            <button
+                              onClick={() => handleForceStart(meeting.id)}
+                              disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
+                              className={`flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg transition-colors ${
+                                meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'
+                                  ? 'text-blue-400 bg-blue-50 cursor-not-allowed opacity-50'
+                                  : 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                              }`}
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              {t('meetings.forceStart', { defaultValue: 'Force Start' })}
+                            </button>
+                          )}
 
-                        {meeting.status === 'ongoing' && (
-                          <button
-                            onClick={() => handleForceEnd(meeting.id)}
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                          >
-                            <Power className="h-4 w-4 mr-2" />
-                            {t('meetings.forceEnd', { defaultValue: 'Force End' })}
-                          </button>
-                        )}
-                      </div>
+                          {meeting.status === 'ongoing' && (
+                            <button
+                              onClick={() => handleForceEnd(meeting.id)}
+                              className="flex-1 sm:flex-none inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                            >
+                              <Power className="h-4 w-4 mr-2" />
+                              {t('meetings.forceEnd', { defaultValue: 'Force End' })}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

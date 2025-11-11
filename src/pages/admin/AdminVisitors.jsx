@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import SkeletonLoader from "../../components/SkeletonLoader";
+import { canCreate, canEdit, canDelete } from "../../utils/permissions";
 
 const AdminVisitors = () => {
   const { t } = useTranslation();
@@ -672,19 +673,21 @@ const AdminVisitors = () => {
                           </button>
                         )}
 
-                        {/* Delete */}
-                        <button
-                          onClick={() => handleDelete(visitor.id)}
-                          disabled={loadingStates[`delete-${visitor.id}`]}
-                          className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50"
-                          title={t("common.delete", { defaultValue: "Hapus" })}
-                        >
-                          {loadingStates[`delete-${visitor.id}`] ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
+                        {/* Delete - Only for admin_ga and admin_ga_manager */}
+                        {canDelete(user) && (
+                          <button
+                            onClick={() => handleDelete(visitor.id)}
+                            disabled={loadingStates[`delete-${visitor.id}`]}
+                            className="text-red-600 hover:text-red-900 p-1 rounded disabled:opacity-50"
+                            title={t("common.delete", { defaultValue: "Hapus" })}
+                          >
+                            {loadingStates[`delete-${visitor.id}`] ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
