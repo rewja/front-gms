@@ -26,6 +26,7 @@ export const useTranslatedLabels = () => {
       case "ending":
         return t('meetings.ending');
       case "ended":
+      case "force_ended":
         return t('meetings.ended');
       case "canceled":
         return t('meetings.canceled');

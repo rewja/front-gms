@@ -78,6 +78,7 @@ const AdminMeetings = () => {
       case 'ongoing':
         return 'bg-green-100 text-green-800';
       case 'ended':
+      case 'force_ended':
         return 'bg-gray-100 text-gray-800';
       case 'canceled':
         return 'bg-red-100 text-red-800';
@@ -93,6 +94,7 @@ const AdminMeetings = () => {
       case 'ongoing':
         return t('meetings.status.ongoing');
       case 'ended':
+      case 'force_ended':
         return t('meetings.status.ended');
       case 'canceled':
         return t('meetings.status.canceled');
@@ -283,7 +285,7 @@ const AdminMeetings = () => {
     (meeting) => meeting.status === 'scheduled'
   );
   const endedMeetings = dateFilteredMeetings.filter(
-    (meeting) => meeting.status === 'ended'
+    (meeting) => meeting.status === 'ended' || meeting.status === 'force_ended'
   );
   const canceledMeetings = dateFilteredMeetings.filter(
     (meeting) => meeting.status === 'canceled'
@@ -302,10 +304,10 @@ const AdminMeetings = () => {
   useEffect(() => {
     loadData();
     
-    // Auto update status every 30 seconds
+    // Auto update status every 1 minute
     const interval = setInterval(() => {
       updateStatusAutomatically();
-    }, 30000);
+    }, 60000);
     
     return () => clearInterval(interval);
   }, [t, refreshKey]);
@@ -781,7 +783,7 @@ const AdminMeetings = () => {
 
                       {/* Secondary Actions */}
                       <div className="flex flex-col sm:flex-row gap-2">
-                        {meeting.status !== 'canceled' && meeting.status !== 'ended' && (
+                        {meeting.status !== 'canceled' && meeting.status !== 'ended' && meeting.status !== 'force_ended' && (
                           <button
                             onClick={() => handleCancelMeeting(meeting.id)}
                             disabled={meeting.ga_check_status !== 'approved' || meeting.ga_manager_check_status !== 'approved'}
