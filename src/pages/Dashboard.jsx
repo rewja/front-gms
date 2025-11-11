@@ -11,6 +11,8 @@ import {
   TrendingUp,
   Clock,
   AlertCircle,
+  UserCheck,
+  History,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import SimpleChart from "../components/SimpleChart";
@@ -256,13 +258,13 @@ const Dashboard = () => {
       case "manage-meetings":
         navigate("/admin/meetings");
         break;
-      // case "manage-visitors": // Hidden during development
-      //   navigate("/admin/visitors");
-      //   break;
-      case "procurement-requests":
-        navigate("/procurement");
+      case "manage-visitors":
+        navigate("/admin/visitors");
         break;
-      case "procurement-assets":
+      case "history":
+        navigate("/history");
+        break;
+      case "procurement-requests":
         navigate("/procurement");
         break;
       default:
@@ -625,17 +627,13 @@ const Dashboard = () => {
                         </p>
                       </div>
                     </button>
-                  </>
-                )}
-                {user?.role === "procurement" && (
-                  <>
                     <button
-                      onClick={() => handleQuickAction("procurement-requests")}
+                      onClick={() => handleQuickAction("manage-visitors")}
                       className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
                     >
                       <div>
                         <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
-                          <Building className="h-5 w-5" />
+                          <UserCheck className="h-5 w-5" />
                         </span>
                       </div>
                       <div className="mt-4">
@@ -644,85 +642,38 @@ const Dashboard = () => {
                             className="absolute inset-0"
                             aria-hidden="true"
                           />
-                          {t("nav.assetManagement")}
+                          {t("nav.visitors")}
                         </h3>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          {t("assets.subtitle")}
-                        </p>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => handleQuickAction("procurement-assets")}
-                      className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
-                    >
-                      <div>
-                        <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
-                          <Package className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <div className="mt-4">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                          <span
-                            className="absolute inset-0"
-                            aria-hidden="true"
-                          />
-                          {t("procurement.title")}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          {t("procurement.subtitle")}
+                          {t("visitors.subtitle")}
                         </p>
                       </div>
                     </button>
                   </>
                 )}
-                {user?.role === "admin_ga" && (
-                  <>
-                    <button
-                      onClick={() => handleQuickAction("procurement-requests")}
-                      className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
-                    >
-                      <div>
-                        <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
-                          <Building className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <div className="mt-4">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                          <span
-                            className="absolute inset-0"
-                            aria-hidden="true"
-                          />
-                          {t("assets.title")}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          {t("assets.subtitle")}
-                        </p>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => handleQuickAction("procurement-assets")}
-                      className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
-                    >
-                      <div>
-                        <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
-                          <Package className="h-5 w-5" />
-                        </span>
-                      </div>
-                      <div className="mt-4">
-                        <h3 className="text-base font-medium text-gray-900 dark:text-white">
-                          <span
-                            className="absolute inset-0"
-                            aria-hidden="true"
-                          />
-                          {t("procurement.title")}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          {t("procurement.subtitle")}
-                        </p>
-                      </div>
-                    </button>
-                  </>
-                )}
+                {/* Riwayat Aktivitas - Available for all users */}
+                <button
+                  onClick={() => handleQuickAction("history")}
+                  className="relative group bg-gray-50 dark:bg-gray-700 p-6 sm:p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-200 hover:shadow-md cursor-pointer h-full"
+                >
+                  <div>
+                    <span className="rounded-lg inline-flex p-3 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                      <History className="h-5 w-5" />
+                    </span>
+                  </div>
+                  <div className="mt-4">
+                    <h3 className="text-base font-medium text-gray-900 dark:text-white">
+                      <span
+                        className="absolute inset-0"
+                        aria-hidden="true"
+                      />
+                      {t("nav.history")}
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                      {t("activities.description")}
+                    </p>
+                  </div>
+                </button>
               </>
             )}
           </div>
