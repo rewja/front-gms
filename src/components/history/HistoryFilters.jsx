@@ -23,6 +23,14 @@ const HistoryFilters = ({ filters, onFilterChange, isAdmin }) => {
       { value: "login", label: t("activities.actions.login") },
       { value: "logout", label: t("activities.actions.logout") },
       { value: "purchase", label: t("activities.actions.purchase") },
+      // Meeting actions
+      { value: "force_start_meeting", label: t("activities.actions.force_start_meeting") },
+      { value: "force_end_meeting", label: t("activities.actions.force_end_meeting") },
+      { value: "cancel_meeting", label: t("activities.actions.cancel_meeting") },
+      { value: "ga_approve_meeting", label: t("activities.actions.ga_approve_meeting") },
+      { value: "ga_reject_meeting", label: t("activities.actions.ga_reject_meeting") },
+      { value: "ga_manager_approve_meeting", label: t("activities.actions.ga_manager_approve_meeting") },
+      { value: "ga_manager_reject_meeting", label: t("activities.actions.ga_manager_reject_meeting") },
     ],
     [t]
   );

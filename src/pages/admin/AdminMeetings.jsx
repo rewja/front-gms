@@ -15,6 +15,7 @@ import {
   Eye,
   Building,
   Filter,
+  Download,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import SkeletonLoader from '../../components/SkeletonLoader';
@@ -22,6 +23,8 @@ import SkeletonLoader from '../../components/SkeletonLoader';
 import {
   DetailModal,
 } from '../../components/Modal';
+import MeetingExportModal from '../../components/MeetingExportModal';
+import Pagination from '../../components/Pagination';
 
 const AdminMeetings = () => {
   const { t } = useTranslation();
@@ -47,6 +50,10 @@ const AdminMeetings = () => {
   const [checkingMeeting, setCheckingMeeting] = useState(null);
   const [checkType, setCheckType] = useState(''); // 'ga' or 'ga_manager'
   const [checkNotes, setCheckNotes] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedMeetings, setSelectedMeetings] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Track notified meetings to avoid duplicate notifications
   const notifiedMeetingsRef = useRef(new Set());
@@ -267,6 +274,18 @@ const AdminMeetings = () => {
       // Descending order (terbaru di atas)
       return dateB - dateA;
     });
+
+  // Pagination logic
+  const totalItems = filteredMeetings.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * itemsPerPage;
+  const paginatedMeetings = filteredMeetings.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roomFilter, statusFilter, bookingTypeFilter, priorityFilter, dateFilter]);
 
   const getDateFilteredMeetings = (meetings) => {
     return meetings.filter((meeting) => {
@@ -548,13 +567,22 @@ const AdminMeetings = () => {
             <Filter className="h-5 w-5 mr-2" />
             {t('meetings.filterSchedule')}
           </h2>
-          <button
-            onClick={updateStatusAutomatically}
-            className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            Update Status
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {t('meetings.export', { defaultValue: 'Export' })}
+            </button>
+            <button
+              onClick={updateStatusAutomatically}
+              className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Update Status
+            </button>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -656,7 +684,7 @@ const AdminMeetings = () => {
           <div className="px-6 py-4 text-sm text-red-600">{error}</div>
         ) : (
           <div className="space-y-4">
-            {filteredMeetings.map((meeting) => (
+            {paginatedMeetings.map((meeting) => (
               <div key={meeting.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
                 <div className="p-5">
                   {/* Header Section */}
@@ -838,6 +866,21 @@ const AdminMeetings = () => {
         )}
       </div>
 
+      {/* Pagination */}
+      {!loading && !error && filteredMeetings.length > 0 && (
+        <Pagination
+          currentPage={safePage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={(page) => setCurrentPage(page)}
+          onItemsPerPageChange={(newItemsPerPage) => {
+            setItemsPerPage(newItemsPerPage);
+            setCurrentPage(1);
+          }}
+          itemsPerPageOptions={[10, 20, 50, 100]}
+        />
+      )}
+
       {/* Meeting Detail Modal */}
       <DetailModal
         isOpen={showDetailModal}
@@ -1008,6 +1051,17 @@ const AdminMeetings = () => {
           </div>
         </div>
       </DetailModal>
+
+      {/* Export Modal */}
+      <MeetingExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        meetings={filteredMeetings}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+        selectedMeetings={selectedMeetings}
+        user={user}
+      />
     </div>
   );
 };
