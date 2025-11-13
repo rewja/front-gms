@@ -434,7 +434,7 @@ const AdminVisitors = () => {
               onClick={() => {
                 setSearchTerm("");
                 setStatusFilter("all");
-                setPriorityFilter("all");
+                setLocationFilter("all");
                 setDateFilter("today");
               }}
               className="btn-secondary"
